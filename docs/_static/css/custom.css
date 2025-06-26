@@ -1,0 +1,331 @@
+/* Custom CSS for SemantiCore Documentation */
+
+/* Custom color scheme */
+:root {
+    --semanticore-primary: #2980B9;
+    --semanticore-secondary: #27AE60;
+    --semanticore-accent: #8E44AD;
+    --semanticore-warning: #F39C12;
+    --semanticore-danger: #E74C3C;
+    --semanticore-light: #ECF0F1;
+    --semanticore-dark: #2C3E50;
+}
+
+/* Header styling */
+.wy-side-nav-search {
+    background-color: var(--semanticore-primary);
+}
+
+.wy-side-nav-search input[type="text"] {
+    border-color: var(--semanticore-primary);
+}
+
+/* Navigation styling */
+.wy-nav-side {
+    background-color: var(--semanticore-dark);
+}
+
+.wy-menu-vertical a {
+    color: #b3b3b3;
+}
+
+.wy-menu-vertical a:hover {
+    background-color: var(--semanticore-primary);
+    color: white;
+}
+
+.wy-menu-vertical li.current > a {
+    background-color: var(--semanticore-primary);
+    color: white;
+}
+
+/* Content styling */
+.wy-nav-content {
+    background-color: white;
+}
+
+.wy-nav-content-wrap {
+    background-color: white;
+}
+
+/* Code blocks */
+.highlight {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+.highlight pre {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+
+/* Copy button styling */
+.copybutton {
+    background-color: var(--semanticore-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.copybutton:hover {
+    background-color: #1f5f8b;
+}
+
+/* Button styling */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 5px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--semanticore-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #1f5f8b;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background-color: var(--semanticore-secondary);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #1e8449;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-info {
+    background-color: var(--semanticore-accent);
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #6c3483;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-dark {
+    background-color: var(--semanticore-dark);
+    color: white;
+}
+
+.btn-dark:hover {
+    background-color: #1a252f;
+    color: white;
+    text-decoration: none;
+}
+
+/* Alert boxes */
+.alert {
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    background-color: #e8f4fd;
+    border-color: var(--semanticore-primary);
+    color: #0c5460;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: var(--semanticore-secondary);
+    color: #155724;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: var(--semanticore-warning);
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: var(--semanticore-danger);
+    color: #721c24;
+}
+
+/* Table styling */
+.wy-table-responsive table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.wy-table-responsive th {
+    background-color: var(--semanticore-primary);
+    color: white;
+    padding: 12px;
+    text-align: left;
+}
+
+.wy-table-responsive td {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.wy-table-responsive tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.wy-table-responsive tr:hover {
+    background-color: #e9ecef;
+}
+
+/* Admonition styling */
+.admonition {
+    border-radius: 5px;
+    margin: 1rem 0;
+}
+
+.admonition-title {
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 5px 5px 0 0;
+}
+
+.admonition.note {
+    background-color: #e8f4fd;
+    border-left: 4px solid var(--semanticore-primary);
+}
+
+.admonition.note .admonition-title {
+    background-color: var(--semanticore-primary);
+    color: white;
+}
+
+.admonition.warning {
+    background-color: #fff3cd;
+    border-left: 4px solid var(--semanticore-warning);
+}
+
+.admonition.warning .admonition-title {
+    background-color: var(--semanticore-warning);
+    color: white;
+}
+
+.admonition.tip {
+    background-color: #d4edda;
+    border-left: 4px solid var(--semanticore-secondary);
+}
+
+.admonition.tip .admonition-title {
+    background-color: var(--semanticore-secondary);
+    color: white;
+}
+
+/* Code inline styling */
+code {
+    background-color: #f8f9fa;
+    color: var(--semanticore-primary);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* Footer styling */
+.wy-nav-content footer {
+    background-color: var(--semanticore-dark);
+    color: white;
+    padding: 20px 0;
+    margin-top: 40px;
+    text-align: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .wy-nav-side {
+        width: 100%;
+        position: relative;
+    }
+    
+    .wy-nav-content {
+        margin-left: 0;
+    }
+    
+    .btn {
+        display: block;
+        margin: 5px 0;
+        text-align: center;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .wy-nav-content {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    
+    .wy-nav-content-wrap {
+        background-color: #1a1a1a;
+    }
+    
+    .highlight {
+        background-color: #2d2d2d;
+        border-color: #404040;
+    }
+    
+    code {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+    }
+}
+
+/* Animation for interactive elements */
+.btn, .copybutton, .wy-menu-vertical a {
+    transition: all 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--semanticore-primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #1f5f8b;
+}
+
+/* Print styles */
+@media print {
+    .wy-nav-side,
+    .wy-nav-content-wrap .wy-nav-content {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .btn {
+        border: 1px solid black;
+        background: white !important;
+        color: black !important;
+    }
+} 
