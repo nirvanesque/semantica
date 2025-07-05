@@ -11,7 +11,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/semanticore/semanticore?style=for-the-badge)](https://github.com/semanticore/semanticore)
 [![Contributors](https://img.shields.io/github/contributors/semanticore/semanticore?style=for-the-badge)](https://github.com/semanticore/semanticore/graphs/contributors)
 
-**🚀 The Ultimate Open Source Semantic Intelligence Toolkit**
+**🚀 The Ultimate Open Source Toolkit for building Semantic Layers for AI**
 
 *Transform any data format into intelligent, contextual knowledge graphs, embeddings, and semantic structures that power next-generation AI applications, RAG systems, and intelligent agents.*
 
