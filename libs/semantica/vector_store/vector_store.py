@@ -2,20 +2,13 @@
 Vector Store Module
 
 Handles vector storage, indexing, and retrieval operations.
-
-Key Features:
-    - Vector storage and indexing
-    - Similarity search and retrieval
-    - Vector store management
-    - Multi-vector store support
-    - Vector metadata handling
-
-Main Classes:
-    - VectorStore: Main vector store interface
-    - VectorIndexer: Vector indexing engine
-    - VectorRetriever: Vector retrieval engine
-    - VectorManager: Vector store management
 """
+
+from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+
+from ..utils.exceptions import ProcessingError, ValidationError
+from ..utils.logging import get_logger
 
 
 class VectorStore:
@@ -28,240 +21,316 @@ class VectorStore:
     • Manages vector metadata and provenance
     • Supports multiple vector store backends
     • Provides vector store operations
-    
-    Attributes:
-        • indexer: Vector indexing engine
-        • retriever: Vector retrieval engine
-        • manager: Vector store manager
-        • supported_backends: List of supported backends
-        • store_config: Vector store configuration
-        
-    Methods:
-        • store_vectors(): Store vectors in vector store
-        • search_vectors(): Search for similar vectors
-        • update_vectors(): Update existing vectors
-        • delete_vectors(): Delete vectors from store
     """
     
     def __init__(self, backend="faiss", config=None, **kwargs):
-        """
-        Initialize vector store.
+        """Initialize vector store."""
+        self.logger = get_logger("vector_store")
+        self.config = config or {}
+        self.config.update(kwargs)
         
-        • Setup vector store backend
-        • Configure storage parameters
-        • Initialize indexing system
-        • Setup retrieval engine
-        • Configure metadata handling
-        """
-        pass
+        self.backend = backend
+        self.vectors: Dict[str, np.ndarray] = {}
+        self.metadata: Dict[str, Dict[str, Any]] = {}
+        self.dimension = config.get("dimension", 768)
+        
+        # Initialize backend-specific indexer
+        self.indexer = VectorIndexer(backend=backend, dimension=self.dimension, **config)
+        self.retriever = VectorRetriever(backend=backend, **config)
     
-    def store_vectors(self, vectors, metadata=None, **options):
+    def store_vectors(
+        self,
+        vectors: List[np.ndarray],
+        metadata: Optional[List[Dict[str, Any]]] = None,
+        **options
+    ) -> List[str]:
         """
         Store vectors in vector store.
         
-        • Index vectors for efficient retrieval
-        • Store vector metadata
-        • Handle vector updates
-        • Manage storage optimization
-        • Return storage results
+        Args:
+            vectors: List of vector arrays
+            metadata: List of metadata dictionaries
+            **options: Storage options
+            
+        Returns:
+            List of vector IDs
         """
-        pass
+        vector_ids = []
+        metadata = metadata or [{}] * len(vectors)
+        
+        for i, (vector, meta) in enumerate(zip(vectors, metadata)):
+            vector_id = f"vec_{len(self.vectors) + i}"
+            self.vectors[vector_id] = vector
+            self.metadata[vector_id] = meta
+            vector_ids.append(vector_id)
+        
+        # Update index
+        self.indexer.create_index(list(self.vectors.values()), vector_ids)
+        
+        return vector_ids
     
-    def search_vectors(self, query_vector, k=10, **options):
+    def search_vectors(
+        self,
+        query_vector: np.ndarray,
+        k: int = 10,
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors.
         
-        • Perform similarity search
-        • Return top-k similar vectors
-        • Handle search filters
-        • Apply similarity thresholds
-        • Return search results
+        Args:
+            query_vector: Query vector
+            k: Number of results to return
+            **options: Search options
+            
+        Returns:
+            List of search results with scores
         """
-        pass
-    
-    def update_vectors(self, vector_ids, new_vectors, **options):
-        """
-        Update existing vectors in store.
+        if not self.vectors:
+            return []
         
-        • Update vector values
-        • Refresh vector indices
-        • Handle metadata updates
-        • Return update results
-        """
-        pass
-    
-    def delete_vectors(self, vector_ids, **options):
-        """
-        Delete vectors from store.
+        # Use retriever for similarity search
+        results = self.retriever.search_similar(
+            query_vector,
+            list(self.vectors.values()),
+            list(self.vectors.keys()),
+            k=k,
+            **options
+        )
         
-        • Remove vectors from index
-        • Clean up metadata
-        • Optimize storage
-        • Return deletion results
-        """
-        pass
+        return results
+    
+    def update_vectors(
+        self,
+        vector_ids: List[str],
+        new_vectors: List[np.ndarray],
+        **options
+    ) -> bool:
+        """Update existing vectors."""
+        for vec_id, new_vec in zip(vector_ids, new_vectors):
+            if vec_id in self.vectors:
+                self.vectors[vec_id] = new_vec
+        
+        # Rebuild index
+        self.indexer.create_index(list(self.vectors.values()), list(self.vectors.keys()))
+        
+        return True
+    
+    def delete_vectors(self, vector_ids: List[str], **options) -> bool:
+        """Delete vectors from store."""
+        for vec_id in vector_ids:
+            self.vectors.pop(vec_id, None)
+            self.metadata.pop(vec_id, None)
+        
+        # Rebuild index
+        if self.vectors:
+            self.indexer.create_index(list(self.vectors.values()), list(self.vectors.keys()))
+        
+        return True
+    
+    def get_vector(self, vector_id: str) -> Optional[np.ndarray]:
+        """Get vector by ID."""
+        return self.vectors.get(vector_id)
+    
+    def get_metadata(self, vector_id: str) -> Optional[Dict[str, Any]]:
+        """Get metadata for vector."""
+        return self.metadata.get(vector_id)
 
 
 class VectorIndexer:
-    """
-    Vector indexing engine.
+    """Vector indexing engine."""
     
-    • Creates and manages vector indices
-    • Handles index optimization
-    • Manages index updates
-    • Processes index queries
-    """
+    def __init__(self, backend: str = "faiss", dimension: int = 768, **config):
+        """Initialize vector indexer."""
+        self.logger = get_logger("vector_indexer")
+        self.config = config
+        self.backend = backend
+        self.dimension = dimension
+        self.index = None
     
-    def __init__(self, **config):
-        """
-        Initialize vector indexer.
-        
-        • Setup indexing algorithms
-        • Configure index parameters
-        • Initialize optimization tools
-        • Setup update mechanisms
-        """
-        pass
-    
-    def create_index(self, vectors, **options):
+    def create_index(self, vectors: List[np.ndarray], ids: Optional[List[str]] = None, **options) -> Any:
         """
         Create vector index.
         
-        • Build index structure
-        • Optimize for search performance
-        • Handle index parameters
-        • Return index object
+        Args:
+            vectors: List of vectors
+            ids: Vector IDs
+            **options: Indexing options
+            
+        Returns:
+            Index object
         """
-        pass
-    
-    def update_index(self, index, new_vectors, **options):
-        """
-        Update existing index with new vectors.
+        if not vectors:
+            return None
         
-        • Add new vectors to index
-        • Maintain index consistency
-        • Optimize index structure
-        • Return updated index
-        """
-        pass
-    
-    def optimize_index(self, index, **options):
-        """
-        Optimize index for better performance.
+        # Convert to numpy array
+        if isinstance(vectors[0], list):
+            vectors = np.array(vectors)
+        else:
+            vectors = np.vstack(vectors)
         
-        • Analyze index structure
-        • Apply optimization algorithms
-        • Improve search performance
-        • Return optimized index
-        """
-        pass
+        # Simple in-memory index (would use FAISS, etc. in production)
+        self.index = {
+            "vectors": vectors,
+            "ids": ids or list(range(len(vectors)))
+        }
+        
+        return self.index
+    
+    def update_index(self, index: Any, new_vectors: List[np.ndarray], **options) -> Any:
+        """Update existing index."""
+        # Simplified - rebuild index
+        return self.create_index(
+            list(index["vectors"]) + new_vectors,
+            index["ids"] + [f"new_{i}" for i in range(len(new_vectors))]
+        )
+    
+    def optimize_index(self, index: Any, **options) -> Any:
+        """Optimize index for better performance."""
+        # Simplified - return as-is
+        return index
 
 
 class VectorRetriever:
-    """
-    Vector retrieval engine.
+    """Vector retrieval engine."""
     
-    • Performs similarity search
-    • Handles search queries
-    • Manages search results
-    • Processes search filters
-    """
+    def __init__(self, backend: str = "faiss", **config):
+        """Initialize vector retriever."""
+        self.logger = get_logger("vector_retriever")
+        self.config = config
+        self.backend = backend
     
-    def __init__(self, **config):
-        """
-        Initialize vector retriever.
-        
-        • Setup search algorithms
-        • Configure similarity metrics
-        • Initialize result processing
-        • Setup filter handling
-        """
-        pass
-    
-    def search_similar(self, query_vector, index, k=10, **options):
+    def search_similar(
+        self,
+        query_vector: np.ndarray,
+        vectors: List[np.ndarray],
+        ids: List[str],
+        k: int = 10,
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors.
         
-        • Perform similarity search
-        • Apply search filters
-        • Rank search results
-        • Return top-k results
+        Args:
+            query_vector: Query vector
+            vectors: List of vectors to search
+            ids: Vector IDs
+            k: Number of results
+            
+        Returns:
+            List of results with scores
         """
-        pass
-    
-    def search_by_metadata(self, metadata_filters, index, **options):
-        """
-        Search vectors by metadata.
+        if not vectors:
+            return []
         
-        • Apply metadata filters
-        • Retrieve matching vectors
-        • Handle complex queries
-        • Return filtered results
-        """
-        pass
-    
-    def search_hybrid(self, query_vector, metadata_filters, index, **options):
-        """
-        Perform hybrid search combining vector and metadata.
+        # Convert to numpy
+        if isinstance(vectors[0], list):
+            vectors = np.array(vectors)
+        else:
+            vectors = np.vstack(vectors)
         
-        • Combine vector similarity and metadata filters
-        • Apply hybrid ranking
-        • Handle complex queries
-        • Return hybrid results
-        """
-        pass
+        if isinstance(query_vector, list):
+            query_vector = np.array(query_vector)
+        
+        # Calculate cosine similarity
+        query_norm = np.linalg.norm(query_vector)
+        vector_norms = np.linalg.norm(vectors, axis=1)
+        
+        similarities = np.dot(vectors, query_vector) / (vector_norms * query_norm)
+        
+        # Get top k
+        top_indices = np.argsort(similarities)[::-1][:k]
+        
+        results = []
+        for idx in top_indices:
+            results.append({
+                "id": ids[idx],
+                "vector": vectors[idx],
+                "score": float(similarities[idx])
+            })
+        
+        return results
+    
+    def search_by_metadata(
+        self,
+        metadata_filters: Dict[str, Any],
+        vectors: List[np.ndarray],
+        metadata: List[Dict[str, Any]],
+        **options
+    ) -> List[Dict[str, Any]]:
+        """Search vectors by metadata."""
+        results = []
+        
+        for vec, meta in zip(vectors, metadata):
+            match = True
+            for key, value in metadata_filters.items():
+                if key not in meta or meta[key] != value:
+                    match = False
+                    break
+            
+            if match:
+                results.append({"vector": vec, "metadata": meta})
+        
+        return results
+    
+    def search_hybrid(
+        self,
+        query_vector: np.ndarray,
+        metadata_filters: Dict[str, Any],
+        vectors: List[np.ndarray],
+        metadata: List[Dict[str, Any]],
+        **options
+    ) -> List[Dict[str, Any]]:
+        """Perform hybrid search."""
+        # Filter by metadata first
+        filtered = self.search_by_metadata(metadata_filters, vectors, metadata)
+        
+        if not filtered:
+            return []
+        
+        # Then search by similarity
+        filtered_vectors = [r["vector"] for r in filtered]
+        filtered_ids = [i for i in range(len(filtered_vectors))]
+        
+        return self.search_similar(query_vector, filtered_vectors, filtered_ids, **options)
 
 
 class VectorManager:
-    """
-    Vector store management engine.
-    
-    • Manages vector store operations
-    • Handles store configuration
-    • Manages store maintenance
-    • Processes store statistics
-    """
+    """Vector store management engine."""
     
     def __init__(self, **config):
-        """
-        Initialize vector manager.
-        
-        • Setup store management
-        • Configure store operations
-        • Initialize maintenance tools
-        • Setup statistics collection
-        """
-        pass
+        """Initialize vector manager."""
+        self.logger = get_logger("vector_manager")
+        self.config = config
     
-    def manage_store(self, store, **operations):
-        """
-        Manage vector store operations.
+    def manage_store(self, store: VectorStore, **operations: Dict[str, Any]) -> Dict[str, Any]:
+        """Manage vector store operations."""
+        results = {}
         
-        • Perform store operations
-        • Handle store configuration
-        • Manage store state
-        • Return operation results
-        """
-        pass
+        for op_name, op_config in operations.items():
+            if op_name == "optimize":
+                results["optimize"] = self.maintain_store(store)
+            elif op_name == "statistics":
+                results["statistics"] = self.collect_statistics(store)
+        
+        return results
     
-    def maintain_store(self, store, **options):
-        """
-        Maintain vector store health.
+    def maintain_store(self, store: VectorStore, **options: Dict[str, Any]) -> Dict[str, Any]:
+        """Maintain vector store health."""
+        # Check integrity
+        vector_count = len(store.vectors)
+        metadata_count = len(store.metadata)
         
-        • Check store integrity
-        • Optimize store performance
-        • Clean up store resources
-        • Return maintenance results
-        """
-        pass
+        return {
+            "healthy": vector_count == metadata_count,
+            "vector_count": vector_count,
+            "metadata_count": metadata_count
+        }
     
-    def collect_statistics(self, store):
-        """
-        Collect vector store statistics.
-        
-        • Gather store metrics
-        • Calculate performance statistics
-        • Analyze store usage
-        • Return statistics report
-        """
-        pass
+    def collect_statistics(self, store: VectorStore) -> Dict[str, Any]:
+        """Collect vector store statistics."""
+        return {
+            "total_vectors": len(store.vectors),
+            "dimension": store.dimension,
+            "backend": store.backend
+        }
