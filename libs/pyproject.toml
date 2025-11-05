@@ -116,6 +116,11 @@ dev = [
     "ipykernel>=6.15.0",
     "notebook>=6.4.0"
 ]
+viz = [
+    "pyvis>=0.3.0",
+    "graphviz>=0.20.0",
+    "umap-learn>=0.5.0"
+]
 gpu = [
     "torch>=1.12.0+cu116",
     "faiss-gpu>=1.7.0",

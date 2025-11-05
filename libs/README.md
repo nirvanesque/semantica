@@ -835,6 +835,282 @@ print(f"Total entities: {len(graph.entities)}")
 print(f"Total relationships: {len(graph.relationships)}")
 ```
 
+### 9. Visualization Examples
+
+#### Knowledge Graph Visualization
+```python
+from semantica.visualization import KGVisualizer
+
+# Initialize KG visualizer
+kg_viz = KGVisualizer(layout="force", color_scheme="vibrant")
+
+# Visualize network graph
+graph = {
+    "entities": all_entities,
+    "relationships": all_relationships
+}
+
+# Interactive network visualization
+fig = kg_viz.visualize_network(graph, output="interactive")
+fig.show()
+
+# Save to HTML
+kg_viz.visualize_network(graph, output="html", file_path="kg_network.html")
+
+# Visualize with community coloring
+from semantica.kg import CommunityDetector
+community_detector = CommunityDetector()
+communities = community_detector.detect_communities(graph, algorithm="louvain")
+kg_viz.visualize_communities(graph, communities, output="html", file_path="kg_communities.html")
+
+# Visualize with centrality
+from semantica.kg import CentralityCalculator
+centrality_calc = CentralityCalculator()
+centrality = centrality_calc.calculate_all_centrality(graph, centrality_types=["degree"])
+kg_viz.visualize_centrality(graph, centrality, centrality_type="degree", 
+                           output="html", file_path="kg_centrality.html")
+
+# Entity type distribution
+kg_viz.visualize_entity_types(graph, output="html", file_path="entity_types.html")
+
+# Relationship matrix
+kg_viz.visualize_relationship_matrix(graph, output="html", file_path="relationship_matrix.html")
+```
+
+#### Ontology Visualization
+```python
+from semantica.visualization import OntologyVisualizer
+
+# Initialize ontology visualizer
+onto_viz = OntologyVisualizer(color_scheme="default")
+
+# Visualize class hierarchy
+ontology = {
+    "classes": classes,
+    "properties": properties
+}
+
+# Hierarchy tree visualization
+onto_viz.visualize_hierarchy(ontology, output="html", file_path="ontology_hierarchy.html")
+
+# Property graph visualization
+onto_viz.visualize_properties(ontology, output="html", file_path="ontology_properties.html")
+
+# Ontology structure network
+onto_viz.visualize_structure(ontology, output="html", file_path="ontology_structure.html")
+
+# Class-property matrix
+onto_viz.visualize_class_property_matrix(ontology, output="html", file_path="class_property_matrix.html")
+
+# Ontology metrics dashboard
+onto_viz.visualize_metrics(ontology, output="html", file_path="ontology_metrics.html")
+```
+
+#### Embedding Visualization
+```python
+from semantica.visualization import EmbeddingVisualizer
+import numpy as np
+
+# Initialize embedding visualizer
+emb_viz = EmbeddingVisualizer(point_size=8)
+
+# 2D projection using UMAP
+embeddings = np.array([...])  # Your embeddings array
+fig = emb_viz.visualize_2d_projection(
+    embeddings,
+    labels=["Entity 1", "Entity 2", ...],
+    method="umap",
+    output="interactive"
+)
+fig.show()
+
+# 3D projection
+emb_viz.visualize_3d_projection(embeddings, method="pca", 
+                                output="html", file_path="embeddings_3d.html")
+
+# Similarity heatmap
+emb_viz.visualize_similarity_heatmap(embeddings, 
+                                     output="html", file_path="similarity_heatmap.html")
+
+# Clustering visualization
+from sklearn.cluster import KMeans
+kmeans = KMeans(n_clusters=5)
+cluster_labels = kmeans.fit_predict(embeddings)
+emb_viz.visualize_clustering(embeddings, cluster_labels, method="umap",
+                             output="html", file_path="embedding_clusters.html")
+
+# Multi-modal comparison
+text_embeddings = np.array([...])
+image_embeddings = np.array([...])
+emb_viz.visualize_multimodal_comparison(
+    text_embeddings=text_embeddings,
+    image_embeddings=image_embeddings,
+    output="html",
+    file_path="multimodal_comparison.html"
+)
+
+# Quality metrics
+emb_viz.visualize_quality_metrics(embeddings, output="html", file_path="embedding_quality.html")
+```
+
+#### Semantic Network Visualization
+```python
+from semantica.visualization import SemanticNetworkVisualizer
+
+# Initialize semantic network visualizer
+sem_net_viz = SemanticNetworkVisualizer()
+
+# Visualize semantic network
+from semantica.semantic_extract import SemanticNetworkExtractor
+extractor = SemanticNetworkExtractor()
+semantic_network = extractor.extract_network(text)
+
+# Network graph
+sem_net_viz.visualize_network(semantic_network, output="html", file_path="semantic_network.html")
+
+# Node type distribution
+sem_net_viz.visualize_node_types(semantic_network, output="html", file_path="node_types.html")
+
+# Edge type distribution
+sem_net_viz.visualize_edge_types(semantic_network, output="html", file_path="edge_types.html")
+```
+
+#### Quality Metrics Visualization
+```python
+from semantica.visualization import QualityVisualizer
+
+# Initialize quality visualizer
+quality_viz = QualityVisualizer()
+
+# Quality dashboard
+from semantica.kg_qa import KGQualityAssessor
+quality_assessor = KGQualityAssessor()
+quality_report = quality_assessor.generate_quality_report(graph)
+
+quality_viz.visualize_dashboard(quality_report, output="html", file_path="quality_dashboard.html")
+
+# Quality score distribution
+quality_scores = [0.85, 0.92, 0.78, 0.95, ...]  # Your quality scores
+quality_viz.visualize_score_distribution(quality_scores, 
+                                         output="html", file_path="score_distribution.html")
+
+# Quality issues
+quality_viz.visualize_issues(quality_report, output="html", file_path="quality_issues.html")
+
+# Completeness metrics
+from semantica.kg_qa import CompletenessMetrics
+completeness_metrics = CompletenessMetrics()
+completeness_data = completeness_metrics.calculate_entity_completeness(entities, schema)
+quality_viz.visualize_completeness_metrics(completeness_data, 
+                                           output="html", file_path="completeness.html")
+
+# Consistency heatmap
+from semantica.kg_qa import ConsistencyMetrics
+consistency_metrics = ConsistencyMetrics()
+consistency_data = consistency_metrics.calculate_logical_consistency(graph)
+quality_viz.visualize_consistency_heatmap(consistency_data, 
+                                         output="html", file_path="consistency_heatmap.html")
+```
+
+#### Graph Analytics Visualization
+```python
+from semantica.visualization import AnalyticsVisualizer
+
+# Initialize analytics visualizer
+analytics_viz = AnalyticsVisualizer()
+
+# Centrality rankings
+from semantica.kg import CentralityCalculator
+centrality_calc = CentralityCalculator()
+centrality = centrality_calc.calculate_all_centrality(graph, centrality_types=["degree", "betweenness"])
+
+analytics_viz.visualize_centrality_rankings(centrality, centrality_type="degree", top_n=20,
+                                           output="html", file_path="centrality_rankings.html")
+
+# Community structure
+from semantica.kg import CommunityDetector
+community_detector = CommunityDetector()
+communities = community_detector.detect_communities(graph)
+analytics_viz.visualize_community_structure(graph, communities, 
+                                           output="html", file_path="communities.html")
+
+# Connectivity analysis
+from semantica.kg import ConnectivityAnalyzer
+connectivity_analyzer = ConnectivityAnalyzer()
+connectivity = connectivity_analyzer.analyze_connectivity(graph)
+analytics_viz.visualize_connectivity(connectivity, output="html", file_path="connectivity.html")
+
+# Degree distribution
+analytics_viz.visualize_degree_distribution(graph, output="html", file_path="degree_distribution.html")
+
+# Metrics dashboard
+from semantica.kg import GraphAnalyzer
+analyzer = GraphAnalyzer()
+metrics = analyzer.compute_metrics(graph)
+analytics_viz.visualize_metrics_dashboard(metrics, output="html", file_path="metrics_dashboard.html")
+
+# Centrality comparison
+degree_centrality = centrality_calc.calculate_degree_centrality(graph)
+betweenness_centrality = centrality_calc.calculate_betweenness_centrality(graph)
+centrality_results = {
+    "degree": degree_centrality,
+    "betweenness": betweenness_centrality
+}
+analytics_viz.visualize_centrality_comparison(centrality_results, top_n=10,
+                                             output="html", file_path="centrality_comparison.html")
+```
+
+#### Temporal Graph Visualization
+```python
+from semantica.visualization import TemporalVisualizer
+
+# Initialize temporal visualizer
+temporal_viz = TemporalVisualizer()
+
+# Timeline visualization
+temporal_data = {
+    "events": [
+        {"timestamp": "2023-01-15", "type": "entity_added", "entity": "Entity1"},
+        {"timestamp": "2023-02-20", "type": "relationship_added", "entity": "Entity2"},
+    ]
+}
+temporal_viz.visualize_timeline(temporal_data, output="html", file_path="timeline.html")
+
+# Temporal patterns
+from semantica.kg import TemporalPatternDetector
+pattern_detector = TemporalPatternDetector()
+patterns = pattern_detector.detect_patterns(temporal_graph)
+temporal_viz.visualize_temporal_patterns(patterns, output="html", file_path="temporal_patterns.html")
+
+# Snapshot comparison
+from semantica.kg import TemporalVersionManager
+version_manager = TemporalVersionManager()
+snapshots = {
+    "2023-01-01": version_manager.get_snapshot("2023-01-01"),
+    "2023-06-01": version_manager.get_snapshot("2023-06-01"),
+    "2023-12-01": version_manager.get_snapshot("2023-12-01")
+}
+temporal_viz.visualize_snapshot_comparison(snapshots, output="html", file_path="snapshot_comparison.html")
+
+# Version history
+version_history = [
+    {"version": "v1.0", "date": "2023-01-01", "changes": "Initial version"},
+    {"version": "v1.1", "date": "2023-06-01", "changes": "Added new classes"},
+    {"version": "v2.0", "date": "2023-12-01", "changes": "Major refactoring"}
+]
+temporal_viz.visualize_version_history(version_history, output="html", file_path="version_history.html")
+
+# Metrics evolution
+metrics_history = {
+    "num_entities": [100, 150, 200, 250],
+    "num_relationships": [200, 300, 400, 500],
+    "density": [0.1, 0.12, 0.15, 0.18]
+}
+timestamps = ["2023-01-01", "2023-06-01", "2023-09-01", "2023-12-01"]
+temporal_viz.visualize_metrics_evolution(metrics_history, timestamps, 
+                                        output="html", file_path="metrics_evolution.html")
+```
+
 ## 🔧 Configuration
 
 ### Basic Configuration

@@ -46,6 +46,17 @@ from .kg_qa import (
     AutoResolver,
 )
 
+# Visualization
+from .visualization import (
+    KGVisualizer,
+    OntologyVisualizer,
+    EmbeddingVisualizer,
+    SemanticNetworkVisualizer,
+    QualityVisualizer,
+    AnalyticsVisualizer,
+    TemporalVisualizer,
+)
+
 __all__ = [
     # Core
     "Semantica",
@@ -76,5 +87,13 @@ __all__ = [
     "AutomatedFixer",
     "AutoMerger",
     "AutoResolver",
+    # Visualization
+    "KGVisualizer",
+    "OntologyVisualizer",
+    "EmbeddingVisualizer",
+    "SemanticNetworkVisualizer",
+    "QualityVisualizer",
+    "AnalyticsVisualizer",
+    "TemporalVisualizer",
 ]
 
