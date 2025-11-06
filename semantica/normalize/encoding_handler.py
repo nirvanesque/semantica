@@ -1,8 +1,30 @@
 """
-Encoding handling utilities for Semantica framework.
+Encoding Handling Module
 
-This module provides encoding detection, conversion, and handling
-for UTF-8 conversion and BOM handling.
+This module provides comprehensive encoding detection, conversion, and handling
+capabilities for the Semantica framework, enabling robust text processing across
+various character encodings.
+
+Key Features:
+    - Encoding detection (chardet integration)
+    - UTF-8 conversion with fallback support
+    - BOM (Byte Order Mark) removal
+    - File encoding detection and conversion
+    - Encoding validation
+    - Error handling strategies
+
+Main Classes:
+    - EncodingHandler: Encoding detection and conversion coordinator
+
+Example Usage:
+    >>> from semantica.normalize import EncodingHandler
+    >>> handler = EncodingHandler()
+    >>> encoding, confidence = handler.detect(data)
+    >>> utf8_text = handler.convert_to_utf8(data)
+    >>> content = handler.convert_file_to_utf8("input.txt", "output.txt")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import chardet
@@ -14,30 +36,65 @@ from ..utils.logging import get_logger
 
 
 class EncodingHandler:
-    """Encoding handling utilities."""
+    """
+    Encoding detection and conversion coordinator.
+    
+    This class provides comprehensive encoding handling capabilities, including
+    detection, conversion, BOM removal, and validation.
+    
+    Features:
+        - Encoding detection using chardet
+        - UTF-8 conversion with fallback encodings
+        - BOM removal (UTF-8, UTF-16)
+        - File encoding detection and conversion
+        - Encoding validation
+        - Graceful error handling
+    
+    Example Usage:
+        >>> handler = EncodingHandler()
+        >>> encoding, confidence = handler.detect(data)
+        >>> utf8_text = handler.convert_to_utf8(data, source_encoding="latin-1")
+        >>> content = handler.convert_file_to_utf8("input.txt")
+    """
     
     def __init__(self, **config):
         """
         Initialize encoding handler.
         
+        Sets up the handler with default encoding and fallback encodings.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options:
+                - default_encoding: Default encoding (default: "utf-8")
+                - fallback_encodings: List of fallback encodings to try
+                                    (default: ["latin-1", "cp1252", "iso-8859-1"])
         """
         self.logger = get_logger("encoding_handler")
         self.config = config
         self.default_encoding = config.get("default_encoding", "utf-8")
         self.fallback_encodings = config.get("fallback_encodings", ["latin-1", "cp1252", "iso-8859-1"])
+        
+        self.logger.debug(f"Encoding handler initialized (default={self.default_encoding})")
     
-    def detect(self, data: Union[str, bytes], **options) -> Tuple[str, float]:
+    def detect(
+        self,
+        data: Union[str, bytes],
+        **options
+    ) -> Tuple[str, float]:
         """
         Detect encoding of data.
         
+        This method detects the character encoding of input data using chardet.
+        If data is a string, it's first encoded to UTF-8 bytes for detection.
+        
         Args:
-            data: Input data (string or bytes)
-            **options: Detection options
-            
+            data: Input data - can be string or bytes
+            **options: Detection options (unused)
+        
         Returns:
-            tuple: (encoding, confidence)
+            tuple: (encoding_name, confidence_score) where:
+                - encoding_name: Detected encoding name (e.g., "utf-8", "latin-1")
+                - confidence_score: Confidence score between 0.0 and 1.0
         """
         if isinstance(data, str):
             data = data.encode('utf-8')
@@ -57,24 +114,36 @@ class EncodingHandler:
             self.logger.warning(f"Failed to detect encoding: {e}")
             return (self.default_encoding, 0.0)
     
-    def detect_file(self, file_path: Union[str, Path], **options) -> Tuple[str, float]:
+    def detect_file(
+        self,
+        file_path: Union[str, Path],
+        sample_size: int = 10000,
+        **options
+    ) -> Tuple[str, float]:
         """
         Detect encoding of file.
         
+        This method detects the character encoding of a file by reading a sample
+        of bytes and using chardet for detection.
+        
         Args:
-            file_path: Path to file
-            **options: Detection options
-            
+            file_path: Path to file (string or Path object)
+            sample_size: Number of bytes to read for detection (default: 10000)
+            **options: Additional detection options (unused)
+        
         Returns:
-            tuple: (encoding, confidence)
+            tuple: (encoding_name, confidence_score) where:
+                - encoding_name: Detected encoding name
+                - confidence_score: Confidence score between 0.0 and 1.0
+        
+        Raises:
+            ValidationError: If file does not exist
+            ProcessingError: If file reading or detection fails
         """
         file_path = Path(file_path)
         
         if not file_path.exists():
             raise ValidationError(f"File not found: {file_path}")
-        
-        # Read sample bytes for detection
-        sample_size = options.get("sample_size", 10000)
         
         try:
             with open(file_path, 'rb') as f:
@@ -83,19 +152,32 @@ class EncodingHandler:
             return self.detect(sample, **options)
         except Exception as e:
             self.logger.error(f"Failed to detect file encoding: {e}")
-            raise ProcessingError(f"Failed to detect file encoding: {e}")
+            raise ProcessingError(f"Failed to detect file encoding: {e}") from e
     
-    def convert_to_utf8(self, data: Union[str, bytes], source_encoding: Optional[str] = None, **options) -> str:
+    def convert_to_utf8(
+        self,
+        data: Union[str, bytes],
+        source_encoding: Optional[str] = None,
+        **options
+    ) -> str:
         """
         Convert data to UTF-8.
         
+        This method converts input data (string or bytes) to UTF-8 encoding.
+        If source_encoding is not provided, it's auto-detected. Falls back to
+        multiple encodings if initial conversion fails.
+        
         Args:
-            data: Input data
-            source_encoding: Source encoding (auto-detected if None)
-            **options: Conversion options
-            
+            data: Input data - can be string or bytes
+            source_encoding: Source encoding name (optional, auto-detected if None)
+            **options: Additional conversion options (unused)
+        
         Returns:
             str: UTF-8 encoded string
+        
+        Note:
+            Uses 'replace' error handling strategy to handle invalid characters
+            gracefully, replacing them with replacement characters.
         """
         if isinstance(data, str):
             # Already a string, just ensure it's valid UTF-8
@@ -128,13 +210,21 @@ class EncodingHandler:
         """
         Convert file to UTF-8.
         
+        This method reads a file, detects its encoding, converts it to UTF-8,
+        and optionally writes it to an output file.
+        
         Args:
-            file_path: Path to input file
-            output_path: Path to output file (overwrites if None)
-            **options: Conversion options
-            
+            file_path: Path to input file (string or Path object)
+            output_path: Path to output file (optional, if provided, writes
+                        converted content to this file)
+            **options: Additional conversion options (unused)
+        
         Returns:
-            str: Converted content as string
+            str: Converted content as UTF-8 string
+        
+        Raises:
+            ValidationError: If input file does not exist
+            ProcessingError: If file reading or conversion fails
         """
         file_path = Path(file_path)
         
@@ -161,7 +251,7 @@ class EncodingHandler:
             
             if content is None:
                 self.logger.error(f"Failed to read file with any encoding: {e}")
-                raise ProcessingError(f"Failed to read file: {e}")
+                raise ProcessingError(f"Failed to read file: {e}") from e
         
         # Ensure content is UTF-8
         utf8_content = content.encode('utf-8', errors='replace').decode('utf-8')
@@ -180,11 +270,14 @@ class EncodingHandler:
         """
         Remove BOM (Byte Order Mark) from data.
         
+        This method removes BOM markers from the beginning of data, supporting
+        UTF-8, UTF-16 LE, and UTF-16 BE BOMs.
+        
         Args:
-            data: Input data
-            
+            data: Input data - can be string or bytes
+        
         Returns:
-            Data without BOM
+            Union[str, bytes]: Data without BOM (same type as input)
         """
         if isinstance(data, bytes):
             # Remove UTF-8 BOM
@@ -204,18 +297,29 @@ class EncodingHandler:
             else:
                 return data
     
-    def handle_encoding_error(self, data: bytes, **options) -> str:
+    def handle_encoding_error(
+        self,
+        data: bytes,
+        error_strategy: str = "replace",
+        **options
+    ) -> str:
         """
         Handle encoding errors gracefully.
         
+        This method attempts to decode bytes data using detected encoding and
+        fallback encodings, applying the specified error handling strategy.
+        
         Args:
             data: Input bytes data
-            **options: Error handling options
-            
+            error_strategy: Error handling strategy (default: "replace"):
+                - "replace": Replace invalid characters with replacement char
+                - "ignore": Ignore invalid characters
+                - "strict": Raise exception on errors
+            **options: Additional error handling options (unused)
+        
         Returns:
-            str: Decoded string with errors handled
+            str: Decoded string with errors handled according to strategy
         """
-        error_strategy = options.get("error_strategy", "replace")
         
         # Try detected encoding first
         encoding, _ = self.detect(data, **options)
@@ -233,17 +337,25 @@ class EncodingHandler:
             # Final fallback
             return data.decode(self.default_encoding, errors=error_strategy)
     
-    def validate_encoding(self, data: Union[str, bytes], encoding: str, **options) -> bool:
+    def validate_encoding(
+        self,
+        data: Union[str, bytes],
+        encoding: str,
+        **options
+    ) -> bool:
         """
-        Validate that data can be decoded with given encoding.
+        Validate that data can be decoded/encoded with given encoding.
+        
+        This method validates that the data can be successfully decoded (for bytes)
+        or encoded (for strings) using the specified encoding without errors.
         
         Args:
-            data: Input data
-            encoding: Encoding to validate
-            **options: Validation options
-            
+            data: Input data - can be string or bytes
+            encoding: Encoding name to validate (e.g., "utf-8", "latin-1")
+            **options: Additional validation options (unused)
+        
         Returns:
-            bool: True if encoding is valid for data
+            bool: True if encoding is valid for data, False otherwise
         """
         if isinstance(data, str):
             try:

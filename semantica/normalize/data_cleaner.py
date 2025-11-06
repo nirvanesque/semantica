@@ -1,20 +1,32 @@
 """
 Data Cleaning Module
 
-Handles general data cleaning and quality improvement.
+This module provides comprehensive data cleaning and quality improvement
+capabilities for the Semantica framework, enabling detection and resolution
+of data quality issues.
 
 Key Features:
     - Data quality assessment
-    - Duplicate detection and removal
-    - Data validation and correction
-    - Missing value handling
+    - Duplicate detection and removal (fuzzy matching, similarity scoring)
+    - Data validation and correction (schema validation, type checking)
+    - Missing value handling (removal, filling, imputation)
     - Data consistency checking
+    - Batch processing support
 
 Main Classes:
-    - DataCleaner: Main data cleaning class
+    - DataCleaner: Main data cleaning coordinator
     - DuplicateDetector: Duplicate detection engine
     - DataValidator: Data validation engine
     - MissingValueHandler: Missing value processor
+
+Example Usage:
+    >>> from semantica.normalize import DataCleaner
+    >>> cleaner = DataCleaner()
+    >>> cleaned = cleaner.clean_data(dataset, remove_duplicates=True, validate=True)
+    >>> duplicates = cleaner.detect_duplicates(dataset, threshold=0.8)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -27,7 +39,18 @@ from ..utils.logging import get_logger
 
 @dataclass
 class DuplicateGroup:
-    """Duplicate record group."""
+    """
+    Duplicate record group dataclass.
+    
+    This dataclass represents a group of duplicate records identified during
+    duplicate detection, containing the records, similarity score, and canonical
+    record.
+    
+    Attributes:
+        records: List of duplicate record dictionaries
+        similarity_score: Average similarity score for the group (0.0 to 1.0)
+        canonical_record: Canonical/representative record (typically first record)
+    """
     records: List[Dict[str, Any]]
     similarity_score: float
     canonical_record: Optional[Dict[str, Any]] = None
@@ -35,7 +58,17 @@ class DuplicateGroup:
 
 @dataclass
 class ValidationResult:
-    """Data validation result."""
+    """
+    Data validation result dataclass.
+    
+    This dataclass represents the result of data validation, containing
+    validation status, errors, and warnings.
+    
+    Attributes:
+        valid: Whether the data is valid (True if no errors)
+        errors: List of error dictionaries (critical validation failures)
+        warnings: List of warning dictionaries (non-critical issues)
+    """
     valid: bool
     errors: List[Dict[str, Any]] = field(default_factory=list)
     warnings: List[Dict[str, Any]] = field(default_factory=list)
@@ -43,23 +76,37 @@ class ValidationResult:
 
 class DataCleaner:
     """
-    General data cleaning and quality improvement handler.
+    Data cleaning and quality improvement coordinator.
     
-    • Cleans and improves data quality
-    • Detects and removes duplicates
-    • Validates data integrity
-    • Handles missing values
-    • Ensures data consistency
-    • Supports various data types
+    This class provides comprehensive data cleaning capabilities, coordinating
+    duplicate detection, data validation, and missing value handling to
+    improve data quality.
+    
+    Features:
+        - Data quality improvement
+        - Duplicate detection and removal
+        - Data validation against schemas
+        - Missing value handling (multiple strategies)
+        - Data consistency checking
+        - Support for various data types
+    
+    Example Usage:
+        >>> cleaner = DataCleaner()
+        >>> cleaned = cleaner.clean_data(dataset, remove_duplicates=True, validate=True)
+        >>> duplicates = cleaner.detect_duplicates(dataset)
+        >>> validation = cleaner.validate_data(dataset, schema)
     """
     
-    def __init__(self, config=None, **kwargs):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize data cleaner.
         
+        Sets up the cleaner with duplicate detector, data validator, and
+        missing value handler components.
+        
         Args:
-            config: Configuration dictionary
-            **kwargs: Additional configuration options
+            config: Configuration dictionary (optional)
+            **kwargs: Additional configuration options (merged into config)
         """
         self.logger = get_logger("data_cleaner")
         self.config = config or {}
@@ -68,37 +115,52 @@ class DataCleaner:
         self.duplicate_detector = DuplicateDetector(**self.config)
         self.data_validator = DataValidator(**self.config)
         self.missing_value_handler = MissingValueHandler(**self.config)
+        
+        self.logger.debug("Data cleaner initialized")
     
-    def clean_data(self, dataset: List[Dict[str, Any]], **options) -> List[Dict[str, Any]]:
+    def clean_data(
+        self,
+        dataset: List[Dict[str, Any]],
+        remove_duplicates: bool = True,
+        validate: bool = True,
+        handle_missing: bool = True,
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Clean dataset with various cleaning operations.
         
+        This method performs comprehensive data cleaning by applying missing
+        value handling, validation, and duplicate removal in sequence.
+        
         Args:
-            dataset: List of data records
-            **options: Cleaning options:
-                - remove_duplicates: Remove duplicates (default: True)
-                - validate: Validate data (default: True)
-                - handle_missing: Handle missing values (default: True)
+            dataset: List of data record dictionaries
+            remove_duplicates: Whether to remove duplicate records (default: True)
+            validate: Whether to validate data against schema (default: True)
+            handle_missing: Whether to handle missing values (default: True)
+            **options: Additional cleaning options:
+                - missing_strategy: Strategy for missing values ("remove", "fill", "impute")
+                - schema: Validation schema dictionary
+                - duplicate_criteria: Criteria for duplicate detection
         
         Returns:
-            Cleaned dataset
+            list: Cleaned dataset (list of record dictionaries)
         """
         cleaned = list(dataset)
         
         # Handle missing values
-        if options.get("handle_missing", True):
+        if handle_missing:
             strategy = options.get("missing_strategy", "remove")
             cleaned = self.missing_value_handler.handle_missing_values(cleaned, strategy=strategy)
         
         # Validate data
-        if options.get("validate", True):
+        if validate:
             schema = options.get("schema")
             validation = self.data_validator.validate_dataset(cleaned, schema)
             if not validation.valid:
                 self.logger.warning(f"Validation found {len(validation.errors)} errors")
         
         # Remove duplicates
-        if options.get("remove_duplicates", True):
+        if remove_duplicates:
             criteria = options.get("duplicate_criteria", {})
             duplicates = self.detect_duplicates(cleaned, **criteria)
             
@@ -114,83 +176,158 @@ class DataCleaner:
         
         return cleaned
     
-    def detect_duplicates(self, dataset: List[Dict[str, Any]], **criteria) -> List[DuplicateGroup]:
+    def detect_duplicates(
+        self,
+        dataset: List[Dict[str, Any]],
+        threshold: Optional[float] = None,
+        key_fields: Optional[List[str]] = None,
+        **criteria
+    ) -> List[DuplicateGroup]:
         """
         Detect duplicate records in dataset.
         
+        This method identifies duplicate records using similarity matching
+        based on specified criteria and threshold.
+        
         Args:
-            dataset: List of data records
-            **criteria: Duplicate detection criteria
+            dataset: List of data record dictionaries
+            threshold: Similarity threshold for duplicates (0.0 to 1.0, optional,
+                      uses detector's default if not provided)
+            key_fields: List of field names to use for comparison (optional,
+                       uses all common fields if not provided)
+            **criteria: Additional duplicate detection criteria
         
         Returns:
-            List of duplicate groups
+            list: List of DuplicateGroup objects, each containing duplicate
+                  records with similarity scores
         """
-        return self.duplicate_detector.detect_duplicates(dataset, **criteria)
+        return self.duplicate_detector.detect_duplicates(
+            dataset, threshold=threshold, key_fields=key_fields, **criteria
+        )
     
-    def validate_data(self, dataset: List[Dict[str, Any]], schema=None) -> ValidationResult:
+    def validate_data(
+        self,
+        dataset: List[Dict[str, Any]],
+        schema: Optional[Dict[str, Any]] = None
+    ) -> ValidationResult:
         """
         Validate data against schema or rules.
         
+        This method validates all records in the dataset against the provided
+        schema, checking required fields, data types, and constraints.
+        
         Args:
-            dataset: List of data records
-            schema: Validation schema
+            dataset: List of data record dictionaries
+            schema: Validation schema dictionary (optional) containing:
+                - fields: Dictionary mapping field names to field schemas with:
+                    - type: Expected data type
+                    - required: Whether field is required (bool)
         
         Returns:
-            Validation result
+            ValidationResult: Validation result containing:
+                - valid: True if no errors, False otherwise
+                - errors: List of error dictionaries with record_index and field info
+                - warnings: List of warning dictionaries
         """
         return self.data_validator.validate_dataset(dataset, schema)
     
-    def handle_missing_values(self, dataset: List[Dict[str, Any]], **strategy) -> List[Dict[str, Any]]:
+    def handle_missing_values(
+        self,
+        dataset: List[Dict[str, Any]],
+        strategy: str = "remove",
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Handle missing values in dataset.
         
+        This method processes missing values in the dataset using the specified
+        strategy (remove, fill, or impute).
+        
         Args:
-            dataset: List of data records
-            **strategy: Missing value handling strategy
+            dataset: List of data record dictionaries
+            strategy: Handling strategy:
+                - "remove": Remove records with missing values (default)
+                - "fill": Fill missing values with default value
+                - "impute": Impute missing values using statistical methods
+            **options: Additional strategy options:
+                - fill_value: Value to use for filling (for "fill" strategy)
+                - method: Imputation method ("mean", "median", "mode", "zero")
         
         Returns:
-            Processed dataset
+            list: Processed dataset with missing values handled
         """
-        return self.missing_value_handler.handle_missing_values(dataset, **strategy)
+        return self.missing_value_handler.handle_missing_values(dataset, strategy=strategy, **options)
 
 
 class DuplicateDetector:
     """
     Duplicate detection engine.
     
-    • Detects duplicate records
-    • Calculates similarity scores
-    • Handles fuzzy matching
-    • Manages duplicate resolution
+    This class provides duplicate detection capabilities using similarity
+    matching and fuzzy comparison algorithms.
+    
+    Features:
+        - Duplicate record detection
+        - Similarity score calculation
+        - Fuzzy string matching
+        - Duplicate group formation
+        - Duplicate resolution strategies
+    
+    Example Usage:
+        >>> detector = DuplicateDetector(similarity_threshold=0.8)
+        >>> duplicates = detector.detect_duplicates(dataset, threshold=0.85)
+        >>> resolved = detector.resolve_duplicates(duplicates, strategy="merge")
     """
     
     def __init__(self, **config):
         """
         Initialize duplicate detector.
         
+        Sets up the detector with similarity threshold and key fields for
+        comparison.
+        
         Args:
             **config: Configuration options:
-                - similarity_threshold: Minimum similarity for duplicates (default: 0.8)
-                - key_fields: Fields to use for comparison
+                - similarity_threshold: Minimum similarity for duplicates
+                                      (default: 0.8, range: 0.0 to 1.0)
+                - key_fields: List of field names to use for comparison
+                            (optional, uses all common fields if empty)
         """
         self.logger = get_logger("duplicate_detector")
         self.config = config
         self.similarity_threshold = config.get("similarity_threshold", 0.8)
         self.key_fields = config.get("key_fields", [])
+        
+        self.logger.debug(f"Duplicate detector initialized (threshold={self.similarity_threshold})")
     
-    def detect_duplicates(self, dataset: List[Dict[str, Any]], **criteria) -> List[DuplicateGroup]:
+    def detect_duplicates(
+        self,
+        dataset: List[Dict[str, Any]],
+        threshold: Optional[float] = None,
+        key_fields: Optional[List[str]] = None,
+        **criteria
+    ) -> List[DuplicateGroup]:
         """
         Detect duplicates in dataset.
         
+        This method identifies duplicate records by comparing records pairwise
+        using similarity matching. Records with similarity above the threshold
+        are grouped together.
+        
         Args:
-            dataset: List of records
-            **criteria: Detection criteria
+            dataset: List of record dictionaries
+            threshold: Similarity threshold for duplicates (optional, uses
+                      instance threshold if not provided)
+            key_fields: List of field names for comparison (optional, uses
+                       instance key_fields if not provided)
+            **criteria: Additional detection criteria (unused)
         
         Returns:
-            List of duplicate groups
+            list: List of DuplicateGroup objects containing duplicate records
+                  with similarity scores
         """
-        threshold = criteria.get("threshold", self.similarity_threshold)
-        key_fields = criteria.get("key_fields", self.key_fields)
+        threshold = threshold if threshold is not None else self.similarity_threshold
+        key_fields = key_fields if key_fields is not None else self.key_fields
         
         duplicate_groups = []
         processed = set()
@@ -229,19 +366,31 @@ class DuplicateDetector:
         
         return duplicate_groups
     
-    def calculate_similarity(self, record1: Dict[str, Any], record2: Dict[str, Any], **options) -> float:
+    def calculate_similarity(
+        self,
+        record1: Dict[str, Any],
+        record2: Dict[str, Any],
+        key_fields: Optional[List[str]] = None,
+        **options
+    ) -> float:
         """
         Calculate similarity between records.
         
+        This method calculates a similarity score between two records by
+        comparing values in key fields. Uses exact matching for non-string
+        values and string similarity for string values.
+        
         Args:
-            record1: First record
-            record2: Second record
-            **options: Similarity calculation options
+            record1: First record dictionary
+            record2: Second record dictionary
+            key_fields: List of field names to compare (optional, uses
+                       instance key_fields or all common fields)
+            **options: Additional similarity calculation options (unused)
         
         Returns:
-            Similarity score (0.0 to 1.0)
+            float: Similarity score between 0.0 and 1.0 (higher is more similar)
         """
-        key_fields = options.get("key_fields", self.key_fields)
+        key_fields = key_fields if key_fields is not None else self.key_fields
         
         if not key_fields:
             # Use all common fields
@@ -273,7 +422,19 @@ class DuplicateDetector:
         return sum(similarities) / len(similarities) if similarities else 0.0
     
     def _string_similarity(self, s1: str, s2: str) -> float:
-        """Calculate string similarity using simple ratio."""
+        """
+        Calculate string similarity using character overlap.
+        
+        This method calculates similarity between two strings using character
+        set intersection over union (Jaccard-like similarity).
+        
+        Args:
+            s1: First string
+            s2: Second string
+            
+        Returns:
+            float: Similarity score between 0.0 and 1.0
+        """
         if not s1 or not s2:
             return 0.0
         
@@ -296,19 +457,30 @@ class DuplicateDetector:
         
         return intersection / union if union > 0 else 0.0
     
-    def resolve_duplicates(self, duplicate_groups: List[DuplicateGroup], **strategy) -> List[Dict[str, Any]]:
+    def resolve_duplicates(
+        self,
+        duplicate_groups: List[DuplicateGroup],
+        strategy: str = "keep_first",
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Resolve duplicate groups.
         
+        This method resolves duplicate groups by applying a resolution strategy,
+        returning a single record per group.
+        
         Args:
-            duplicate_groups: List of duplicate groups
-            **strategy: Resolution strategy
+            duplicate_groups: List of DuplicateGroup objects
+            strategy: Resolution strategy:
+                - "keep_first": Keep first record in group (default)
+                - "merge": Merge all records into one
+            **options: Additional resolution options (unused)
         
         Returns:
-            List of resolved records
+            list: List of resolved record dictionaries (one per duplicate group)
         """
         resolved = []
-        strategy_type = strategy.get("strategy", "keep_first")
+        strategy_type = strategy
         
         for group in duplicate_groups:
             if strategy_type == "keep_first":
@@ -322,7 +494,18 @@ class DuplicateDetector:
         return resolved
     
     def _merge_records(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Merge multiple records into one."""
+        """
+        Merge multiple records into one.
+        
+        This method merges multiple records by combining their fields, keeping
+        the first non-null value for each field.
+        
+        Args:
+            records: List of record dictionaries to merge
+            
+        Returns:
+            dict: Merged record dictionary
+        """
         merged = {}
         
         for record in records:
@@ -340,32 +523,56 @@ class DataValidator:
     """
     Data validation engine.
     
-    • Validates data integrity
-    • Checks data types and formats
-    • Validates constraints
-    • Handles validation errors
+    This class provides data validation capabilities, checking data integrity,
+    types, formats, and constraints against schemas.
+    
+    Features:
+        - Data integrity validation
+        - Data type checking
+        - Format validation
+        - Constraint validation
+        - Error and warning reporting
+    
+    Example Usage:
+        >>> validator = DataValidator()
+        >>> result = validator.validate_dataset(dataset, schema)
+        >>> if not result.valid:
+        ...     print(f"Errors: {result.errors}")
     """
     
     def __init__(self, **config):
         """
         Initialize data validator.
         
+        Sets up the validator with configuration options.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options (currently unused)
         """
         self.logger = get_logger("data_validator")
         self.config = config
+        
+        self.logger.debug("Data validator initialized")
     
-    def validate_dataset(self, dataset: List[Dict[str, Any]], schema: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate_dataset(
+        self,
+        dataset: List[Dict[str, Any]],
+        schema: Optional[Dict[str, Any]] = None
+    ) -> ValidationResult:
         """
         Validate entire dataset.
         
+        This method validates all records in the dataset against the provided
+        schema, collecting errors and warnings for each record.
+        
         Args:
-            dataset: List of records
-            schema: Validation schema
+            dataset: List of record dictionaries to validate
+            schema: Validation schema dictionary (optional) containing:
+                - fields: Dictionary mapping field names to field schemas
         
         Returns:
-            Validation result
+            ValidationResult: Validation result with errors and warnings
+                            aggregated across all records
         """
         errors = []
         warnings = []
@@ -388,16 +595,26 @@ class DataValidator:
             warnings=warnings
         )
     
-    def validate_record(self, record: Dict[str, Any], schema: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate_record(
+        self,
+        record: Dict[str, Any],
+        schema: Optional[Dict[str, Any]] = None
+    ) -> ValidationResult:
         """
         Validate individual record.
         
+        This method validates a single record against the provided schema,
+        checking required fields and data types.
+        
         Args:
-            record: Record to validate
-            schema: Validation schema
+            record: Record dictionary to validate
+            schema: Validation schema dictionary (optional) containing:
+                - fields: Dictionary mapping field names to field schemas with:
+                    - type: Expected data type (str, int, float, bool, list, dict)
+                    - required: Whether field is required (bool)
         
         Returns:
-            Validation result
+            ValidationResult: Validation result for this record
         """
         errors = []
         warnings = []
@@ -429,16 +646,27 @@ class DataValidator:
             warnings=warnings
         )
     
-    def check_data_types(self, data: Any, expected_types: Union[type, List[type]]) -> bool:
+    def check_data_types(
+        self,
+        data: Any,
+        expected_types: Union[type, List[type], str, List[str]]
+    ) -> bool:
         """
         Check data types against expected types.
         
+        This method validates that data matches one of the expected types.
+        Supports both type objects and type name strings.
+        
         Args:
-            data: Data to check
-            expected_types: Expected type(s)
+            data: Data value to check
+            expected_types: Expected type(s) - can be:
+                - Single type object (e.g., str, int)
+                - List of type objects
+                - Type name string (e.g., "str", "int")
+                - List of type name strings
         
         Returns:
-            True if type matches
+            bool: True if data type matches one of the expected types, False otherwise
         """
         if isinstance(expected_types, type):
             expected_types = [expected_types]
@@ -469,33 +697,54 @@ class MissingValueHandler:
     """
     Missing value processing engine.
     
-    • Identifies missing values
-    • Applies handling strategies
-    • Fills missing data
-    • Removes incomplete records
+    This class provides missing value handling capabilities, including
+    identification, removal, filling, and imputation strategies.
+    
+    Features:
+        - Missing value identification
+        - Multiple handling strategies (remove, fill, impute)
+        - Statistical imputation (mean, median, mode)
+        - Missing value statistics
+    
+    Example Usage:
+        >>> handler = MissingValueHandler()
+        >>> missing_info = handler.identify_missing_values(dataset)
+        >>> processed = handler.handle_missing_values(dataset, strategy="impute", method="mean")
     """
     
     def __init__(self, **config):
         """
         Initialize missing value handler.
         
+        Sets up the handler with configuration and missing value definitions.
+        
         Args:
             **config: Configuration options:
-                - missing_values: List of values considered missing (default: [None, "", "N/A", "null"])
+                - missing_values: List of values considered missing
+                                (default: [None, "", "N/A", "null", "NULL"])
         """
         self.logger = get_logger("missing_value_handler")
         self.config = config
         self.missing_values = config.get("missing_values", [None, "", "N/A", "null", "NULL"])
+        
+        self.logger.debug("Missing value handler initialized")
     
     def identify_missing_values(self, dataset: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Identify missing values in dataset.
         
+        This method analyzes the dataset to identify missing values across
+        all fields, providing counts and percentages.
+        
         Args:
-            dataset: List of records
+            dataset: List of record dictionaries
         
         Returns:
-            Missing value information
+            dict: Missing value information containing:
+                - total_records: Total number of records
+                - missing_counts: Dictionary mapping field names to missing counts
+                - missing_percentages: Dictionary mapping field names to
+                                     missing percentages (0.0 to 100.0)
         """
         missing_info = defaultdict(int)
         total_records = len(dataset)
@@ -524,28 +773,55 @@ class MissingValueHandler:
             }
         }
     
-    def handle_missing_values(self, dataset: List[Dict[str, Any]], strategy: str = "remove") -> List[Dict[str, Any]]:
+    def handle_missing_values(
+        self,
+        dataset: List[Dict[str, Any]],
+        strategy: str = "remove",
+        **options
+    ) -> List[Dict[str, Any]]:
         """
         Handle missing values using specified strategy.
         
+        This method processes missing values in the dataset using the specified
+        strategy: remove records, fill with default values, or impute using
+        statistical methods.
+        
         Args:
-            dataset: List of records
-            strategy: Handling strategy ('remove', 'fill', 'impute')
+            dataset: List of record dictionaries
+            strategy: Handling strategy:
+                - "remove": Remove records with any missing values (default)
+                - "fill": Fill missing values with default value
+                - "impute": Impute missing values using statistical methods
+            **options: Strategy-specific options:
+                - fill_value: Value to use for filling (for "fill" strategy)
+                - method: Imputation method for "impute" strategy
+                         ("mean", "median", "mode", "zero")
         
         Returns:
-            Processed dataset
+            list: Processed dataset with missing values handled
         """
         if strategy == "remove":
             return self._remove_missing(dataset)
         elif strategy == "fill":
-            return self._fill_missing(dataset)
+            return self._fill_missing(dataset, fill_value=options.get("fill_value", ""))
         elif strategy == "impute":
-            return self.impute_values(dataset)
+            return self.impute_values(dataset, method=options.get("method", "mean"))
         else:
             return dataset
     
     def _remove_missing(self, dataset: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Remove records with missing values."""
+        """
+        Remove records with missing values.
+        
+        This method filters out records that contain any missing values
+        (as defined in missing_values list).
+        
+        Args:
+            dataset: List of record dictionaries
+            
+        Returns:
+            list: Dataset with records containing missing values removed
+        """
         return [
             record for record in dataset
             if not any(
@@ -554,8 +830,26 @@ class MissingValueHandler:
             )
         ]
     
-    def _fill_missing(self, dataset: List[Dict[str, Any]], fill_value: Any = "") -> List[Dict[str, Any]]:
-        """Fill missing values with default value."""
+    def _fill_missing(
+        self,
+        dataset: List[Dict[str, Any]],
+        fill_value: Optional[Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fill missing values with default value.
+        
+        This method replaces all missing values in records with the specified
+        fill value.
+        
+        Args:
+            dataset: List of record dictionaries
+            fill_value: Value to use for filling missing values (default: "")
+            
+        Returns:
+            list: Dataset with missing values filled
+        """
+        if fill_value is None:
+            fill_value = ""
         filled = []
         for record in dataset:
             filled_record = {}
@@ -567,16 +861,27 @@ class MissingValueHandler:
             filled.append(filled_record)
         return filled
     
-    def impute_values(self, dataset: List[Dict[str, Any]], method: str = "mean") -> List[Dict[str, Any]]:
+    def impute_values(
+        self,
+        dataset: List[Dict[str, Any]],
+        method: str = "mean"
+    ) -> List[Dict[str, Any]]:
         """
         Impute missing values using specified method.
         
+        This method imputes missing numeric values using statistical methods
+        (mean, median, mode, or zero). Only numeric fields are imputed.
+        
         Args:
-            dataset: List of records
-            method: Imputation method ('mean', 'median', 'mode', 'zero')
+            dataset: List of record dictionaries
+            method: Imputation method:
+                - "mean": Use mean of non-missing values (default)
+                - "median": Use median of non-missing values
+                - "zero": Use zero
+                - "mode": Use mode (most frequent value)
         
         Returns:
-            Imputed dataset
+            list: Dataset with missing numeric values imputed
         """
         if not dataset:
             return dataset

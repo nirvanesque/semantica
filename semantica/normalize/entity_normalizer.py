@@ -1,20 +1,32 @@
 """
 Entity Normalization Module
 
-Handles normalization of named entities and proper nouns.
+This module provides comprehensive entity normalization capabilities for the
+Semantica framework, enabling standardization of named entities and proper nouns
+across various formats and naming conventions.
 
 Key Features:
     - Entity name standardization
     - Alias resolution and mapping
-    - Entity disambiguation
-    - Name variant handling
+    - Entity disambiguation (context-aware)
+    - Name variant handling (titles, honorifics, formats)
     - Entity linking and resolution
+    - Support for multiple entity types (Person, Organization, etc.)
 
 Main Classes:
-    - EntityNormalizer: Main entity normalization class
-    - AliasResolver: Entity alias resolution
-    - EntityDisambiguator: Entity disambiguation
-    - NameVariantHandler: Name variant processing
+    - EntityNormalizer: Main entity normalization coordinator
+    - AliasResolver: Entity alias resolution engine
+    - EntityDisambiguator: Entity disambiguation engine
+    - NameVariantHandler: Name variant processing engine
+
+Example Usage:
+    >>> from semantica.normalize import EntityNormalizer
+    >>> normalizer = EntityNormalizer()
+    >>> normalized = normalizer.normalize_entity("John Doe", entity_type="Person")
+    >>> canonical = normalizer.resolve_aliases("J. Doe")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import re
@@ -26,23 +38,36 @@ from ..utils.logging import get_logger
 
 class EntityNormalizer:
     """
-    Entity normalization and standardization handler.
+    Entity normalization and standardization coordinator.
     
-    • Normalizes entity names and proper nouns
-    • Resolves entity aliases and variants
-    • Handles entity disambiguation
-    • Standardizes entity formats
-    • Links entities to canonical forms
-    • Supports multiple entity types
+    This class provides comprehensive entity normalization capabilities, coordinating
+    alias resolution, disambiguation, and name variant handling.
+    
+    Features:
+        - Entity name normalization and standardization
+        - Alias resolution and mapping
+        - Entity disambiguation using context
+        - Name format standardization
+        - Entity linking to canonical forms
+        - Support for multiple entity types
+    
+    Example Usage:
+        >>> normalizer = EntityNormalizer()
+        >>> normalized = normalizer.normalize_entity("John Doe", entity_type="Person")
+        >>> canonical = normalizer.resolve_aliases("J. Doe")
+        >>> linked = normalizer.link_entities(["John Doe", "J. Doe", "Johnny Doe"])
     """
     
-    def __init__(self, config=None, **kwargs):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize entity normalizer.
         
+        Sets up the normalizer with alias resolver, disambiguator, and variant
+        handler components.
+        
         Args:
-            config: Configuration dictionary
-            **kwargs: Additional configuration options
+            config: Configuration dictionary (optional)
+            **kwargs: Additional configuration options (merged into config)
         """
         self.logger = get_logger("entity_normalizer")
         self.config = config or {}
@@ -51,18 +76,30 @@ class EntityNormalizer:
         self.alias_resolver = AliasResolver(**self.config)
         self.disambiguator = EntityDisambiguator(**self.config)
         self.variant_handler = NameVariantHandler(**self.config)
+        
+        self.logger.debug("Entity normalizer initialized")
     
-    def normalize_entity(self, entity_name: str, entity_type: Optional[str] = None, **options) -> str:
+    def normalize_entity(
+        self,
+        entity_name: str,
+        entity_type: Optional[str] = None,
+        resolve_aliases: bool = True,
+        **options
+    ) -> str:
         """
         Normalize entity name to standard form.
         
+        This method normalizes an entity name by cleaning whitespace, resolving
+        aliases, and standardizing the format based on entity type.
+        
         Args:
             entity_name: Entity name to normalize
-            entity_type: Entity type (optional)
-            **options: Normalization options
+            entity_type: Entity type (optional, e.g., "Person", "Organization")
+            resolve_aliases: Whether to resolve aliases (default: True)
+            **options: Additional normalization options (unused)
         
         Returns:
-            Normalized entity name
+            str: Normalized entity name in standard form
         """
         if not entity_name:
             return ""
@@ -74,7 +111,7 @@ class EntityNormalizer:
         normalized = normalized.title() if entity_type == "Person" else normalized
         
         # Resolve aliases
-        if options.get("resolve_aliases", True):
+        if resolve_aliases:
             resolved = self.alias_resolver.resolve_aliases(normalized, entity_type=entity_type)
             if resolved:
                 normalized = resolved
@@ -84,42 +121,67 @@ class EntityNormalizer:
         
         return normalized
     
-    def resolve_aliases(self, entity_name: str, **context) -> Optional[str]:
+    def resolve_aliases(
+        self,
+        entity_name: str,
+        **context
+    ) -> Optional[str]:
         """
         Resolve entity aliases and variants.
         
+        This method attempts to resolve an entity name to its canonical form
+        using alias mapping.
+        
         Args:
-            entity_name: Entity name
-            **context: Context information
+            entity_name: Entity name to resolve
+            **context: Context information (e.g., entity_type)
         
         Returns:
-            Resolved canonical form or None
+            Optional[str]: Resolved canonical form if found, None otherwise
         """
         return self.alias_resolver.resolve_aliases(entity_name, **context)
     
-    def disambiguate_entity(self, entity_name: str, **context) -> Dict[str, Any]:
+    def disambiguate_entity(
+        self,
+        entity_name: str,
+        **context
+    ) -> Dict[str, Any]:
         """
         Disambiguate entity when multiple candidates exist.
         
+        This method disambiguates an entity name when multiple candidates exist,
+        using context information to select the most likely candidate.
+        
         Args:
-            entity_name: Entity name
-            **context: Context information
+            entity_name: Entity name to disambiguate
+            **context: Context information (e.g., entity_type, context text)
         
         Returns:
-            Disambiguation result
+            dict: Disambiguation result containing:
+                - entity_name: Original entity name
+                - entity_type: Detected entity type
+                - confidence: Confidence score (0.0 to 1.0)
+                - candidates: List of candidate entity names
         """
         return self.disambiguator.disambiguate(entity_name, **context)
     
-    def link_entities(self, entities: List[str], **options) -> Dict[str, str]:
+    def link_entities(
+        self,
+        entities: List[str],
+        **options
+    ) -> Dict[str, str]:
         """
         Link entities to canonical forms.
         
+        This method links a list of entity names to their canonical forms,
+        creating a mapping from original names to normalized names.
+        
         Args:
-            entities: List of entity names
-            **options: Linking options
+            entities: List of entity names to link
+            **options: Linking options (passed to normalize_entity)
         
         Returns:
-            Dictionary mapping entities to canonical forms
+            dict: Dictionary mapping original entity names to canonical forms
         """
         linked = {}
         
@@ -134,33 +196,54 @@ class AliasResolver:
     """
     Entity alias resolution engine.
     
-    • Resolves entity aliases and nicknames
-    • Maps name variations to canonical forms
-    • Handles different naming conventions
-    • Processes cultural and linguistic variations
+    This class provides alias resolution capabilities, mapping entity name
+    variations and aliases to canonical forms.
+    
+    Features:
+        - Entity alias and nickname resolution
+        - Name variation mapping
+        - Support for different naming conventions
+        - Cultural and linguistic variation handling
+    
+    Example Usage:
+        >>> resolver = AliasResolver(alias_map={"j. doe": "John Doe"})
+        >>> canonical = resolver.resolve_aliases("J. Doe")
     """
     
     def __init__(self, **config):
         """
         Initialize alias resolver.
         
+        Sets up the resolver with alias mapping dictionary.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options:
+                - alias_map: Dictionary mapping aliases to canonical forms
         """
         self.logger = get_logger("alias_resolver")
         self.config = config
         self.alias_map = config.get("alias_map", {})
+        
+        self.logger.debug(f"Alias resolver initialized ({len(self.alias_map)} aliases)")
     
-    def resolve_aliases(self, entity_name: str, **context) -> Optional[str]:
+    def resolve_aliases(
+        self,
+        entity_name: str,
+        **context
+    ) -> Optional[str]:
         """
         Resolve entity aliases to canonical form.
         
+        This method looks up an entity name in the alias map and returns
+        its canonical form if found.
+        
         Args:
-            entity_name: Entity name
-            **context: Context information
+            entity_name: Entity name to resolve
+            **context: Context information (e.g., entity_type, currently unused)
         
         Returns:
-            Resolved canonical form or None
+            Optional[str]: Resolved canonical form if found in alias map,
+                          None otherwise
         """
         # Check alias map
         entity_lower = entity_name.lower()
@@ -175,30 +258,46 @@ class AliasResolver:
         
         return None
     
-    def map_variants(self, entity_name: str, entity_type: str) -> str:
+    def map_variants(
+        self,
+        entity_name: str,
+        entity_type: str
+    ) -> str:
         """
         Map entity name variants.
         
+        This method maps entity name variants to a standard form based on
+        entity type. Currently returns the name as-is; can be extended for
+        variant mapping.
+        
         Args:
-            entity_name: Entity name
-            entity_type: Entity type
+            entity_name: Entity name to map
+            entity_type: Entity type (e.g., "Person", "Organization")
         
         Returns:
-            Mapped variant
+            str: Mapped variant (currently returns entity_name as-is)
         """
-        # Simple variant mapping
+        # Simple variant mapping - can be extended
         return entity_name
     
-    def handle_cultural_variations(self, entity_name: str, culture: Optional[str] = None) -> str:
+    def handle_cultural_variations(
+        self,
+        entity_name: str,
+        culture: Optional[str] = None
+    ) -> str:
         """
         Handle cultural and linguistic variations.
         
+        This method handles cultural and linguistic variations in entity names.
+        Currently returns the name as-is; can be extended for cultural
+        normalization.
+        
         Args:
-            entity_name: Entity name
-            culture: Culture identifier
+            entity_name: Entity name to process
+            culture: Culture identifier (optional, e.g., "en-US", "zh-CN")
         
         Returns:
-            Culturally appropriate form
+            str: Culturally appropriate form (currently returns entity_name as-is)
         """
         return entity_name
 
@@ -207,32 +306,59 @@ class EntityDisambiguator:
     """
     Entity disambiguation engine.
     
-    • Disambiguates entities with multiple meanings
-    • Uses contextual information for disambiguation
-    • Applies machine learning models
-    • Handles entity type classification
+    This class provides entity disambiguation capabilities, using context
+    information to resolve ambiguous entity references.
+    
+    Features:
+        - Context-aware entity disambiguation
+        - Entity type classification
+        - Confidence score calculation
+        - Candidate entity generation
+    
+    Example Usage:
+        >>> disambiguator = EntityDisambiguator()
+        >>> result = disambiguator.disambiguate("Apple", context="technology company")
+        >>> entity_type = disambiguator.classify_entity_type("John Doe")
     """
     
     def __init__(self, **config):
         """
         Initialize entity disambiguator.
         
+        Sets up the disambiguator with configuration options.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options (currently unused)
         """
         self.logger = get_logger("entity_disambiguator")
         self.config = config
+        
+        self.logger.debug("Entity disambiguator initialized")
     
-    def disambiguate(self, entity_name: str, **context) -> Dict[str, Any]:
+    def disambiguate(
+        self,
+        entity_name: str,
+        **context
+    ) -> Dict[str, Any]:
         """
         Disambiguate entity using context.
         
+        This method disambiguates an entity name using context information.
+        Currently provides a basic implementation; can be extended with
+        machine learning models for improved disambiguation.
+        
         Args:
-            entity_name: Entity name
-            **context: Context information
+            entity_name: Entity name to disambiguate
+            **context: Context information containing:
+                - entity_type: Entity type (optional)
+                - context: Text context (optional)
         
         Returns:
-            Disambiguation result
+            dict: Disambiguation result containing:
+                - entity_name: Original entity name
+                - entity_type: Detected entity type
+                - confidence: Confidence score (0.0 to 1.0)
+                - candidates: List of candidate entity names
         """
         entity_type = context.get("entity_type")
         text_context = context.get("context", "")
@@ -244,17 +370,30 @@ class EntityDisambiguator:
             "candidates": [entity_name]
         }
     
-    def classify_entity_type(self, entity_name: str, **context) -> str:
+    def classify_entity_type(
+        self,
+        entity_name: str,
+        **context
+    ) -> str:
         """
         Classify entity type for disambiguation.
         
+        This method classifies the entity type using simple heuristics based
+        on name format. Can be extended with more sophisticated classification.
+        
         Args:
-            entity_name: Entity name
-            **context: Context information
+            entity_name: Entity name to classify
+            **context: Context information (currently unused)
         
         Returns:
-            Entity type
+            str: Entity type classification:
+                - "Person": If name starts with uppercase and contains space
+                - "Organization": If name starts with uppercase
+                - "Entity": Otherwise
         """
+        if not entity_name:
+            return "Entity"
+        
         # Simple heuristic-based classification
         if entity_name[0].isupper() and ' ' in entity_name:
             return "Person"
@@ -263,16 +402,25 @@ class EntityDisambiguator:
         else:
             return "Entity"
     
-    def calculate_confidence(self, candidates: List[str], **context) -> Dict[str, float]:
+    def calculate_confidence(
+        self,
+        candidates: List[str],
+        **context
+    ) -> Dict[str, float]:
         """
         Calculate confidence scores for candidates.
         
+        This method calculates confidence scores for candidate entities.
+        Currently returns a default confidence of 0.8 for all candidates;
+        can be extended with more sophisticated scoring.
+        
         Args:
-            candidates: List of candidate entities
-            **context: Context information
+            candidates: List of candidate entity names
+            **context: Context information (currently unused)
         
         Returns:
-            Dictionary of confidence scores
+            dict: Dictionary mapping candidate names to confidence scores
+                 (0.0 to 1.0)
         """
         return {candidate: 0.8 for candidate in candidates}
 
@@ -281,33 +429,54 @@ class NameVariantHandler:
     """
     Name variant processing engine.
     
-    • Handles different name formats and variations
-    • Processes formal and informal names
-    • Manages name order variations
-    • Handles title and honorific processing
+    This class provides name variant handling capabilities, processing different
+    name formats, titles, and honorifics.
+    
+    Features:
+        - Name format normalization (standard, title, lower)
+        - Title and honorific handling
+        - Name variant generation
+        - Format standardization
+    
+    Example Usage:
+        >>> handler = NameVariantHandler()
+        >>> normalized = handler.normalize_name_format("Dr. John Doe", "standard")
+        >>> title_info = handler.handle_titles_and_honorifics("Mr. John Doe")
     """
     
     def __init__(self, **config):
         """
         Initialize name variant handler.
         
+        Sets up the handler with titles dictionary and configuration.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options:
+                - titles: Set of title strings (optional, uses default if not provided)
         """
         self.logger = get_logger("name_variant_handler")
         self.config = config
-        self.titles = {"Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sir", "Madam"}
+        self.titles = config.get("titles", {"Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sir", "Madam"})
+        
+        self.logger.debug(f"Name variant handler initialized ({len(self.titles)} titles)")
     
-    def process_variants(self, entity_name: str, **options) -> List[str]:
+    def process_variants(
+        self,
+        entity_name: str,
+        **options
+    ) -> List[str]:
         """
         Process entity name variants.
         
+        This method generates a list of name variants for an entity, including
+        the original name and normalized forms.
+        
         Args:
-            entity_name: Entity name
-            **options: Processing options
+            entity_name: Entity name to process
+            **options: Processing options (unused)
         
         Returns:
-            List of variants
+            list: List of name variant strings
         """
         variants = [entity_name]
         
@@ -318,16 +487,26 @@ class NameVariantHandler:
         
         return variants
     
-    def normalize_name_format(self, entity_name: str, format_type: str = "standard") -> str:
+    def normalize_name_format(
+        self,
+        entity_name: str,
+        format_type: str = "standard"
+    ) -> str:
         """
         Normalize name format.
         
+        This method normalizes the format of an entity name, removing titles
+        and applying the specified format type.
+        
         Args:
-            entity_name: Entity name
-            format_type: Format type ('standard', 'title', 'lower')
+            entity_name: Entity name to normalize
+            format_type: Format type (default: "standard"):
+                - "standard": Title case for each word part
+                - "title": Title case for entire name
+                - "lower": Lowercase
         
         Returns:
-            Formatted name
+            str: Formatted name with titles removed
         """
         # Remove titles
         name = entity_name
@@ -347,15 +526,23 @@ class NameVariantHandler:
         
         return name
     
-    def handle_titles_and_honorifics(self, entity_name: str) -> Dict[str, Any]:
+    def handle_titles_and_honorifics(
+        self,
+        entity_name: str
+    ) -> Dict[str, Any]:
         """
         Handle titles and honorifics in names.
         
+        This method extracts titles and honorifics from entity names, returning
+        the name without title and the extracted title.
+        
         Args:
-            entity_name: Entity name
+            entity_name: Entity name with potential title
         
         Returns:
-            Dictionary with name and title
+            dict: Dictionary containing:
+                - name: Name without title
+                - title: Extracted title (None if no title found)
         """
         title = None
         name = entity_name

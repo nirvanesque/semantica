@@ -1,9 +1,20 @@
 """
 Data Normalization Module
 
-This module provides comprehensive data normalization and cleaning capabilities.
+This module provides comprehensive data normalization and cleaning capabilities
+for the Semantica framework, enabling standardization and quality improvement
+of various data types.
 
-Exports:
+Key Features:
+    - Text normalization and cleaning (Unicode, whitespace, special characters)
+    - Entity name normalization (aliases, variants, disambiguation)
+    - Date and time normalization (formats, timezones, relative dates)
+    - Number and quantity normalization (formats, units, currency, scientific notation)
+    - Data cleaning (duplicates, validation, missing values)
+    - Language detection (multi-language support)
+    - Encoding handling (detection, conversion, BOM removal)
+
+Main Classes:
     - TextNormalizer: Text cleaning and normalization
     - EntityNormalizer: Entity name normalization
     - DateNormalizer: Date and time normalization
@@ -12,6 +23,16 @@ Exports:
     - TextCleaner: Text cleaning utilities
     - LanguageDetector: Language detection
     - EncodingHandler: Encoding detection and conversion
+
+Example Usage:
+    >>> from semantica.normalize import TextNormalizer, EntityNormalizer
+    >>> text_norm = TextNormalizer()
+    >>> normalized = text_norm.normalize_text("Hello   World")
+    >>> entity_norm = EntityNormalizer()
+    >>> canonical = entity_norm.normalize_entity("John Doe")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from .text_normalizer import (

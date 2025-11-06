@@ -1,20 +1,33 @@
 """
 Number and Quantity Normalization Module
 
-Handles normalization of numbers, quantities, and numerical expressions.
+This module provides comprehensive number and quantity normalization capabilities
+for the Semantica framework, enabling standardization of numerical data across
+various formats and units.
 
 Key Features:
-    - Number format standardization
-    - Unit conversion and normalization
-    - Currency handling
+    - Number format standardization (integers, floats, percentages)
+    - Unit conversion and normalization (length, weight, volume)
+    - Currency handling (symbols, codes, conversion)
     - Percentage processing
     - Scientific notation handling
+    - Quantity parsing and normalization
 
 Main Classes:
-    - NumberNormalizer: Main number normalization class
+    - NumberNormalizer: Main number normalization coordinator
     - UnitConverter: Unit conversion engine
-    - CurrencyNormalizer: Currency processing
+    - CurrencyNormalizer: Currency processing engine
     - ScientificNotationHandler: Scientific notation processor
+
+Example Usage:
+    >>> from semantica.normalize import NumberNormalizer
+    >>> normalizer = NumberNormalizer()
+    >>> number = normalizer.normalize_number("1,234.56")
+    >>> quantity = normalizer.normalize_quantity("5 kg")
+    >>> currency = normalizer.process_currency("$100")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import re
@@ -26,23 +39,37 @@ from ..utils.logging import get_logger
 
 class NumberNormalizer:
     """
-    Number and quantity normalization handler.
+    Number and quantity normalization coordinator.
     
-    • Normalizes numbers to standard formats
-    • Handles various number representations
-    • Processes quantities and units
-    • Manages currency and percentage values
-    • Standardizes numerical expressions
-    • Supports multiple number systems
+    This class provides comprehensive number and quantity normalization
+    capabilities, coordinating unit conversion, currency processing, and
+    scientific notation handling.
+    
+    Features:
+        - Number format standardization
+        - Quantity parsing and normalization
+        - Unit conversion
+        - Currency processing
+        - Percentage handling
+        - Scientific notation support
+    
+    Example Usage:
+        >>> normalizer = NumberNormalizer()
+        >>> number = normalizer.normalize_number("1,234.56")
+        >>> quantity = normalizer.normalize_quantity("5 kg")
+        >>> currency = normalizer.process_currency("$100")
     """
     
-    def __init__(self, config=None, **kwargs):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize number normalizer.
         
+        Sets up the normalizer with unit converter, currency normalizer, and
+        scientific notation handler components.
+        
         Args:
-            config: Configuration dictionary
-            **kwargs: Additional configuration options
+            config: Configuration dictionary (optional)
+            **kwargs: Additional configuration options (merged into config)
         """
         self.logger = get_logger("number_normalizer")
         self.config = config or {}
@@ -51,17 +78,31 @@ class NumberNormalizer:
         self.unit_converter = UnitConverter(**self.config)
         self.currency_normalizer = CurrencyNormalizer(**self.config)
         self.scientific_handler = ScientificNotationHandler(**self.config)
+        
+        self.logger.debug("Number normalizer initialized")
     
-    def normalize_number(self, number_input: Union[str, int, float], **options) -> Union[int, float]:
+    def normalize_number(
+        self,
+        number_input: Union[str, int, float],
+        **options
+    ) -> Union[int, float]:
         """
         Normalize number to standard format.
         
+        This method normalizes number input (string, int, or float) to a
+        standard numeric format, handling percentages and scientific notation.
+        
         Args:
-            number_input: Number input (string, int, or float)
-            **options: Normalization options
+            number_input: Number input - can be:
+                - String (e.g., "1,234.56", "50%", "1.5e3")
+                - int or float
+            **options: Normalization options (unused)
         
         Returns:
-            Normalized number
+            Union[int, float]: Normalized number (int if no decimal, float otherwise)
+        
+        Raises:
+            ValidationError: If number input type is unsupported or parsing fails
         """
         if isinstance(number_input, (int, float)):
             return number_input
@@ -92,16 +133,29 @@ class NumberNormalizer:
         except ValueError:
             raise ValidationError(f"Unable to parse number: {number_input}")
     
-    def normalize_quantity(self, quantity_input: str, **options) -> Dict[str, Any]:
+    def normalize_quantity(
+        self,
+        quantity_input: str,
+        **options
+    ) -> Dict[str, Any]:
         """
         Normalize quantity with units.
         
+        This method parses and normalizes quantity strings containing values
+        and units (e.g., "5 kg", "10 meters").
+        
         Args:
-            quantity_input: Quantity string (e.g., "5 kg", "10 meters")
-            **options: Normalization options
+            quantity_input: Quantity string (e.g., "5 kg", "10 meters", "3.5 liters")
+            **options: Normalization options (unused)
         
         Returns:
-            Normalized quantity dictionary
+            dict: Normalized quantity dictionary containing:
+                - value: Numeric value (float)
+                - unit: Normalized unit name (str)
+                - original: Original quantity string (str)
+        
+        Raises:
+            ValidationError: If quantity format is invalid or parsing fails
         """
         # Parse quantity and unit
         pattern = r'([\d.,\s]+)\s*([a-zA-Z]+)'
@@ -127,51 +181,87 @@ class NumberNormalizer:
         else:
             raise ValidationError(f"Invalid quantity format: {quantity_input}")
     
-    def convert_units(self, value: float, from_unit: str, to_unit: str) -> float:
+    def convert_units(
+        self,
+        value: float,
+        from_unit: str,
+        to_unit: str
+    ) -> float:
         """
         Convert value between units.
         
+        This method converts a numeric value from one unit to another,
+        supporting length, weight, and volume conversions.
+        
         Args:
-            value: Value to convert
-            from_unit: Source unit
-            to_unit: Target unit
+            value: Numeric value to convert
+            from_unit: Source unit (e.g., "kg", "meter", "liter")
+            to_unit: Target unit (e.g., "pound", "mile", "gallon")
         
         Returns:
-            Converted value
+            float: Converted value in target unit
+        
+        Raises:
+            ValidationError: If units are incompatible or conversion fails
         """
         return self.unit_converter.convert_units(value, from_unit, to_unit)
     
-    def process_currency(self, currency_input: str, **options) -> Dict[str, Any]:
+    def process_currency(
+        self,
+        currency_input: str,
+        default_currency: str = "USD",
+        **options
+    ) -> Dict[str, Any]:
         """
         Process currency values.
         
+        This method parses and normalizes currency strings, extracting
+        amount and currency code.
+        
         Args:
-            currency_input: Currency string (e.g., "$100", "100 USD")
-            **options: Processing options
+            currency_input: Currency string (e.g., "$100", "100 USD", "€50")
+            default_currency: Default currency code if not found (default: "USD")
+            **options: Additional processing options (unused)
         
         Returns:
-            Normalized currency dictionary
+            dict: Normalized currency dictionary containing:
+                - amount: Numeric amount (float or None)
+                - currency: Currency code (str, e.g., "USD", "EUR")
+                - original: Original currency string (str)
         """
-        return self.currency_normalizer.normalize_currency(currency_input, **options)
+        return self.currency_normalizer.normalize_currency(
+            currency_input, default_currency=default_currency, **options
+        )
 
 
 class UnitConverter:
     """
     Unit conversion engine.
     
-    • Converts between different units
-    • Handles various unit systems
-    • Manages conversion factors
-    • Processes compound units
-    • Handles unit validation
+    This class provides unit conversion capabilities, supporting length,
+    weight, and volume conversions with validation.
+    
+    Features:
+        - Unit conversion (length, weight, volume)
+        - Conversion factor management
+        - Unit validation
+        - Unit normalization
+        - Support for multiple unit systems
+    
+    Example Usage:
+        >>> converter = UnitConverter()
+        >>> converted = converter.convert_units(100, "kg", "pound")
+        >>> normalized = converter.normalize_unit("km")
     """
     
     def __init__(self, **config):
         """
         Initialize unit converter.
         
+        Sets up the converter with conversion factors and unit categories.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options (currently unused)
         """
         self.logger = get_logger("unit_converter")
         self.config = config
@@ -206,18 +296,31 @@ class UnitConverter:
             "weight": ["kilogram", "gram", "pound", "ounce"],
             "volume": ["liter", "milliliter", "gallon"],
         }
+        
+        self.logger.debug("Unit converter initialized")
     
-    def convert_units(self, value: float, from_unit: str, to_unit: str) -> float:
+    def convert_units(
+        self,
+        value: float,
+        from_unit: str,
+        to_unit: str
+    ) -> float:
         """
         Convert value between units.
         
+        This method converts a numeric value from one unit to another within
+        the same category (length, weight, or volume).
+        
         Args:
-            value: Value to convert
-            from_unit: Source unit
-            to_unit: Target unit
+            value: Numeric value to convert
+            from_unit: Source unit name (e.g., "kg", "meter", "liter")
+            to_unit: Target unit name (e.g., "pound", "mile", "gallon")
         
         Returns:
-            Converted value
+            float: Converted value in target unit
+        
+        Raises:
+            ValidationError: If units are incompatible or not in same category
         """
         from_unit = from_unit.lower()
         to_unit = to_unit.lower()
@@ -236,16 +339,23 @@ class UnitConverter:
         
         return converted_value
     
-    def validate_units(self, from_unit: str, to_unit: str) -> bool:
+    def validate_units(
+        self,
+        from_unit: str,
+        to_unit: str
+    ) -> bool:
         """
         Validate unit conversion compatibility.
         
+        This method validates that two units are compatible for conversion,
+        checking that they exist and are in the same category.
+        
         Args:
-            from_unit: Source unit
-            to_unit: Target unit
+            from_unit: Source unit name
+            to_unit: Target unit name
         
         Returns:
-            True if units are compatible
+            bool: True if units are compatible (same category), False otherwise
         """
         from_unit = from_unit.lower()
         to_unit = to_unit.lower()
@@ -266,16 +376,23 @@ class UnitConverter:
         
         return from_category == to_category
     
-    def get_conversion_factor(self, from_unit: str, to_unit: str) -> float:
+    def get_conversion_factor(
+        self,
+        from_unit: str,
+        to_unit: str
+    ) -> float:
         """
         Get conversion factor between units.
         
+        This method calculates the conversion factor to convert from one unit
+        to another. If to_unit is "base", returns factor to base unit.
+        
         Args:
-            from_unit: Source unit
-            to_unit: Target unit
+            from_unit: Source unit name
+            to_unit: Target unit name or "base" for base unit
         
         Returns:
-            Conversion factor
+            float: Conversion factor (multiply source value by this to get target)
         """
         from_unit = from_unit.lower()
         
@@ -292,11 +409,15 @@ class UnitConverter:
         """
         Normalize unit name to standard form.
         
+        This method normalizes unit abbreviations to full unit names
+        (e.g., "km" -> "kilometer", "kg" -> "kilogram").
+        
         Args:
-            unit: Unit name
+            unit: Unit name or abbreviation (e.g., "km", "kg", "m")
         
         Returns:
-            Normalized unit name
+            str: Normalized unit name (full name if abbreviation found,
+                 original unit otherwise)
         """
         unit_lower = unit.lower()
         
@@ -321,19 +442,30 @@ class CurrencyNormalizer:
     """
     Currency normalization engine.
     
-    • Normalizes currency values and codes
-    • Handles currency conversion
-    • Manages exchange rates
-    • Processes currency symbols
-    • Handles multiple currencies
+    This class provides currency processing capabilities, including symbol
+    and code recognition, amount extraction, and currency validation.
+    
+    Features:
+        - Currency symbol and code recognition
+        - Amount extraction from currency strings
+        - Currency code validation
+        - Support for multiple currencies
+        - Currency conversion (placeholder for exchange rate integration)
+    
+    Example Usage:
+        >>> normalizer = CurrencyNormalizer()
+        >>> result = normalizer.normalize_currency("$100")
+        >>> is_valid = normalizer.validate_currency_code("USD")
     """
     
     def __init__(self, **config):
         """
         Initialize currency normalizer.
         
+        Sets up the normalizer with currency symbols and codes dictionaries.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options (currently unused)
         """
         self.logger = get_logger("currency_normalizer")
         self.config = config
@@ -353,17 +485,31 @@ class CurrencyNormalizer:
         }
         
         self.currency_codes = ["USD", "EUR", "GBP", "JPY", "CNY", "INR", "AUD", "CAD", "CHF", "SEK", "NOK", "DKK"]
+        
+        self.logger.debug("Currency normalizer initialized")
     
-    def normalize_currency(self, currency_input: str, **options) -> Dict[str, Any]:
+    def normalize_currency(
+        self,
+        currency_input: str,
+        default_currency: str = "USD",
+        **options
+    ) -> Dict[str, Any]:
         """
         Normalize currency value and code.
         
+        This method parses currency strings, extracting amount and currency
+        code from symbols or text.
+        
         Args:
-            currency_input: Currency string
-            **options: Normalization options
+            currency_input: Currency string (e.g., "$100", "100 USD", "€50")
+            default_currency: Default currency code if not found (default: "USD")
+            **options: Additional normalization options (unused)
         
         Returns:
-            Normalized currency dictionary
+            dict: Normalized currency dictionary containing:
+                - amount: Numeric amount (float or None if not found)
+                - currency: Currency code (str, e.g., "USD", "EUR")
+                - original: Original currency string (str)
         """
         # Extract currency symbol or code
         currency_code = None
@@ -404,9 +550,9 @@ class CurrencyNormalizer:
             except ValueError:
                 amount = None
         
-        # Default to USD if no currency found
+        # Default to specified currency if no currency found
         if not currency_code:
-            currency_code = options.get("default_currency", "USD")
+            currency_code = default_currency
         
         return {
             "amount": amount,
@@ -414,19 +560,31 @@ class CurrencyNormalizer:
             "original": currency_input
         }
     
-    def convert_currency(self, amount: float, from_currency: str, to_currency: str) -> float:
+    def convert_currency(
+        self,
+        amount: float,
+        from_currency: str,
+        to_currency: str
+    ) -> float:
         """
         Convert currency between different currencies.
         
+        This method converts an amount from one currency to another.
+        Currently a placeholder; requires exchange rate API integration
+        for production use.
+        
         Args:
             amount: Amount to convert
-            from_currency: Source currency
-            to_currency: Target currency
+            from_currency: Source currency code (e.g., "USD")
+            to_currency: Target currency code (e.g., "EUR")
         
         Returns:
-            Converted amount
+            float: Converted amount (currently returns original amount)
+        
+        Note:
+            This is a placeholder implementation. In production, you would
+            integrate with an exchange rate API to fetch current rates.
         """
-        # Note: This is a placeholder. In production, you'd fetch exchange rates
         self.logger.warning("Currency conversion requires exchange rate API")
         return amount
     
@@ -434,11 +592,14 @@ class CurrencyNormalizer:
         """
         Validate currency code.
         
+        This method validates that a currency code is in the supported
+        list of currency codes.
+        
         Args:
-            currency_code: Currency code to validate
+            currency_code: Currency code to validate (e.g., "USD", "EUR")
         
         Returns:
-            True if valid
+            bool: True if currency code is valid, False otherwise
         """
         return currency_code.upper() in self.currency_codes
 
@@ -447,63 +608,96 @@ class ScientificNotationHandler:
     """
     Scientific notation processing engine.
     
-    • Handles scientific notation numbers
-    • Processes exponential formats
-    • Manages precision and significant digits
-    • Converts between formats
+    This class provides scientific notation handling capabilities, including
+    parsing, conversion, and precision normalization.
+    
+    Features:
+        - Scientific notation parsing
+        - Format conversion
+        - Precision normalization
+        - Significant digit handling
+    
+    Example Usage:
+        >>> handler = ScientificNotationHandler()
+        >>> number = handler.parse_scientific_notation("1.5e3")
+        >>> notation = handler.convert_to_scientific(1500, precision=2)
     """
     
     def __init__(self, **config):
         """
         Initialize scientific notation handler.
         
+        Sets up the handler with configuration options.
+        
         Args:
-            **config: Configuration options
+            **config: Configuration options (currently unused)
         """
         self.logger = get_logger("scientific_notation_handler")
         self.config = config
+        
+        self.logger.debug("Scientific notation handler initialized")
     
     def parse_scientific_notation(self, number_string: str) -> float:
         """
         Parse scientific notation number.
         
+        This method parses a scientific notation string (e.g., "1.5e3", "2E-4")
+        and returns the numeric value.
+        
         Args:
-            number_string: Scientific notation string
+            number_string: Scientific notation string (e.g., "1.5e3", "2E-4")
         
         Returns:
-            Parsed number as float
+            float: Parsed numeric value
+        
+        Raises:
+            ValidationError: If string is not valid scientific notation
         """
         try:
             return float(number_string)
-        except ValueError:
-            raise ValidationError(f"Invalid scientific notation: {number_string}")
+        except ValueError as e:
+            raise ValidationError(f"Invalid scientific notation: {number_string}") from e
     
-    def convert_to_scientific(self, number: float, precision: Optional[int] = None) -> str:
+    def convert_to_scientific(
+        self,
+        number: float,
+        precision: Optional[int] = None
+    ) -> str:
         """
         Convert number to scientific notation.
         
+        This method converts a numeric value to scientific notation string
+        format (e.g., "1.5e+03").
+        
         Args:
-            number: Number to convert
-            precision: Precision (number of decimal places)
+            number: Numeric value to convert
+            precision: Number of decimal places (optional, uses default if None)
         
         Returns:
-            Scientific notation string
+            str: Scientific notation string (e.g., "1.5e+03", "2.0e-04")
         """
         if precision is not None:
             return f"{number:.{precision}e}"
         else:
             return f"{number:e}"
     
-    def normalize_precision(self, number: float, significant_digits: int) -> float:
+    def normalize_precision(
+        self,
+        number: float,
+        significant_digits: int
+    ) -> float:
         """
         Normalize number precision.
         
+        This method normalizes a number to a specified number of significant
+        digits, preserving the order of magnitude.
+        
         Args:
-            number: Number to normalize
-            significant_digits: Number of significant digits
+            number: Numeric value to normalize
+            significant_digits: Number of significant digits to preserve
         
         Returns:
-            Normalized number
+            float: Normalized number with specified significant digits
         """
         if number == 0:
             return 0.0
