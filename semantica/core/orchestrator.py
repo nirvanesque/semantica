@@ -4,15 +4,24 @@ Main Orchestrator Module
 The Semantica orchestrator coordinates all framework components and manages
 the overall execution flow.
 
-Key Responsibilities:
-    - Initialize and coordinate all modules
-    - Manage pipeline execution
-    - Handle resource allocation
-    - Coordinate plugin loading
-    - Manage system lifecycle
+This module provides the main entry point for the Semantica framework, handling:
+- Framework initialization and lifecycle management
+- Knowledge base construction from various data sources
+- Pipeline execution and resource management
+- Plugin system coordination
+- System health monitoring
 
-Main Classes:
-    - Semantica: Main framework class
+Example Usage:
+    >>> from semantica import Semantica
+    >>> framework = Semantica()
+    >>> result = framework.build_knowledge_base(
+    ...     sources=["doc1.pdf", "doc2.docx"],
+    ...     embeddings=True,
+    ...     graph=True
+    ... )
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -76,6 +85,7 @@ class Semantica:
         
         # Module placeholders (to be initialized)
         self._modules: Dict[str, Any] = {}
+        self._initialized: bool = False
         
         self.logger.info("Semantica framework initialized")
     
@@ -118,11 +128,17 @@ class Semantica:
                     extra={"health_summary": health_summary}
                 )
             
+            self._initialized = True
             self.logger.info("Semantica framework initialization completed")
             
         except Exception as e:
             self.logger.error(f"Initialization failed: {e}")
             raise
+    
+    def _ensure_initialized(self) -> None:
+        """Ensure framework is initialized (lazy initialization)."""
+        if not self._initialized:
+            self.initialize()
     
     @log_execution_time
     def build_knowledge_base(self, sources: List[Union[str, Path]], **kwargs) -> Dict[str, Any]:
@@ -150,6 +166,9 @@ class Semantica:
         Raises:
             ProcessingError: If processing fails
         """
+        # Auto-initialize if not already initialized
+        self._ensure_initialized()
+        
         try:
             self.logger.info(f"Building knowledge base from {len(sources)} sources")
             
@@ -317,119 +336,376 @@ class Semantica:
         self.logger.info("Semantica framework shutdown completed")
     
     def _register_startup_hooks(self) -> None:
-        """Register framework startup hooks."""
-        # Register config validation hook
+        """
+        Register framework startup hooks.
+        
+        This method registers all framework-level startup hooks that execute
+        during initialization. Hooks are registered with specific priorities
+        to ensure correct execution order.
+        
+        Registered Hooks:
+            - Config validation (priority 10): Validates configuration before other operations
+            - Module initialization (priority 30): Initializes framework modules
+        """
+        # Register config validation hook (high priority - runs first)
         def validate_config_hook():
+            """Validate configuration during startup."""
             self.config.validate()
         
         self.lifecycle_manager.register_startup_hook(validate_config_hook, priority=10)
         
-        # Register module initialization hook
+        # Register module initialization hook (lower priority - runs after validation)
         def initialize_modules_hook():
+            """Initialize framework modules during startup."""
             self._initialize_modules()
         
         self.lifecycle_manager.register_startup_hook(initialize_modules_hook, priority=30)
     
     def _initialize_modules(self) -> None:
-        """Initialize framework modules."""
-        # Initialize core modules if needed
-        # This is called during startup to ensure all modules are ready
+        """
+        Initialize framework modules.
+        
+        This method attempts to import and verify availability of key framework
+        modules. It's called during startup to ensure modules are ready for use.
+        Import failures are logged but don't stop initialization (modules may be optional).
+        
+        Modules Checked:
+            - GraphBuilder: Knowledge graph construction
+            - PipelineBuilder: Processing pipeline creation
+            - FileIngestor: File ingestion capabilities
+            - DocumentParser: Document parsing capabilities
+        """
         try:
-            # Import and initialize key modules to ensure they're available
+            # Import key modules to verify they're available
+            # These imports don't create instances, just verify module availability
             from ..kg import GraphBuilder
             from ..pipeline import PipelineBuilder
             from ..ingest import FileIngestor
             from ..parse import DocumentParser
             
-            # Log initialization
-            if hasattr(self, 'logger'):
-                self.logger.debug("Framework modules initialized")
+            self.logger.debug("Framework modules verified and available")
         except ImportError as e:
-            # Log but don't fail - modules may be optional
-            if hasattr(self, 'logger'):
-                self.logger.warning(f"Some modules could not be imported: {e}")
+            # Log but don't fail - modules may be optional or not installed
+            self.logger.warning(
+                f"Some framework modules could not be imported: {e}. "
+                "They may be optional or not installed."
+            )
     
     def _load_plugins(self) -> None:
-        """Load configured plugins."""
+        """
+        Load configured plugins from configuration.
+        
+        This method reads the plugin configuration from the framework config
+        and loads each plugin using the plugin registry. Plugin loading failures
+        are logged but don't stop the initialization process.
+        
+        Configuration Format:
+            plugins:
+                plugin_name:
+                    config_key: config_value
+                    ...
+        """
         plugins_config = self.config.get("plugins", {})
+        
+        if not plugins_config:
+            self.logger.debug("No plugins configured")
+            return
+        
+        self.logger.info(f"Loading {len(plugins_config)} configured plugin(s)")
         
         for plugin_name, plugin_config in plugins_config.items():
             try:
+                # Load plugin with its configuration
                 self.plugin_registry.load_plugin(plugin_name, **plugin_config)
-                self.logger.info(f"Loaded plugin: {plugin_name}")
+                self.logger.info(f"Successfully loaded plugin: {plugin_name}")
             except Exception as e:
-                self.logger.error(f"Failed to load plugin {plugin_name}: {e}")
+                # Log error but continue loading other plugins
+                self.logger.error(
+                    f"Failed to load plugin '{plugin_name}': {e}. "
+                    "Continuing with other plugins."
+                )
     
     def _validate_sources(self, sources: List[Union[str, Path]]) -> List[Union[str, Path]]:
-        """Validate data sources."""
-        validated = []
+        """
+        Validate and filter data sources.
+        
+        This method checks if sources exist (for file paths) or are valid URLs.
+        Invalid sources are logged as warnings but don't stop processing.
+        
+        Args:
+            sources: List of source paths or URLs to validate
+            
+        Returns:
+            List of validated sources
+            
+        Raises:
+            ProcessingError: If no valid sources are found
+        """
+        validated_sources = []
         
         for source in sources:
+            # Convert string to Path for easier handling
             source_path = Path(source) if isinstance(source, str) else source
             
-            # Check if source exists (if it's a file path)
-            if source_path.exists() or str(source).startswith(("http://", "https://")):
-                validated.append(source)
+            # Check if source is valid:
+            # 1. File path exists on filesystem
+            # 2. URL starts with http:// or https://
+            is_valid_file = source_path.exists()
+            is_valid_url = isinstance(source, str) and source.startswith(("http://", "https://"))
+            
+            if is_valid_file or is_valid_url:
+                validated_sources.append(source)
             else:
-                self.logger.warning(f"Source not found or invalid: {source}")
+                self.logger.warning(
+                    f"Source not found or invalid: {source}. "
+                    "Skipping this source."
+                )
         
-        if not validated:
-            raise ProcessingError("No valid sources provided")
+        # Ensure we have at least one valid source
+        if not validated_sources:
+            error_msg = (
+                f"No valid sources provided. "
+                f"Checked {len(sources)} source(s), all were invalid."
+            )
+            raise ProcessingError(error_msg)
         
-        return validated
+        return validated_sources
     
     def _create_pipeline(self, pipeline_config: Dict[str, Any]) -> Any:
-        """Create processing pipeline from configuration."""
-        # Pipeline creation will be implemented in pipeline module
-        # For now, return config as placeholder
-        return pipeline_config
+        """
+        Create processing pipeline from configuration.
+        
+        This method creates a pipeline instance from the provided configuration.
+        The actual pipeline creation is delegated to the pipeline module.
+        
+        Args:
+            pipeline_config: Pipeline configuration dictionary
+            
+        Returns:
+            Pipeline object or configuration dict (if pipeline module not available)
+        """
+        try:
+            # Try to use PipelineBuilder if available
+            from ..pipeline import PipelineBuilder
+            pipeline_builder = PipelineBuilder()
+            return pipeline_builder.build_from_config(pipeline_config)
+        except ImportError:
+            # Fallback: return config as-is if pipeline module not available
+            self.logger.debug("Pipeline module not available, using config directly")
+            return pipeline_config
     
     def _create_pipeline_from_dict(self, pipeline_dict: Dict[str, Any]) -> Any:
-        """Create pipeline object from dictionary."""
-        # This will be implemented when pipeline module is available
-        return pipeline_dict
+        """
+        Create pipeline object from dictionary configuration.
+        
+        Args:
+            pipeline_dict: Dictionary containing pipeline configuration
+            
+        Returns:
+            Pipeline object or dict if pipeline module not available
+        """
+        return self._create_pipeline(pipeline_dict)
     
     def _build_knowledge_graph(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Build knowledge graph from processing results."""
-        # Knowledge graph building will be implemented in kg module
-        return {"status": "placeholder", "results": results}
+        """
+        Build knowledge graph from processing results.
+        
+        This method extracts entities and relationships from processing results
+        and constructs a knowledge graph structure.
+        
+        Args:
+            results: List of processing results containing entities and relationships
+            
+        Returns:
+            Dictionary containing knowledge graph structure
+        """
+        try:
+            from ..kg import GraphBuilder
+            
+            # Extract entities and relationships from results
+            graph_sources = []
+            for result in results:
+                if isinstance(result, dict):
+                    source_data = {}
+                    if "entities" in result:
+                        source_data["entities"] = result["entities"]
+                    if "relationships" in result:
+                        source_data["relationships"] = result["relationships"]
+                    if source_data:
+                        graph_sources.append(source_data)
+            
+            if not graph_sources:
+                self.logger.warning("No entities or relationships found in results")
+                return {"entities": [], "relationships": [], "metadata": {}}
+            
+            # Build knowledge graph
+            graph_builder = GraphBuilder(merge_entities=True, resolve_conflicts=True)
+            knowledge_graph = graph_builder.build(graph_sources)
+            
+            return knowledge_graph
+            
+        except ImportError:
+            self.logger.warning("KG module not available, returning placeholder")
+            return {"status": "placeholder", "results": results}
     
     def _generate_embeddings(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate embeddings from processing results."""
-        # Embedding generation will be implemented in embeddings module
-        return {"status": "placeholder", "results": results}
+        """
+        Generate embeddings from processing results.
+        
+        This method extracts text content from processing results and generates
+        embeddings using the embeddings module.
+        
+        Args:
+            results: List of processing results containing text content
+            
+        Returns:
+            Dictionary containing generated embeddings
+        """
+        try:
+            from ..embeddings import EmbeddingGenerator
+            
+            # Extract text content from results
+            texts_to_embed = []
+            for result in results:
+                if isinstance(result, dict):
+                    # Try to find text content in various possible keys
+                    text = (
+                        result.get("text") or
+                        result.get("content") or
+                        result.get("output", {}).get("text") if isinstance(result.get("output"), dict) else None
+                    )
+                    if text:
+                        texts_to_embed.append(text)
+            
+            if not texts_to_embed:
+                self.logger.warning("No text content found in results for embedding")
+                return {"embeddings": [], "metadata": {}}
+            
+            # Generate embeddings
+            embedding_generator = EmbeddingGenerator()
+            embeddings_result = embedding_generator.process_batch(texts_to_embed)
+            
+            return {
+                "embeddings": embeddings_result["embeddings"],
+                "metadata": {
+                    "total_texts": len(texts_to_embed),
+                    "successful": embeddings_result["success_count"],
+                    "failed": embeddings_result["failure_count"]
+                }
+            }
+            
+        except ImportError:
+            self.logger.warning("Embeddings module not available, returning placeholder")
+            return {"status": "placeholder", "results": results}
     
     def _allocate_resources(self, pipeline: Any) -> Dict[str, Any]:
-        """Allocate resources for pipeline execution."""
-        # Resource allocation logic
-        return {"allocated": True}
+        """
+        Allocate resources for pipeline execution.
+        
+        This method prepares and allocates necessary resources (connections,
+        memory, etc.) for pipeline execution. Currently returns a placeholder
+        but can be extended for actual resource management.
+        
+        Args:
+            pipeline: Pipeline object that will be executed
+            
+        Returns:
+            Dictionary containing resource allocation information:
+                - allocated: Whether resources were successfully allocated
+                - resources: List of allocated resource references (optional)
+        """
+        # Placeholder for resource allocation logic
+        # Can be extended to allocate database connections, file handles, etc.
+        return {
+            "allocated": True,
+            "resources": []
+        }
     
     def _release_resources(self, resources: Dict[str, Any]) -> None:
-        """Release allocated resources."""
+        """
+        Release allocated resources safely.
+        
+        This method ensures all resources (connections, files, etc.) are properly
+        closed and cleaned up, even if errors occur during cleanup.
+        
+        Args:
+            resources: Dictionary containing resource references to release
+        """
         if not resources:
             return
         
-        # Release any allocated resources
-        if "connections" in resources:
-            for conn in resources.get("connections", []):
-                try:
-                    if hasattr(conn, "close"):
-                        conn.close()
-                except Exception:
-                    pass
+        # Release database/network connections
+        connections = resources.get("connections", [])
+        for connection in connections:
+            try:
+                if hasattr(connection, "close"):
+                    connection.close()
+                    self.logger.debug("Closed connection resource")
+            except Exception as e:
+                self.logger.warning(f"Error closing connection: {e}")
         
-        if "files" in resources:
-            for file_obj in resources.get("files", []):
-                try:
-                    if hasattr(file_obj, "close"):
-                        file_obj.close()
-                except Exception:
-                    pass
+        # Release file handles
+        file_handles = resources.get("files", [])
+        for file_handle in file_handles:
+            try:
+                if hasattr(file_handle, "close"):
+                    file_handle.close()
+                    self.logger.debug("Closed file resource")
+            except Exception as e:
+                self.logger.warning(f"Error closing file: {e}")
         
-        # Clear resource dictionary
+        # Clear resource dictionary to prevent reuse
         resources.clear()
+        self.logger.debug("All resources released")
     
     def _collect_metrics(self, pipeline: Any) -> Dict[str, Any]:
-        """Collect performance metrics from pipeline execution."""
-        # Metrics collection logic
-        return {"execution_time": 0.0, "memory_usage": 0}
+        """
+        Collect performance metrics from pipeline execution.
+        
+        This method gathers execution metrics such as execution time, memory usage,
+        and other performance indicators from the pipeline.
+        
+        Args:
+            pipeline: Pipeline object that was executed
+            
+        Returns:
+            Dictionary containing performance metrics
+        """
+        metrics = {
+            "execution_time": 0.0,
+            "memory_usage": 0,
+            "cpu_usage": 0.0
+        }
+        
+        # Try to get metrics from pipeline if it has them
+        try:
+            if hasattr(pipeline, "get_metrics"):
+                pipeline_metrics = pipeline.get_metrics()
+                metrics.update(pipeline_metrics)
+        except Exception as e:
+            self.logger.debug(f"Pipeline metrics not available: {e}")
+        
+        # Try to get system metrics using psutil (optional dependency)
+        try:
+            import psutil
+            import os
+            
+            process = psutil.Process(os.getpid())
+            memory_info = process.memory_info()
+            metrics["memory_usage"] = memory_info.rss  # Resident Set Size in bytes
+            
+            # Get CPU usage (non-blocking)
+            try:
+                cpu_percent = process.cpu_percent(interval=0.1)
+                metrics["cpu_usage"] = cpu_percent
+            except Exception:
+                # CPU percent may not be available immediately
+                pass
+                
+        except ImportError:
+            # psutil not available, use basic metrics
+            self.logger.debug("psutil not available, using basic metrics")
+        except Exception as e:
+            self.logger.debug(f"Error collecting system metrics: {e}")
+        
+        return metrics

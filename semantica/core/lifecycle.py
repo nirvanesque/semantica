@@ -1,17 +1,25 @@
 """
 Lifecycle Management Module
 
-Manages system lifecycle including startup, shutdown, and health monitoring.
+This module provides comprehensive lifecycle management for the Semantica framework,
+including startup/shutdown sequences, health monitoring, and resource management.
 
 Key Features:
-    - Startup/shutdown hooks
-    - Health monitoring
-    - Graceful degradation
-    - Resource cleanup
-    - State management
+    - Startup and shutdown hook system with priority ordering
+    - Component health monitoring and status tracking
+    - Graceful degradation and error handling
+    - Resource cleanup and state management
+    - System state tracking (uninitialized, ready, running, stopped, etc.)
 
-Main Classes:
-    - LifecycleManager: Lifecycle coordination
+Example Usage:
+    >>> from semantica.core import LifecycleManager
+    >>> manager = LifecycleManager()
+    >>> manager.register_startup_hook(my_hook, priority=10)
+    >>> manager.startup()
+    >>> health = manager.get_health_summary()
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import time
@@ -51,74 +59,122 @@ class LifecycleManager:
     """
     System lifecycle manager.
     
-    Coordinates startup, shutdown, and health monitoring of all
-    framework components.
+    This class coordinates the startup, shutdown, and health monitoring of all
+    framework components. It provides a hook-based system for executing code
+    at specific lifecycle stages with priority ordering.
     
-    Attributes:
-        state: Current system state
-        health_status: Dictionary of component health statuses
-        startup_hooks: List of startup hooks
-        shutdown_hooks: List of shutdown hooks
+    Features:
+        - Priority-based startup/shutdown hooks
+        - Component registration and health monitoring
+        - State management and tracking
+        - Graceful error handling during lifecycle transitions
+        
+    Example Usage:
+        >>> manager = LifecycleManager()
+        >>> manager.register_component("database", db_connection)
+        >>> manager.register_startup_hook(init_db, priority=10)
+        >>> manager.startup()
+        >>> # System is now ready
+        >>> manager.shutdown(graceful=True)
     """
     
     def __init__(self):
-        """Initialize lifecycle manager."""
-        self.state: SystemState = SystemState.UNINITIALIZED
-        self.health_status: Dict[str, HealthStatus] = {}
-        self.startup_hooks: List[Tuple[Callable, int]] = []  # (hook, priority)
-        self.shutdown_hooks: List[Tuple[Callable, int]] = []  # (hook, priority)
+        """
+        Initialize lifecycle manager.
+        
+        Creates a new lifecycle manager in UNINITIALIZED state with empty
+        registries for components, hooks, and health status.
+        """
         self.logger = get_logger("lifecycle")
+        
+        # System state tracking
+        self.state: SystemState = SystemState.UNINITIALIZED
+        
+        # Component registry for health monitoring
         self._component_registry: Dict[str, Any] = {}
+        
+        # Health status tracking
+        self.health_status: Dict[str, HealthStatus] = {}
         self._last_health_check: Optional[float] = None
+        
+        # Hook registries: list of (hook_function, priority) tuples
+        # Lower priority = earlier execution
+        self.startup_hooks: List[Tuple[Callable[[], None], int]] = []
+        self.shutdown_hooks: List[Tuple[Callable[[], None], int]] = []
+        
+        self.logger.debug("Lifecycle manager initialized")
     
     def startup(self) -> None:
         """
         Execute startup sequence.
         
-        This method initializes all components in the correct order
-        and verifies system readiness.
+        This method runs all registered startup hooks in priority order,
+        verifies component initialization, and performs initial health checks.
+        The system transitions from UNINITIALIZED -> INITIALIZING -> READY.
         
         Raises:
-            SemanticaError: If startup fails
+            SemanticaError: If startup fails (hook failure, component verification failure)
+            
+        Example:
+            >>> manager = LifecycleManager()
+            >>> manager.register_startup_hook(init_config, priority=10)
+            >>> manager.register_startup_hook(init_database, priority=20)
+            >>> manager.startup()  # Hooks execute in order: init_config, then init_database
         """
-        if self.state == SystemState.READY or self.state == SystemState.RUNNING:
-            self.logger.warning("System already started")
+        # Check if already started
+        if self.state in (SystemState.READY, SystemState.RUNNING):
+            self.logger.warning(
+                f"System already in {self.state.value} state, skipping startup"
+            )
             return
         
         try:
+            # Transition to initializing state
             self.state = SystemState.INITIALIZING
             self.logger.info("Starting system lifecycle")
             
-            # Sort hooks by priority (lower = earlier)
+            # Sort hooks by priority (lower priority = earlier execution)
             sorted_hooks = sorted(self.startup_hooks, key=lambda x: x[1])
             
-            # Execute startup hooks
+            if sorted_hooks:
+                self.logger.debug(f"Executing {len(sorted_hooks)} startup hook(s)")
+            
+            # Execute all startup hooks in priority order
             for hook_fn, priority in sorted_hooks:
                 try:
-                    self.logger.debug(f"Executing startup hook (priority: {priority})")
+                    self.logger.debug(
+                        f"Executing startup hook with priority {priority}"
+                    )
                     hook_fn()
                 except Exception as e:
-                    self.logger.error(f"Startup hook failed: {e}")
+                    error_msg = f"Startup hook (priority {priority}) failed: {e}"
+                    self.logger.error(error_msg)
                     self.state = SystemState.ERROR
-                    raise SemanticaError(f"Startup hook failed: {e}")
+                    raise SemanticaError(error_msg) from e
             
-            # Verify all components are initialized
+            # Verify all registered components are properly initialized
             self._verify_components()
             
-            # Run initial health checks
+            # Run initial health checks on all components
             health_results = self.health_check()
-            unhealthy = [
+            unhealthy_components = [
                 name for name, status in health_results.items()
                 if not status.healthy
             ]
             
-            if unhealthy:
-                self.logger.warning(f"Some components are unhealthy: {unhealthy}")
+            if unhealthy_components:
+                self.logger.warning(
+                    f"Some components are unhealthy after startup: {unhealthy_components}"
+                )
+            else:
+                self.logger.debug("All components are healthy")
             
+            # Transition to ready state
             self.state = SystemState.READY
             self.logger.info("System startup completed successfully")
             
         except Exception as e:
+            # Transition to error state on failure
             self.state = SystemState.ERROR
             self.logger.error(f"System startup failed: {e}")
             raise
@@ -127,78 +183,125 @@ class LifecycleManager:
         """
         Execute shutdown sequence.
         
+        This method runs all registered shutdown hooks in priority order and
+        cleans up resources. In graceful mode, hook failures are logged but
+        don't stop the shutdown process.
+        
         Args:
             graceful: Whether to shutdown gracefully (default: True)
+                - True: Continue shutdown even if hooks fail (log warnings)
+                - False: Stop shutdown on first hook failure (raise error)
+        
+        Raises:
+            SemanticaError: If shutdown fails and graceful=False
+            
+        Example:
+            >>> manager.shutdown(graceful=True)  # Continue even if cleanup fails
+            >>> manager.shutdown(graceful=False)  # Stop on first error
         """
+        # Check if already stopped
         if self.state == SystemState.STOPPED:
-            self.logger.warning("System already stopped")
+            self.logger.warning("System already in STOPPED state")
             return
         
         try:
+            # Transition to stopping state
             self.state = SystemState.STOPPING
-            self.logger.info(f"Shutting down system (graceful: {graceful})")
+            self.logger.info(f"Shutting down system (graceful={graceful})")
             
-            # Sort hooks by priority (lower = earlier)
+            # Sort hooks by priority (lower priority = earlier execution)
             sorted_hooks = sorted(self.shutdown_hooks, key=lambda x: x[1])
             
-            # Execute shutdown hooks
+            if sorted_hooks:
+                self.logger.debug(f"Executing {len(sorted_hooks)} shutdown hook(s)")
+            
+            # Execute all shutdown hooks in priority order
             for hook_fn, priority in sorted_hooks:
                 try:
-                    self.logger.debug(f"Executing shutdown hook (priority: {priority})")
+                    self.logger.debug(
+                        f"Executing shutdown hook with priority {priority}"
+                    )
                     hook_fn()
                 except Exception as e:
+                    error_msg = f"Shutdown hook (priority {priority}) failed: {e}"
+                    
                     if graceful:
-                        self.logger.warning(f"Shutdown hook failed: {e}")
+                        # In graceful mode, log warning but continue
+                        self.logger.warning(error_msg)
                     else:
-                        self.logger.error(f"Shutdown hook failed: {e}")
-                        raise SemanticaError(f"Shutdown hook failed: {e}")
+                        # In non-graceful mode, stop on first error
+                        self.logger.error(error_msg)
+                        raise SemanticaError(error_msg) from e
             
-            # Cleanup resources
+            # Cleanup all registered components
             self._cleanup_resources()
             
+            # Transition to stopped state
             self.state = SystemState.STOPPED
-            self.logger.info("System shutdown completed")
+            self.logger.info("System shutdown completed successfully")
             
         except Exception as e:
+            # Transition to error state on failure
             self.state = SystemState.ERROR
             self.logger.error(f"System shutdown failed: {e}")
+            
+            # Re-raise if not graceful shutdown
             if not graceful:
                 raise
     
     def health_check(self) -> Dict[str, HealthStatus]:
         """
-        Perform system health check.
+        Perform comprehensive system health check.
         
-        Checks health of all registered components and returns
-        status information.
+        This method checks the health of all registered components by calling
+        their health_check() method if available, or using default health logic.
+        Results are cached in health_status and returned.
         
         Returns:
-            Dictionary mapping component names to HealthStatus objects
+            Dictionary mapping component names to HealthStatus objects,
+            containing health status, messages, and details for each component
+            
+        Example:
+            >>> health = manager.health_check()
+            >>> for name, status in health.items():
+            ...     print(f"{name}: {'✓' if status.healthy else '✗'}")
         """
+        # Record health check timestamp
         self._last_health_check = time.time()
         
-        # Check registered components
         health_results = {}
         
+        # Check health of each registered component
         for component_name, component in self._component_registry.items():
             try:
-                # Try to get health from component
+                # Try to get health status from component
                 if hasattr(component, "health_check"):
+                    # Component has its own health check method
                     component_health = component.health_check()
+                    
+                    # Handle different return types
                     if isinstance(component_health, dict):
+                        # Dictionary format: {"healthy": bool, "message": str, "details": dict}
                         healthy = component_health.get("healthy", True)
                         message = component_health.get("message", "")
                         details = component_health.get("details", {})
+                    elif isinstance(component_health, bool):
+                        # Simple boolean
+                        healthy = component_health
+                        message = ""
+                        details = {}
                     else:
+                        # Other types: convert to boolean
                         healthy = bool(component_health)
                         message = ""
                         details = {}
                 else:
-                    # Default: assume healthy if component exists
+                    # No health_check method: assume healthy if component exists
                     healthy = component is not None
-                    message = ""
+                    message = "Component exists" if healthy else "Component is None"
                     details = {}
                 
+                # Create health status object
                 status = HealthStatus(
                     component=component_name,
                     healthy=healthy,
@@ -207,26 +310,35 @@ class LifecycleManager:
                 )
                 
             except Exception as e:
+                # Health check failed: mark as unhealthy
+                error_msg = f"Health check failed: {e}"
+                self.logger.warning(f"Component {component_name} health check error: {e}")
+                
                 status = HealthStatus(
                     component=component_name,
                     healthy=False,
-                    message=f"Health check failed: {e}",
-                    details={"error": str(e)}
+                    message=error_msg,
+                    details={"error": str(e), "error_type": type(e).__name__}
                 )
             
+            # Store results
             health_results[component_name] = status
             self.health_status[component_name] = status
         
-        # Log unhealthy components
-        unhealthy = [
+        # Log summary of unhealthy components
+        unhealthy_components = [
             name for name, status in health_results.items()
             if not status.healthy
         ]
         
-        if unhealthy:
+        if unhealthy_components:
             self.logger.warning(
-                f"Unhealthy components detected: {unhealthy}",
-                extra={"health_status": health_results}
+                f"Health check found {len(unhealthy_components)} unhealthy component(s): "
+                f"{unhealthy_components}"
+            )
+        else:
+            self.logger.debug(
+                f"Health check passed for all {len(health_results)} component(s)"
             )
         
         return health_results
@@ -369,17 +481,38 @@ class LifecycleManager:
             )
     
     def _cleanup_resources(self) -> None:
-        """Cleanup system resources."""
-        # Cleanup components if they have cleanup methods
-        for name, component in self._component_registry.items():
+        """
+        Cleanup all system resources.
+        
+        This method attempts to cleanup all registered components by calling
+        their cleanup() or close() methods if available. Errors during cleanup
+        are logged but don't stop the cleanup process.
+        """
+        cleanup_count = 0
+        
+        # Cleanup each registered component
+        for component_name, component in self._component_registry.items():
             try:
+                # Try cleanup() method first, then close()
                 if hasattr(component, "cleanup"):
                     component.cleanup()
+                    cleanup_count += 1
+                    self.logger.debug(f"Cleaned up component: {component_name}")
                 elif hasattr(component, "close"):
                     component.close()
+                    cleanup_count += 1
+                    self.logger.debug(f"Closed component: {component_name}")
             except Exception as e:
-                self.logger.warning(f"Failed to cleanup component {name}: {e}")
+                # Log but continue cleanup for other components
+                self.logger.warning(
+                    f"Failed to cleanup component {component_name}: {e}"
+                )
         
-        # Clear registries
+        if cleanup_count > 0:
+            self.logger.debug(f"Cleaned up {cleanup_count} component(s)")
+        
+        # Clear all registries
         self._component_registry.clear()
         self.health_status.clear()
+        
+        self.logger.debug("Resource cleanup completed")

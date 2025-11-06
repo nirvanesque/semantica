@@ -1,18 +1,25 @@
 """
 Configuration Management Module
 
-Handles all configuration loading, validation, and management for the framework.
+This module provides comprehensive configuration management for the Semantica framework,
+including loading from files, environment variables, validation, and dynamic updates.
 
 Key Features:
-    - YAML/JSON configuration parsing
-    - Environment variable support
-    - Configuration validation
-    - Dynamic configuration updates
-    - Configuration inheritance
+    - YAML/JSON configuration file parsing
+    - Environment variable support with SEMANTICA_ prefix
+    - Configuration validation with detailed error messages
+    - Dynamic configuration updates at runtime
+    - Configuration inheritance and merging
+    - Nested configuration access via dot notation
 
-Main Classes:
-    - Config: Configuration data class
-    - ConfigManager: Configuration management system
+Example Usage:
+    >>> from semantica.core import ConfigManager
+    >>> manager = ConfigManager()
+    >>> config = manager.load_from_file("config.yaml")
+    >>> batch_size = config.get("processing.batch_size", default=32)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import os
@@ -89,70 +96,141 @@ class Config:
         """
         Load configuration values from environment variables.
         
-        Environment variables with prefix SEMANTICA_ will override
-        configuration values. Format: SEMANTICA_SECTION_KEY=value
+        Environment variables with prefix SEMANTICA_ will override configuration
+        values. The format is: SEMANTICA_SECTION_KEY=value
+        
+        Examples:
+            SEMANTICA_PROCESSING_BATCH_SIZE=64
+            SEMANTICA_LLM_PROVIDER_MODEL=gpt-4
+            SEMANTICA_QUALITY_MIN_CONFIDENCE=0.8
         
         Args:
-            config_dict: Configuration dictionary to update
+            config_dict: Configuration dictionary to update with env values
         """
         prefix = "SEMANTICA_"
+        prefix_length = len(prefix)
         
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                # Remove prefix and convert to lowercase
-                config_key = key[len(prefix):].lower()
-                
-                # Try to parse as JSON, otherwise use as string
-                try:
-                    parsed_value = json.loads(value)
-                except (json.JSONDecodeError, ValueError):
-                    # Convert boolean strings
-                    if value.lower() in ("true", "false"):
-                        parsed_value = value.lower() == "true"
-                    # Convert numeric strings
-                    elif value.isdigit():
-                        parsed_value = int(value)
-                    elif value.replace(".", "", 1).isdigit():
-                        parsed_value = float(value)
-                    else:
-                        parsed_value = value
-                
-                # Set nested value
-                set_nested_value(config_dict, config_key, parsed_value)
+        for env_key, env_value in os.environ.items():
+            if not env_key.startswith(prefix):
+                continue
+            
+            # Remove prefix and convert to lowercase for consistency
+            config_key = env_key[prefix_length:].lower()
+            
+            # Parse the environment variable value
+            # Try JSON first (for complex types like lists/dicts)
+            try:
+                parsed_value = json.loads(env_value)
+            except (json.JSONDecodeError, ValueError):
+                # Not valid JSON, try type conversion
+                parsed_value = self._parse_env_value(env_value)
+            
+            # Set nested value using dot notation
+            # e.g., "processing_batch_size" -> "processing.batch_size"
+            normalized_key = config_key.replace("_", ".")
+            set_nested_value(config_dict, normalized_key, parsed_value)
+    
+    def _parse_env_value(self, value: str) -> Union[str, int, float, bool]:
+        """
+        Parse environment variable value to appropriate Python type.
+        
+        Args:
+            value: Raw environment variable value string
+            
+        Returns:
+            Parsed value with appropriate type (bool, int, float, or str)
+        """
+        # Boolean values
+        if value.lower() in ("true", "false"):
+            return value.lower() == "true"
+        
+        # Integer values
+        if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
+            return int(value)
+        
+        # Float values
+        try:
+            # Check if it's a valid float (allows one decimal point)
+            if value.replace(".", "", 1).replace("-", "", 1).isdigit():
+                return float(value)
+        except ValueError:
+            pass
+        
+        # Default: return as string
+        return value
     
     def validate(self) -> None:
         """
         Validate configuration settings.
         
+        This method performs comprehensive validation of all configuration
+        settings, checking types, ranges, and required fields.
+        
         Raises:
-            ConfigurationError: If configuration is invalid
+            ConfigurationError: If configuration is invalid with detailed error messages
         """
-        errors = []
+        validation_errors = []
         
         # Validate processing settings
-        if "processing" in self.to_dict():
-            processing = self.processing
-            if "batch_size" in processing:
-                batch_size = processing["batch_size"]
-                if not isinstance(batch_size, int) or batch_size <= 0:
-                    errors.append("processing.batch_size must be a positive integer")
+        processing_config = self.processing
+        if processing_config:
+            # Validate batch_size
+            if "batch_size" in processing_config:
+                batch_size = processing_config["batch_size"]
+                if not isinstance(batch_size, int):
+                    validation_errors.append(
+                        f"processing.batch_size must be an integer, got {type(batch_size).__name__}"
+                    )
+                elif batch_size <= 0:
+                    validation_errors.append(
+                        f"processing.batch_size must be positive, got {batch_size}"
+                    )
             
-            if "max_workers" in processing:
-                max_workers = processing["max_workers"]
-                if not isinstance(max_workers, int) or max_workers <= 0:
-                    errors.append("processing.max_workers must be a positive integer")
+            # Validate max_workers
+            if "max_workers" in processing_config:
+                max_workers = processing_config["max_workers"]
+                if not isinstance(max_workers, int):
+                    validation_errors.append(
+                        f"processing.max_workers must be an integer, got {type(max_workers).__name__}"
+                    )
+                elif max_workers <= 0:
+                    validation_errors.append(
+                        f"processing.max_workers must be positive, got {max_workers}"
+                    )
         
         # Validate quality settings
-        if "quality" in self.to_dict():
-            quality = self.quality
-            if "min_confidence" in quality:
-                confidence = quality["min_confidence"]
-                if not isinstance(confidence, (int, float)) or not (0.0 <= confidence <= 1.0):
-                    errors.append("quality.min_confidence must be between 0.0 and 1.0")
+        quality_config = self.quality
+        if quality_config:
+            # Validate min_confidence
+            if "min_confidence" in quality_config:
+                confidence = quality_config["min_confidence"]
+                if not isinstance(confidence, (int, float)):
+                    validation_errors.append(
+                        f"quality.min_confidence must be a number, got {type(confidence).__name__}"
+                    )
+                elif not (0.0 <= confidence <= 1.0):
+                    validation_errors.append(
+                        f"quality.min_confidence must be between 0.0 and 1.0, got {confidence}"
+                    )
         
-        if errors:
+        # Validate logging settings
+        logging_config = self.logging
+        if logging_config:
+            valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+            if "level" in logging_config:
+                level = logging_config["level"]
+                if level not in valid_levels:
+                    validation_errors.append(
+                        f"logging.level must be one of {valid_levels}, got {level}"
+                    )
+        
+        # Raise error if any validation failures
+        if validation_errors:
+            error_message = "Configuration validation failed:\n" + "\n".join(
+                f"  - {error}" for error in validation_errors
+            )
             raise ConfigurationError(
-                f"Configuration validation failed: {', '.join(errors)}",
+                error_message,
                 config_context=self.to_dict(),
             )
     
@@ -229,12 +307,32 @@ class ConfigManager:
     """
     Configuration management system.
     
-    Handles loading, validation, and updating of configuration.
+    This class provides a centralized way to load, validate, merge, and manage
+    configuration for the Semantica framework. It supports multiple configuration
+    sources and formats.
+    
+    Features:
+        - Load from YAML/JSON files
+        - Load from dictionaries
+        - Merge multiple configurations
+        - Validate configuration
+        - Reload configuration dynamically
+    
+    Example Usage:
+        >>> manager = ConfigManager()
+        >>> config = manager.load_from_file("config.yaml")
+        >>> merged = manager.merge_configs(config1, config2, config3)
     """
     
     def __init__(self):
-        """Initialize configuration manager."""
+        """
+        Initialize configuration manager.
+        
+        Creates a new ConfigManager instance with no loaded configuration.
+        Use load_from_file() or load_from_dict() to load configuration.
+        """
         self._config: Optional[Config] = None
+        self._last_file_path: Optional[Path] = None
     
     def load_from_file(
         self,
@@ -281,14 +379,17 @@ class ConfigManager:
                     "Supported formats: .yaml, .yml, .json"
                 )
             
-            # Create config object
+            # Create config object from loaded dictionary
             config = Config(config_dict=config_dict)
             
-            # Validate if requested
+            # Validate configuration if requested
             if validate:
                 config.validate()
             
+            # Store config and file path for potential reload
             self._config = config
+            self._last_file_path = file_path
+            
             return config
             
         except Exception as e:
