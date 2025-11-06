@@ -1,8 +1,31 @@
 """
-Bulk loader for Semantica framework.
+Bulk Loader Module
 
-This module provides high-volume data loading capabilities
-for triple stores.
+This module provides high-volume data loading capabilities for triple stores,
+enabling efficient batch processing with progress tracking and error recovery.
+
+Key Features:
+    - High-volume data loading strategies
+    - Batch processing and chunking
+    - Progress monitoring and reporting
+    - Error handling and recovery with retries
+    - Performance optimization
+    - Memory management for large datasets
+    - Stream-based loading
+
+Main Classes:
+    - BulkLoader: Main bulk loading coordinator
+    - LoadProgress: Bulk loading progress representation dataclass
+
+Example Usage:
+    >>> from semantica.triple_store import BulkLoader
+    >>> loader = BulkLoader(batch_size=1000, max_retries=3)
+    >>> progress = loader.load_triples(triples, store_adapter)
+    >>> print(f"Loaded {progress.loaded_triples}/{progress.total_triples} triples")
+    >>> validation = loader.validate_before_load(triples)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

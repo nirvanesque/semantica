@@ -1,8 +1,29 @@
 """
-Virtuoso adapter for Semantica framework.
+Virtuoso Adapter Module
 
-This module provides Virtuoso integration for RDF storage
-and SPARQL querying.
+This module provides Virtuoso RDF store integration for RDF storage and
+SPARQL querying, supporting cluster connections and query optimization.
+
+Key Features:
+    - Virtuoso connection and authentication
+    - SPARQL query execution
+    - Bulk data loading and management
+    - Graph and namespace management
+    - Cluster connection support
+    - Query optimization
+
+Main Classes:
+    - VirtuosoAdapter: Main Virtuoso integration adapter
+
+Example Usage:
+    >>> from semantica.triple_store import VirtuosoAdapter
+    >>> adapter = VirtuosoAdapter(endpoint="http://localhost:8890/sparql", username="dba", password="dba")
+    >>> result = adapter.execute_sparql(sparql_query)
+    >>> load_result = adapter.bulk_load(triples, graph="http://example.org/graph")
+    >>> cluster_status = adapter.connect_cluster(cluster_config)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

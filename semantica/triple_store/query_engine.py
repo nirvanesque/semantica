@@ -1,8 +1,33 @@
 """
-Query engine for Semantica framework.
+Query Engine Module
 
-This module provides SPARQL query execution and optimization
-for triple store operations.
+This module provides comprehensive SPARQL query execution and optimization
+for triple store operations, including query planning, caching, and performance
+monitoring.
+
+Key Features:
+    - SPARQL query execution and optimization
+    - Query planning and caching
+    - Result processing and formatting
+    - Performance monitoring and profiling
+    - Query validation
+    - Multi-store query support
+    - Query history tracking
+
+Main Classes:
+    - QueryEngine: Main query execution and optimization coordinator
+    - QueryResult: SPARQL query result representation dataclass
+    - QueryPlan: Query execution plan representation dataclass
+
+Example Usage:
+    >>> from semantica.triple_store import QueryEngine
+    >>> engine = QueryEngine(enable_caching=True, enable_optimization=True)
+    >>> result = engine.execute_query(sparql_query, store_adapter)
+    >>> plan = engine.plan_query(sparql_query)
+    >>> stats = engine.get_query_statistics()
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

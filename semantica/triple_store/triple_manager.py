@@ -1,8 +1,32 @@
 """
-Triple manager for Semantica framework.
+Triple Manager Module
 
-This module provides CRUD operations for RDF triples
-and triple store management.
+This module provides comprehensive CRUD operations for RDF triples and triple
+store management, enabling unified access to multiple triple store backends
+through a common interface.
+
+Key Features:
+    - CRUD operations for RDF triples
+    - Multi-store management and registration
+    - Batch operations and bulk loading
+    - Triple validation and consistency
+    - Store adapter pattern
+    - Error handling and recovery
+
+Main Classes:
+    - TripleManager: Main triple store management coordinator
+    - TripleStore: Triple store configuration dataclass
+
+Example Usage:
+    >>> from semantica.triple_store import TripleManager
+    >>> manager = TripleManager()
+    >>> store = manager.register_store("main", "blazegraph", "http://localhost:9999/blazegraph")
+    >>> result = manager.add_triple(triple, store_id="main")
+    >>> triples = manager.get_triple(subject="http://example.org/entity1")
+    >>> result = manager.add_triples(triple_list, store_id="main", batch_size=1000)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

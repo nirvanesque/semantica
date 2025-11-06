@@ -1,8 +1,29 @@
 """
-Apache Jena adapter for Semantica framework.
+Apache Jena Adapter Module
 
-This module provides Apache Jena integration for RDF storage
-and SPARQL querying.
+This module provides Apache Jena integration for RDF storage and SPARQL
+querying, supporting both in-memory and remote Fuseki endpoints.
+
+Key Features:
+    - Jena connection and configuration
+    - SPARQL query execution
+    - Model and dataset management
+    - Inference and reasoning support
+    - RDF serialization
+    - rdflib integration with fallback
+
+Main Classes:
+    - JenaAdapter: Main Jena integration adapter
+
+Example Usage:
+    >>> from semantica.triple_store import JenaAdapter
+    >>> adapter = JenaAdapter(endpoint="http://localhost:3030/ds", dataset="default")
+    >>> result = adapter.add_triples(triples)
+    >>> query_result = adapter.execute_sparql(sparql_query)
+    >>> rdf_turtle = adapter.serialize(format="turtle")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

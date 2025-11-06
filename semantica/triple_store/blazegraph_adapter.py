@@ -1,8 +1,30 @@
 """
-Blazegraph adapter for Semantica framework.
+Blazegraph Adapter Module
 
-This module provides Blazegraph integration for RDF storage
-and SPARQL querying.
+This module provides Blazegraph integration for RDF storage and SPARQL
+querying, enabling connection to Blazegraph instances with namespace
+management and bulk loading capabilities.
+
+Key Features:
+    - Blazegraph connection and authentication
+    - SPARQL query execution
+    - Bulk data loading and management
+    - Namespace and graph management
+    - REST API integration
+    - Performance optimization
+
+Main Classes:
+    - BlazegraphAdapter: Main Blazegraph integration adapter
+
+Example Usage:
+    >>> from semantica.triple_store import BlazegraphAdapter
+    >>> adapter = BlazegraphAdapter(endpoint="http://localhost:9999/blazegraph", namespace="kb")
+    >>> result = adapter.execute_sparql(sparql_query)
+    >>> load_result = adapter.bulk_load(triples)
+    >>> namespace_result = adapter.create_namespace("new_namespace")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional

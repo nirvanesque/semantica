@@ -1,8 +1,29 @@
 """
-RDF4J adapter for Semantica framework.
+RDF4J Adapter Module
 
-This module provides RDF4J integration for RDF storage
-and SPARQL querying.
+This module provides Eclipse RDF4J integration for RDF storage and SPARQL
+querying, supporting repository management and transaction operations.
+
+Key Features:
+    - RDF4J connection and repository management
+    - SPARQL query execution
+    - Repository configuration and setup
+    - Transaction support
+    - REST API integration
+    - Bulk operations
+
+Main Classes:
+    - RDF4JAdapter: Main RDF4J integration adapter
+
+Example Usage:
+    >>> from semantica.triple_store import RDF4JAdapter
+    >>> adapter = RDF4JAdapter(endpoint="http://localhost:8080/rdf4j-server", repository_id="repo1")
+    >>> result = adapter.execute_sparql(sparql_query)
+    >>> tx_id = adapter.begin_transaction()
+    >>> result = adapter.add_triples(triples)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 from typing import Any, Dict, List, Optional
