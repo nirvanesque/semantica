@@ -1,19 +1,31 @@
 """
 Feed Ingestion Module
 
-Handles RSS, Atom, and other feed format processing.
+This module provides comprehensive feed ingestion capabilities for the
+Semantica framework, enabling RSS, Atom, and other feed format processing,
+discovery, and monitoring.
 
 Key Features:
-    - RSS/Atom feed parsing
-    - Feed discovery
-    - Content extraction
-    - Update monitoring
+    - RSS/Atom feed parsing with format auto-detection
+    - Feed discovery from websites
+    - Content extraction from feed items
+    - Update monitoring with callbacks
     - Feed validation
+    - Date parsing with multiple format support
 
 Main Classes:
     - FeedIngestor: Main feed ingestion class
     - FeedParser: Feed format parser
     - FeedMonitor: Feed update monitoring
+
+Example Usage:
+    >>> from semantica.ingest import FeedIngestor
+    >>> ingestor = FeedIngestor()
+    >>> feed_data = ingestor.ingest_feed("https://example.com/feed.xml")
+    >>> feeds = ingestor.discover_feeds("https://example.com")
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import time
@@ -33,7 +45,23 @@ from ..utils.logging import get_logger
 
 @dataclass
 class FeedItem:
-    """Feed item representation."""
+    """
+    Feed item representation.
+    
+    This dataclass represents a single item/entry from an RSS or Atom feed.
+    
+    Attributes:
+        title: Item title
+        link: Item URL
+        description: Item description/summary
+        content: Full item content (if available)
+        author: Item author (optional)
+        published: Publication date (optional)
+        updated: Last update date (optional)
+        guid: Unique identifier for the item
+        categories: List of category tags
+        metadata: Additional metadata dictionary
+    """
     
     title: str
     link: str
@@ -49,7 +77,20 @@ class FeedItem:
 
 @dataclass
 class FeedData:
-    """Feed data representation."""
+    """
+    Feed data representation.
+    
+    This dataclass represents a complete RSS or Atom feed with all its items.
+    
+    Attributes:
+        title: Feed title
+        link: Feed URL
+        description: Feed description
+        language: Feed language code
+        updated: Last feed update date (optional)
+        items: List of FeedItem objects
+        metadata: Additional feed metadata dictionary
+    """
     
     title: str
     link: str
@@ -64,30 +105,47 @@ class FeedParser:
     """
     Feed format parser for RSS, Atom, and other formats.
     
-    Handles parsing of various feed formats with
-    unified content extraction.
+    This class handles parsing of various feed formats with unified content
+    extraction. Auto-detects feed format and parses accordingly.
+    
+    Example Usage:
+        >>> parser = FeedParser()
+        >>> feed_data = parser.parse_feed(xml_content, feed_url="https://example.com/feed.xml")
+        >>> is_valid = parser.validate_feed(feed_data)
     """
     
     def __init__(self, **config):
         """
         Initialize feed parser.
         
+        Sets up the parser with configuration options.
+        
         Args:
-            **config: Parser configuration
+            **config: Parser configuration options (currently unused)
         """
         self.logger = get_logger("feed_parser")
         self.config = config
     
-    def parse_feed(self, feed_content: str, feed_url: Optional[str] = None) -> FeedData:
+    def parse_feed(
+        self,
+        feed_content: str,
+        feed_url: Optional[str] = None
+    ) -> FeedData:
         """
         Parse feed content and extract items.
         
+        This method auto-detects the feed format (RSS or Atom) and parses
+        the content accordingly, extracting all feed metadata and items.
+        
         Args:
-            feed_content: Raw feed content
-            feed_url: Source feed URL
+            feed_content: Raw feed content (XML string)
+            feed_url: Source feed URL (optional, used for link resolution)
             
         Returns:
-            FeedData: Parsed feed data
+            FeedData: Parsed feed data object with all items and metadata
+            
+        Raises:
+            ProcessingError: If feed parsing fails or format is unsupported
         """
         try:
             # Detect feed format
@@ -109,11 +167,14 @@ class FeedParser:
         """
         Detect feed format from content.
         
+        This method analyzes the XML structure to determine whether the feed
+        is RSS or Atom format. Falls back to RSS if format is unclear.
+        
         Args:
-            feed_content: Raw feed content
+            feed_content: Raw feed content (XML string)
             
         Returns:
-            str: Detected feed format (rss, atom)
+            str: Detected feed format ("rss" or "atom")
         """
         try:
             root = ET.fromstring(feed_content)
@@ -327,16 +388,26 @@ class FeedMonitor:
     """
     Feed update monitoring and notification.
     
-    Monitors feeds for updates and triggers processing
-    when new content is available.
+    This class monitors feeds for updates and triggers processing when new
+    content is available. Runs in a background thread and supports callbacks
+    for new items.
+    
+    Example Usage:
+        >>> monitor = FeedMonitor(check_interval=1800)  # 30 minutes
+        >>> monitor.add_feed("https://example.com/feed.xml")
+        >>> monitor.set_update_callback(lambda url, items: print(f"New items: {len(items)}"))
+        >>> monitor.start_monitoring()
     """
     
     def __init__(self, **config):
         """
         Initialize feed monitor.
         
+        Sets up the monitor with configuration and initializes monitoring state.
+        
         Args:
-            **config: Monitor configuration
+            **config: Monitor configuration options:
+                - check_interval: Interval between checks in seconds (default: 3600)
         """
         self.logger = get_logger("feed_monitor")
         self.config = config
@@ -462,28 +533,32 @@ class FeedIngestor:
     """
     RSS/Atom feed ingestion handler.
     
-    Processes RSS, Atom, and other feed formats with
-    support for content extraction and monitoring.
+    This class provides comprehensive feed ingestion capabilities, processing
+    RSS, Atom, and other feed formats with support for content extraction
+    and monitoring.
     
-    Attributes:
-        parser: Feed format parser
-        monitor: Feed update monitor
-        content_extractor: Content extraction engine
-        
-    Methods:
-        ingest_feed(): Ingest single feed
-        discover_feeds(): Discover feeds from website
-        monitor_feeds(): Monitor multiple feeds
-        extract_content(): Extract content from feed items
+    Features:
+        - RSS and Atom feed parsing
+        - Feed discovery from websites
+        - Feed update monitoring
+        - Content extraction from feed items
+    
+    Example Usage:
+        >>> ingestor = FeedIngestor()
+        >>> feed_data = ingestor.ingest_feed("https://example.com/feed.xml")
+        >>> feeds = ingestor.discover_feeds("https://example.com")
+        >>> monitor = ingestor.monitor_feeds(feeds, check_interval=1800)
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize feed ingestor.
         
+        Sets up the ingestor with feed parser and monitor.
+        
         Args:
-            config: Feed ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Optional feed ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("feed_ingestor")
         self.config = config or {}
@@ -497,17 +572,34 @@ class FeedIngestor:
         
         # Update intervals
         self.update_intervals = self.config.get("update_intervals", {})
+        
+        self.logger.debug("Feed ingestor initialized")
     
-    def ingest_feed(self, feed_url: str, **options) -> FeedData:
+    def ingest_feed(
+        self,
+        feed_url: str,
+        timeout: Optional[int] = None,
+        validate: bool = True,
+        **options
+    ) -> FeedData:
         """
         Ingest content from a single feed.
         
+        This method fetches a feed from the provided URL, parses it, and
+        optionally validates it. Handles both RSS and Atom formats.
+        
         Args:
             feed_url: URL of feed to ingest
-            **options: Processing options
+            timeout: Request timeout in seconds (optional, default: 30)
+            validate: Whether to validate the parsed feed (default: True)
+            **options: Additional processing options (unused)
             
         Returns:
-            FeedData: Parsed feed content
+            FeedData: Parsed feed content object with all items and metadata
+            
+        Raises:
+            ValidationError: If feed URL is invalid
+            ProcessingError: If feed fetching or parsing fails
         """
         # Validate feed URL
         try:
@@ -519,32 +611,38 @@ class FeedIngestor:
         
         # Fetch feed content
         try:
-            timeout = options.get("timeout", self.config.get("timeout", 30))
-            response = requests.get(feed_url, timeout=timeout)
+            request_timeout = timeout or options.get("timeout", self.config.get("timeout", 30))
+            response = requests.get(feed_url, timeout=request_timeout)
             response.raise_for_status()
+            self.logger.debug(f"Fetched feed from {feed_url}: {len(response.text)} bytes")
         except requests.RequestException as e:
             self.logger.error(f"Failed to fetch feed {feed_url}: {e}")
-            raise ProcessingError(f"Failed to fetch feed: {e}")
+            raise ProcessingError(f"Failed to fetch feed: {e}") from e
         
         # Parse feed format
         feed_data = self.parser.parse_feed(response.text, feed_url)
         
         # Validate feed
-        if options.get("validate", True):
+        if validate or options.get("validate", True):
             if not self.parser.validate_feed(feed_data):
                 self.logger.warning(f"Feed {feed_url} validation failed")
         
+        self.logger.info(f"Ingested feed {feed_url}: {len(feed_data.items)} item(s)")
         return feed_data
     
     def discover_feeds(self, website_url: str) -> List[str]:
         """
         Discover feeds from a website.
         
+        This method scans a website for feed links, checking both HTML link
+        tags and common feed paths. Validates discovered feeds by attempting
+        to fetch them.
+        
         Args:
-            website_url: Website URL to scan
+            website_url: Website URL to scan for feeds
             
         Returns:
-            list: List of discovered feed URLs
+            list: List of discovered and validated feed URLs
         """
         feed_urls = []
         

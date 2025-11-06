@@ -1,19 +1,31 @@
 """
 Database Ingestion Module
 
-Handles database export and data extraction.
+This module provides comprehensive database ingestion capabilities for the
+Semantica framework, enabling data extraction from various database systems.
 
 Key Features:
-    - Database connection management
-    - SQL query execution
+    - Multiple database support (PostgreSQL, MySQL, SQLite, Oracle, SQL Server)
+    - Database connection management with connection pooling
+    - SQL query execution and result processing
     - Data export and transformation
-    - Schema analysis
-    - Data type handling
+    - Schema analysis and introspection
+    - Data type handling and conversion
+    - Large dataset processing with pagination
 
 Main Classes:
     - DBIngestor: Main database ingestion class
     - DatabaseConnector: Database connection handler
     - DataExporter: Data export processor
+
+Example Usage:
+    >>> from semantica.ingest import DBIngestor
+    >>> ingestor = DBIngestor()
+    >>> data = ingestor.ingest_database("postgresql://user:pass@localhost/db")
+    >>> table_data = ingestor.export_table("postgresql://...", "users", limit=100)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import json
@@ -46,9 +58,21 @@ class DatabaseConnector:
     """
     Database connection management.
     
-    Manages connections to various databases,
-    handles connection pooling and reuse,
-    and provides unified interface for different DBs.
+    This class manages connections to various database systems, handles
+    connection pooling and reuse, and provides a unified interface for
+    different database types.
+    
+    Supported Databases:
+        - PostgreSQL (postgresql, postgres)
+        - MySQL/MariaDB (mysql, mariadb)
+        - SQLite (sqlite)
+        - Oracle (oracle)
+        - SQL Server (mssql, sqlserver)
+    
+    Example Usage:
+        >>> connector = DatabaseConnector("postgresql")
+        >>> engine = connector.connect("postgresql://user:pass@localhost/db")
+        >>> connector.disconnect()
     """
     
     SUPPORTED_DATABASES = {
@@ -62,28 +86,44 @@ class DatabaseConnector:
         'sqlserver': 'mssql+pyodbc',
     }
     
-    def __init__(self, db_type: str, **config):
+    def __init__(self, db_type: str = "", **config):
         """
         Initialize database connector.
         
+        Sets up the connector with database type and configuration. Database
+        type can be auto-detected from connection string if not provided.
+        
         Args:
-            db_type: Database type (postgresql, mysql, sqlite, etc.)
-            **config: Connection configuration
+            db_type: Database type (postgresql, mysql, sqlite, etc.) (optional)
+            **config: Connection configuration options
         """
         self.logger = get_logger("database_connector")
-        self.db_type = db_type.lower()
+        self.db_type = db_type.lower() if db_type else ""
         self.config = config
         self.engine: Optional[Engine] = None
+        
+        self.logger.debug(f"Database connector initialized: db_type={db_type or 'auto-detect'}")
     
     def connect(self, connection_string: str) -> Engine:
         """
         Establish database connection.
         
+        This method creates a SQLAlchemy engine for the database connection
+        string, auto-detects database type if not specified, and tests the
+        connection to ensure it's working.
+        
         Args:
-            connection_string: Database connection string
+            connection_string: Database connection string (SQLAlchemy format)
+                              Examples:
+                              - "postgresql://user:pass@localhost/db"
+                              - "mysql+pymysql://user:pass@localhost/db"
+                              - "sqlite:///path/to/db.sqlite"
             
         Returns:
-            Engine: SQLAlchemy engine object
+            Engine: SQLAlchemy engine object for database operations
+            
+        Raises:
+            ProcessingError: If connection fails or database type is unsupported
         """
         try:
             # Parse connection string to detect database type
@@ -91,29 +131,39 @@ class DatabaseConnector:
             
             # Determine database type from connection string if not provided
             if parsed.scheme:
-                db_type = parsed.scheme.split('+')[0]
+                db_type = parsed.scheme.split('+')[0]  # Remove driver prefix (e.g., mysql+pymysql -> mysql)
                 if db_type in self.SUPPORTED_DATABASES:
                     self.db_type = db_type
+                    self.logger.debug(f"Auto-detected database type: {db_type}")
             
-            # Get SQLAlchemy dialect
-            dialect = self.SUPPORTED_DATABASES.get(self.db_type, self.db_type)
+            # Validate database type
+            if self.db_type and self.db_type not in self.SUPPORTED_DATABASES:
+                raise ValidationError(
+                    f"Unsupported database type: {self.db_type}. "
+                    f"Supported types: {list(self.SUPPORTED_DATABASES.keys())}"
+                )
             
-            # Create engine
+            # Create SQLAlchemy engine
             self.engine = create_engine(connection_string, echo=False)
             
-            # Test connection
+            # Test connection with a simple query
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             
-            self.logger.info(f"Connected to {self.db_type} database")
+            self.logger.info(f"Connected to {self.db_type or 'database'}")
             return self.engine
             
         except Exception as e:
             self.logger.error(f"Failed to connect to database: {e}")
-            raise ProcessingError(f"Failed to connect to database: {e}")
+            raise ProcessingError(f"Failed to connect to database: {e}") from e
     
     def disconnect(self):
-        """Close database connection."""
+        """
+        Close database connection.
+        
+        This method disposes of the SQLAlchemy engine and closes all connections
+        in the connection pool. Should be called when done with database operations.
+        """
         if self.engine:
             self.engine.dispose()
             self.engine = None
@@ -121,13 +171,16 @@ class DatabaseConnector:
     
     def test_connection(self, connection_string: str) -> bool:
         """
-        Test database connection.
+        Test database connection without creating a persistent connection.
+        
+        This method creates a temporary connection, tests it with a simple query,
+        and immediately closes it. Useful for connection validation.
         
         Args:
-            connection_string: Database connection string
+            connection_string: Database connection string to test
             
         Returns:
-            bool: True if connection successful
+            bool: True if connection successful, False otherwise
         """
         try:
             engine = create_engine(connection_string)
@@ -135,7 +188,8 @@ class DatabaseConnector:
                 conn.execute(text("SELECT 1"))
             engine.dispose()
             return True
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"Connection test failed: {e}")
             return False
 
 
@@ -143,18 +197,24 @@ class DataExporter:
     """
     Database data export and transformation.
     
-    Exports data from database tables,
-    transforms data to standard formats,
-    handles different data types,
-    and manages large dataset exports.
+    This class exports data from database tables, transforms data to standard
+    formats, handles different data types, and manages large dataset exports
+    with pagination support.
+    
+    Example Usage:
+        >>> exporter = DataExporter()
+        >>> table_data = exporter.export_table_data(engine, "users", limit=100)
+        >>> schema = exporter.export_schema(engine)
     """
     
     def __init__(self, **config):
         """
         Initialize data exporter.
         
+        Sets up the exporter with configuration options.
+        
         Args:
-            **config: Exporter configuration
+            **config: Exporter configuration options (currently unused)
         """
         self.logger = get_logger("data_exporter")
         self.config = config
@@ -164,23 +224,39 @@ class DataExporter:
         connection: Engine,
         table_name: str,
         schema: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        where: Optional[str] = None,
+        order_by: Optional[str] = None,
         **options
     ) -> TableData:
         """
         Export data from database table.
         
+        This method exports data from a database table with optional filtering,
+        pagination, and ordering. Converts database types to JSON-serializable
+        formats (e.g., datetime to ISO format strings).
+        
         Args:
-            connection: Database connection engine
-            table_name: Table name to export
-            schema: Schema name (optional)
-            **options: Export options:
-                - limit: Maximum number of rows
-                - offset: Row offset
-                - where: WHERE clause
-                - order_by: ORDER BY clause
+            connection: SQLAlchemy database connection engine
+            table_name: Name of the table to export
+            schema: Schema name (for databases with schema support, optional)
+            limit: Maximum number of rows to export (optional)
+            offset: Row offset for pagination (optional)
+            where: WHERE clause for filtering (optional, e.g., "age > 18")
+            order_by: ORDER BY clause for sorting (optional, e.g., "name ASC")
+            **options: Additional export options (unused)
                 
         Returns:
-            TableData: Exported table data
+            TableData: Exported table data object containing:
+                - table_name: Table name
+                - columns: List of column information dictionaries
+                - rows: List of row dictionaries
+                - row_count: Total number of rows (or exported count if limit applied)
+                - schema: Schema name (if provided)
+                
+        Raises:
+            ProcessingError: If table export fails
         """
         try:
             inspector = inspect(connection)
@@ -197,22 +273,28 @@ class DataExporter:
                 for col in columns
             ]
             
-            # Build query
-            query = f'SELECT * FROM {f"{schema}." if schema else ""}"{table_name}"'
+            self.logger.debug(
+                f"Exporting table {table_name}: {len(column_info)} column(s), "
+                f"schema={schema}, limit={limit}"
+            )
             
-            if options.get("where"):
-                query += f" WHERE {options['where']}"
+            # Build SQL query with optional clauses
+            table_ref = f'{f"{schema}." if schema else ""}"{table_name}"'
+            query = f'SELECT * FROM {table_ref}'
             
-            if options.get("order_by"):
-                query += f" ORDER BY {options['order_by']}"
+            if where:
+                query += f" WHERE {where}"
             
-            if options.get("limit"):
-                query += f" LIMIT {options['limit']}"
+            if order_by:
+                query += f" ORDER BY {order_by}"
             
-            if options.get("offset"):
-                query += f" OFFSET {options['offset']}"
+            if limit:
+                query += f" LIMIT {limit}"
             
-            # Execute query
+            if offset:
+                query += f" OFFSET {offset}"
+            
+            # Execute query and process results
             with connection.connect() as conn:
                 result = conn.execute(text(query))
                 rows = []
@@ -223,19 +305,25 @@ class DataExporter:
                         if isinstance(value, datetime):
                             row_dict[col_name] = value.isoformat()
                         elif hasattr(value, '__dict__'):
+                            # Complex types - convert to string
                             row_dict[col_name] = str(value)
                         else:
                             row_dict[col_name] = value
                     rows.append(row_dict)
                 
-                # Get row count if limit not applied
+                # Get total row count if limit not applied
                 row_count = len(rows)
-                if not options.get("limit"):
-                    count_query = f'SELECT COUNT(*) FROM {f"{schema}." if schema else ""}"{table_name}"'
-                    if options.get("where"):
-                        count_query += f" WHERE {options['where']}"
+                if not limit:
+                    count_query = f'SELECT COUNT(*) FROM {table_ref}'
+                    if where:
+                        count_query += f" WHERE {where}"
                     count_result = conn.execute(text(count_query))
                     row_count = count_result.scalar()
+            
+            self.logger.debug(
+                f"Exported {len(rows)} row(s) from table {table_name} "
+                f"(total: {row_count})"
+            )
             
             return TableData(
                 table_name=table_name,
@@ -247,18 +335,27 @@ class DataExporter:
             
         except Exception as e:
             self.logger.error(f"Failed to export table {table_name}: {e}")
-            raise ProcessingError(f"Failed to export table: {e}")
+            raise ProcessingError(f"Failed to export table: {e}") from e
     
-    def transform_data(self, raw_data: List[Dict[str, Any]], schema_info: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def transform_data(
+        self,
+        raw_data: List[Dict[str, Any]],
+        schema_info: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Transform raw database data.
         
+        This method applies transformations to raw database rows, including
+        string cleaning and normalization. Can be extended with custom
+        transformation logic.
+        
         Args:
-            raw_data: Raw database rows
-            schema_info: Schema information
+            raw_data: List of raw database row dictionaries
+            schema_info: Schema information dictionary (currently unused,
+                        reserved for schema-aware transformations)
             
         Returns:
-            list: Transformed data
+            list: List of transformed row dictionaries
         """
         transformed = []
         
@@ -269,8 +366,8 @@ class DataExporter:
                 if value is None:
                     transformed_row[col_name] = None
                 elif isinstance(value, str):
-                    # Clean and normalize strings
-                    transformed_row[col_name] = value.strip() if isinstance(value, str) else value
+                    # Clean and normalize strings (strip whitespace)
+                    transformed_row[col_name] = value.strip()
                 else:
                     transformed_row[col_name] = value
             
@@ -278,16 +375,34 @@ class DataExporter:
         
         return transformed
     
-    def export_schema(self, connection: Engine, schema: Optional[str] = None) -> Dict[str, Any]:
+    def export_schema(
+        self,
+        connection: Engine,
+        schema: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Export database schema information.
         
+        This method introspects the database schema and exports comprehensive
+        information about tables, columns, primary keys, indexes, foreign keys,
+        and views.
+        
         Args:
-            connection: Database connection engine
-            schema: Schema name (optional)
+            connection: SQLAlchemy database connection engine
+            schema: Schema name (for databases with schema support, optional)
             
         Returns:
-            dict: Schema information
+            dict: Schema information dictionary containing:
+                - tables: List of table information dictionaries with:
+                    - name: Table name
+                    - columns: List of column information
+                    - primary_keys: List of primary key column names
+                    - indexes: List of index names
+                - views: List of view names
+                - foreign_keys: List of foreign key constraint dictionaries
+                
+        Raises:
+            ProcessingError: If schema export fails
         """
         try:
             inspector = inspect(connection)
@@ -298,8 +413,10 @@ class DataExporter:
                 "foreign_keys": []
             }
             
-            # Get tables
+            # Get all tables in schema
             tables = inspector.get_table_names(schema=schema)
+            self.logger.debug(f"Found {len(tables)} table(s) in schema: {schema or 'default'}")
+            
             for table_name in tables:
                 table_info = {
                     "name": table_name,
@@ -308,7 +425,7 @@ class DataExporter:
                     "indexes": []
                 }
                 
-                # Get columns
+                # Get column information
                 columns = inspector.get_columns(table_name, schema=schema)
                 for col in columns:
                     table_info["columns"].append({
@@ -318,25 +435,33 @@ class DataExporter:
                         "primary_key": col.get("primary_key", False)
                     })
                 
-                # Get primary keys
-                pk = inspector.get_pk_constraint(table_name, schema=schema)
-                if pk:
-                    table_info["primary_keys"] = pk.get("constrained_columns", [])
+                # Get primary key constraints
+                try:
+                    pk = inspector.get_pk_constraint(table_name, schema=schema)
+                    if pk:
+                        table_info["primary_keys"] = pk.get("constrained_columns", [])
+                except Exception:
+                    pass
                 
                 # Get indexes
-                indexes = inspector.get_indexes(table_name, schema=schema)
-                table_info["indexes"] = [idx["name"] for idx in indexes]
+                try:
+                    indexes = inspector.get_indexes(table_name, schema=schema)
+                    table_info["indexes"] = [idx["name"] for idx in indexes]
+                except Exception:
+                    pass
                 
                 schema_info["tables"].append(table_info)
             
-            # Get views
+            # Get views (if supported)
             try:
                 views = inspector.get_view_names(schema=schema)
                 schema_info["views"] = views
+                self.logger.debug(f"Found {len(views)} view(s) in schema")
             except Exception:
+                # Views may not be supported by all databases
                 pass
             
-            # Get foreign keys
+            # Get foreign key constraints
             for table_name in tables:
                 try:
                     foreign_keys = inspector.get_foreign_keys(table_name, schema=schema)
@@ -344,111 +469,152 @@ class DataExporter:
                 except Exception:
                     pass
             
+            self.logger.debug(
+                f"Exported schema: {len(schema_info['tables'])} table(s), "
+                f"{len(schema_info['views'])} view(s), "
+                f"{len(schema_info['foreign_keys'])} foreign key(s)"
+            )
+            
             return schema_info
             
         except Exception as e:
             self.logger.error(f"Failed to export schema: {e}")
-            raise ProcessingError(f"Failed to export schema: {e}")
+            raise ProcessingError(f"Failed to export schema: {e}") from e
 
 
 class DBIngestor:
     """
     Database ingestion handler.
     
-    Connects to various database systems,
-    executes SQL queries and exports data,
-    handles different database schemas,
-    and processes large datasets efficiently.
+    This class provides comprehensive database ingestion capabilities, connecting
+    to various database systems, executing SQL queries, exporting data, and
+    analyzing database schemas.
     
-    Attributes:
-        connectors: Dictionary of database connectors
-        exporter: Data export processor
-        schema_analyzer: Database schema analyzer
-        supported_databases: List of supported database types
-        
-    Methods:
-        ingest_database(): Ingest entire database
-        execute_query(): Execute SQL query
-        export_table(): Export specific table
-        analyze_schema(): Analyze database schema
+    Features:
+        - Multiple database support (PostgreSQL, MySQL, SQLite, Oracle, SQL Server)
+        - Database connection management
+        - SQL query execution
+        - Table and schema export
+        - Data transformation
+        - Large dataset handling with pagination
+    
+    Example Usage:
+        >>> ingestor = DBIngestor()
+        >>> data = ingestor.ingest_database("postgresql://user:pass@localhost/db")
+        >>> table_data = ingestor.export_table("postgresql://...", "users", limit=100)
+        >>> schema = ingestor.analyze_schema("postgresql://...")
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize database ingestor.
         
+        Sets up the ingestor with data exporter and configuration.
+        
         Args:
-            config: Database ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Optional database ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("db_ingestor")
         self.config = config or {}
         self.config.update(kwargs)
         
-        # Initialize connectors dictionary
+        # Initialize connectors dictionary (for connection reuse)
         self.connectors: Dict[str, DatabaseConnector] = {}
         
-        # Initialize exporter
+        # Initialize data exporter
         self.exporter = DataExporter(**self.config)
         
         # Supported databases
         self.supported_databases = list(DatabaseConnector.SUPPORTED_DATABASES.keys())
+        
+        self.logger.debug(
+            f"DB ingestor initialized with support for: {', '.join(self.supported_databases)}"
+        )
     
-    def ingest_database(self, connection_string: str, **options) -> Dict[str, Any]:
+    def ingest_database(
+        self,
+        connection_string: str,
+        include_tables: Optional[List[str]] = None,
+        exclude_tables: Optional[List[str]] = None,
+        max_rows_per_table: Optional[int] = None,
+        **options
+    ) -> Dict[str, Any]:
         """
         Ingest data from entire database.
         
+        This method connects to a database, analyzes the schema, and exports
+        data from all tables (or a filtered subset). Useful for full database
+        ingestion and backup scenarios.
+        
         Args:
             connection_string: Database connection string
-            **options: Processing options:
-                - include_tables: List of specific tables to include
-                - exclude_tables: List of tables to exclude
-                - max_rows_per_table: Maximum rows per table
+            include_tables: List of specific table names to include (optional,
+                           if provided, only these tables are exported)
+            exclude_tables: List of table names to exclude (optional,
+                           default: empty list)
+            max_rows_per_table: Maximum number of rows to export per table
+                              (optional, for large tables)
+            **options: Additional processing options (unused)
                 
         Returns:
-            dict: Database content collection
+            dict: Database content dictionary containing:
+                - schema: Database schema information
+                - tables: Dictionary mapping table names to table data
+                - total_tables: Total number of tables exported
+                - connection_string: Connection string used
         """
         # Connect to database
         connector = DatabaseConnector("", **self.config)
         engine = connector.connect(connection_string)
         
         try:
-            # Analyze schema
+            # Analyze schema first
             schema = self.analyze_schema(connection_string)
             
-            # Get table names
+            # Get all table names
             inspector = inspect(engine)
             all_tables = inspector.get_table_names()
             
-            # Apply filters
-            include_tables = options.get("include_tables")
-            exclude_tables = options.get("exclude_tables", [])
+            self.logger.debug(f"Found {len(all_tables)} table(s) in database")
             
+            # Apply table filters
             if include_tables:
                 tables = [t for t in all_tables if t in include_tables]
+                self.logger.debug(f"Filtered to {len(tables)} table(s) via include_tables")
             else:
+                exclude_tables = exclude_tables or []
                 tables = [t for t in all_tables if t not in exclude_tables]
+                if exclude_tables:
+                    self.logger.debug(f"Filtered to {len(tables)} table(s) via exclude_tables")
             
             # Export data from each table
             table_data = {}
-            max_rows = options.get("max_rows_per_table")
             
             for table_name in tables:
                 try:
-                    table_options = {"limit": max_rows} if max_rows else {}
+                    # Export table with optional row limit
                     table_info = self.exporter.export_table_data(
                         engine,
                         table_name,
-                        **table_options
+                        limit=max_rows_per_table
                     )
                     table_data[table_name] = {
                         "columns": table_info.columns,
                         "row_count": table_info.row_count,
-                        "rows": table_info.rows[:max_rows] if max_rows else table_info.rows
+                        "rows": table_info.rows
                     }
-                    self.logger.debug(f"Exported table {table_name}: {table_info.row_count} rows")
+                    self.logger.debug(
+                        f"Exported table {table_name}: {table_info.row_count} row(s)"
+                    )
                 except Exception as e:
                     self.logger.error(f"Failed to export table {table_name}: {e}")
+                    if self.config.get('fail_fast', False):
+                        raise ProcessingError(f"Failed to export table {table_name}: {e}") from e
+            
+            self.logger.info(
+                f"Database ingestion completed: {len(table_data)} table(s) exported"
+            )
             
             return {
                 "schema": schema,
@@ -460,24 +626,43 @@ class DBIngestor:
         finally:
             connector.disconnect()
     
-    def execute_query(self, connection_string: str, query: str, **params) -> List[Dict[str, Any]]:
+    def execute_query(
+        self,
+        connection_string: str,
+        query: str,
+        **params
+    ) -> List[Dict[str, Any]]:
         """
         Execute SQL query and return results.
         
+        This method executes a SQL query with optional parameters and returns
+        results as a list of dictionaries. Converts database types to
+        JSON-serializable formats.
+        
         Args:
             connection_string: Database connection string
-            query: SQL query to execute
-            **params: Query parameters
+            query: SQL query to execute (can include parameter placeholders)
+            **params: Query parameters (for parameterized queries)
             
         Returns:
-            list: Query results
+            list: List of row dictionaries, each representing a query result row
+            
+        Raises:
+            ProcessingError: If query execution fails
+            
+        Example:
+            >>> results = ingestor.execute_query(
+            ...     "postgresql://...",
+            ...     "SELECT * FROM users WHERE age > :min_age",
+            ...     min_age=18
+            ... )
         """
         connector = DatabaseConnector("", **self.config)
         engine = connector.connect(connection_string)
         
         try:
             with engine.connect() as conn:
-                # Execute query with parameters
+                # Execute query with parameters (parameterized queries for safety)
                 result = conn.execute(text(query), params)
                 
                 # Convert results to list of dictionaries
@@ -485,19 +670,22 @@ class DBIngestor:
                 for row in result:
                     row_dict = {}
                     for col_name, value in row._mapping.items():
+                        # Convert datetime to ISO format
                         if isinstance(value, datetime):
                             row_dict[col_name] = value.isoformat()
                         elif hasattr(value, '__dict__'):
+                            # Complex types - convert to string
                             row_dict[col_name] = str(value)
                         else:
                             row_dict[col_name] = value
                     rows.append(row_dict)
                 
+                self.logger.debug(f"Query executed: {len(rows)} row(s) returned")
                 return rows
                 
         except Exception as e:
             self.logger.error(f"Failed to execute query: {e}")
-            raise ProcessingError(f"Failed to execute query: {e}")
+            raise ProcessingError(f"Failed to execute query: {e}") from e
         finally:
             connector.disconnect()
     
@@ -506,71 +694,110 @@ class DBIngestor:
         connection_string: str,
         table_name: str,
         schema: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        where: Optional[str] = None,
+        order_by: Optional[str] = None,
+        transform: bool = False,
         **filters
     ) -> TableData:
         """
         Export data from specific table.
         
+        This method exports data from a single database table with optional
+        filtering, pagination, ordering, and transformation.
+        
         Args:
             connection_string: Database connection string
-            table_name: Table name to export
-            schema: Schema name (optional)
-            **filters: Filtering criteria:
-                - where: WHERE clause
-                - limit: Maximum number of rows
-                - offset: Row offset
-                - order_by: ORDER BY clause
+            table_name: Name of the table to export
+            schema: Schema name (for databases with schema support, optional)
+            limit: Maximum number of rows to export (optional)
+            offset: Row offset for pagination (optional)
+            where: WHERE clause for filtering (optional, e.g., "status = 'active'")
+            order_by: ORDER BY clause for sorting (optional, e.g., "created_at DESC")
+            transform: Whether to apply data transformations (default: False)
+            **filters: Additional filtering options (merged with above parameters)
                 
         Returns:
-            TableData: Table data collection
+            TableData: Table data object with columns, rows, and metadata
         """
         connector = DatabaseConnector("", **self.config)
         engine = connector.connect(connection_string)
         
         try:
+            # Merge filters with explicit parameters
+            export_options = {
+                "limit": limit or filters.get("limit"),
+                "offset": offset or filters.get("offset"),
+                "where": where or filters.get("where"),
+                "order_by": order_by or filters.get("order_by")
+            }
+            # Remove None values
+            export_options = {k: v for k, v in export_options.items() if v is not None}
+            
+            # Export table data
             table_data = self.exporter.export_table_data(
                 engine,
                 table_name,
                 schema=schema,
-                **filters
+                **export_options
             )
             
             # Transform data if requested
-            if filters.get("transform", False):
+            if transform or filters.get("transform", False):
                 schema_info = {"columns": table_data.columns}
                 table_data.rows = self.exporter.transform_data(table_data.rows, schema_info)
+                self.logger.debug(f"Applied transformations to table {table_name}")
             
             return table_data
             
         finally:
             connector.disconnect()
     
-    def analyze_schema(self, connection_string: str, schema: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_schema(
+        self,
+        connection_string: str,
+        schema: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Analyze database schema and structure.
         
+        This method exports the database schema and performs additional analysis
+        including table counts, view counts, and foreign key relationships.
+        
         Args:
             connection_string: Database connection string
-            schema: Schema name (optional)
+            schema: Schema name (for databases with schema support, optional)
             
         Returns:
-            dict: Schema analysis results
+            dict: Schema analysis dictionary containing:
+                - tables: List of table information
+                - views: List of view names
+                - foreign_keys: List of foreign key constraints
+                - analysis: Analysis summary with counts and statistics
         """
         connector = DatabaseConnector("", **self.config)
         engine = connector.connect(connection_string)
         
         try:
+            # Export base schema information
             schema_info = self.exporter.export_schema(engine, schema=schema)
             
-            # Additional analysis
+            # Perform additional analysis
             schema_info["analysis"] = {
                 "total_tables": len(schema_info["tables"]),
                 "total_views": len(schema_info["views"]),
                 "total_foreign_keys": len(schema_info["foreign_keys"]),
                 "tables_with_foreign_keys": len(set(
-                    fk["referred_table"] for fk in schema_info["foreign_keys"]
+                    fk.get("referred_table", "") for fk in schema_info["foreign_keys"]
+                    if fk.get("referred_table")
                 ))
             }
+            
+            self.logger.info(
+                f"Schema analysis completed: {schema_info['analysis']['total_tables']} table(s), "
+                f"{schema_info['analysis']['total_views']} view(s)"
+            )
             
             return schema_info
             

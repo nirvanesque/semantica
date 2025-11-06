@@ -1,19 +1,32 @@
 """
 Email Ingestion Module
 
-Handles email protocol processing and content extraction.
+This module provides comprehensive email ingestion capabilities for the
+Semantica framework, enabling email retrieval, parsing, and content extraction
+from various email protocols.
 
 Key Features:
-    - IMAP/POP3 email retrieval
-    - Email content parsing
-    - Attachment processing
-    - Email metadata extraction
-    - Thread analysis
+    - IMAP/POP3 email retrieval with secure connections
+    - Email content parsing (plain text and HTML)
+    - Attachment processing and extraction
+    - Email metadata extraction (headers, dates, addresses)
+    - Thread analysis and conversation grouping
+    - Link extraction from email content
 
 Main Classes:
     - EmailIngestor: Main email ingestion class
     - EmailParser: Email content parser
     - AttachmentProcessor: Email attachment handler
+
+Example Usage:
+    >>> from semantica.ingest import EmailIngestor
+    >>> ingestor = EmailIngestor()
+    >>> ingestor.connect_imap("imap.example.com", username="user", password="pass")
+    >>> emails = ingestor.ingest_mailbox("INBOX", max_emails=100)
+    >>> threads = ingestor.analyze_threads(emails)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import email
@@ -35,7 +48,25 @@ from ..utils.logging import get_logger
 
 @dataclass
 class EmailData:
-    """Email data representation."""
+    """
+    Email data representation.
+    
+    This dataclass represents a structured email message with all relevant
+    metadata, content, and attachments.
+    
+    Attributes:
+        message_id: Unique message identifier
+        subject: Email subject line
+        from_address: Sender email address
+        to_addresses: List of recipient email addresses
+        cc_addresses: List of CC recipient email addresses
+        date: Email date/time (optional)
+        body_text: Plain text email body
+        body_html: HTML email body
+        attachments: List of attachment information dictionaries
+        headers: Dictionary of email headers
+        thread_id: Thread/conversation identifier (optional)
+    """
     
     message_id: str
     subject: str
@@ -54,33 +85,56 @@ class AttachmentProcessor:
     """
     Email attachment processing and extraction.
     
-    Processes various attachment types,
-    extracts text content from documents,
-    and handles image and media attachments.
+    This class processes various email attachment types, extracts text content
+    from documents, and handles image and media attachments. Creates temporary
+    files for processing and provides cleanup functionality.
+    
+    Example Usage:
+        >>> processor = AttachmentProcessor()
+        >>> info = processor.process_attachment(data, "document.pdf", "application/pdf")
+        >>> processor.cleanup_attachments([info["saved_path"]])
     """
     
     def __init__(self, **config):
         """
         Initialize attachment processor.
         
+        Sets up the processor with configuration and creates a temporary
+        directory for storing attachments.
+        
         Args:
-            **config: Processor configuration
+            **config: Processor configuration options (currently unused)
         """
         self.logger = get_logger("attachment_processor")
         self.config = config
         self.temp_dir = tempfile.mkdtemp(prefix="semantica_attachments_")
+        self.logger.debug(f"Attachment processor initialized: temp_dir={self.temp_dir}")
     
-    def process_attachment(self, attachment_data: bytes, filename: str, content_type: str) -> Dict[str, Any]:
+    def process_attachment(
+        self,
+        attachment_data: bytes,
+        filename: str,
+        content_type: str
+    ) -> Dict[str, Any]:
         """
         Process individual email attachment.
         
+        This method saves the attachment to a temporary file, extracts text
+        content if applicable (for text files and documents), and returns
+        comprehensive attachment information.
+        
         Args:
-            attachment_data: Attachment content bytes
-            filename: Attachment filename
-            content_type: MIME content type
+            attachment_data: Attachment content as bytes
+            filename: Original attachment filename
+            content_type: MIME content type (e.g., "application/pdf", "text/plain")
             
         Returns:
-            dict: Attachment information
+            dict: Attachment information dictionary containing:
+                - filename: Original filename
+                - content_type: MIME content type
+                - size: File size in bytes
+                - saved_path: Path to saved temporary file (or None if save failed)
+                - text_content: Extracted text content (or None if not applicable)
         """
         attachment_info = {
             "filename": filename,
@@ -116,43 +170,66 @@ class AttachmentProcessor:
         
         return attachment_info
     
-    def extract_text_content(self, attachment_path: Path, file_type: str) -> Optional[str]:
+    def extract_text_content(
+        self,
+        attachment_path: Path,
+        file_type: str
+    ) -> Optional[str]:
         """
         Extract text content from attachment.
         
+        This method attempts to extract text content from various document
+        types. Currently supports plain text files. PDF and Word document
+        extraction would require additional libraries (PyPDF2/pdfplumber for
+        PDF, python-docx for Word).
+        
         Args:
             attachment_path: Path to attachment file
-            file_type: File MIME type
+            file_type: File MIME type (e.g., "application/pdf", "text/plain")
             
         Returns:
-            str: Extracted text content or None
+            str: Extracted text content, or None if extraction is not supported
+                 or fails
         """
         try:
             if file_type == 'application/pdf':
                 # PDF text extraction would require PyPDF2 or pdfplumber
-                return None  # Placeholder - would need PDF library
-            elif file_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                self.logger.debug("PDF text extraction not implemented (requires PyPDF2/pdfplumber)")
+                return None
+            elif file_type in [
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]:
                 # Word document extraction would require python-docx
-                return None  # Placeholder - would need docx library
+                self.logger.debug("Word document extraction not implemented (requires python-docx)")
+                return None
             elif file_type.startswith('text/'):
                 with open(attachment_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    return f.read()
+                    content = f.read()
+                    self.logger.debug(f"Extracted {len(content)} characters from text file")
+                    return content
         except Exception as e:
             self.logger.error(f"Failed to extract text from {attachment_path}: {e}")
         
         return None
     
-    def cleanup_attachments(self, attachment_paths: List[str]):
+    def cleanup_attachments(self, attachment_paths: Optional[List[str]] = None):
         """
         Clean up temporary attachment files.
         
+        This method removes the temporary directory and all files within it.
+        The attachment_paths parameter is currently unused but reserved for
+        selective cleanup in the future.
+        
         Args:
-            attachment_paths: List of attachment file paths
+            attachment_paths: List of attachment file paths (optional, currently
+                             unused - entire temp directory is cleaned)
         """
         import shutil
         try:
             if Path(self.temp_dir).exists():
                 shutil.rmtree(self.temp_dir)
+                self.logger.debug(f"Cleaned up attachment directory: {self.temp_dir}")
         except Exception as e:
             self.logger.error(f"Failed to cleanup attachments: {e}")
 
@@ -161,31 +238,46 @@ class EmailParser:
     """
     Email content parsing and extraction.
     
-    Parses email headers and metadata,
-    extracts email body content,
-    handles MIME multipart messages,
-    and processes HTML and plain text content.
+    This class parses email headers and metadata, extracts email body content
+    from both plain text and HTML parts, handles MIME multipart messages, and
+    extracts links from email content.
+    
+    Example Usage:
+        >>> parser = EmailParser()
+        >>> headers = parser.parse_headers(email_message)
+        >>> body = parser.parse_body(email_message)
+        >>> links = parser.extract_links(body["html"])
     """
     
     def __init__(self, **config):
         """
         Initialize email parser.
         
+        Sets up the parser with configuration options.
+        
         Args:
-            **config: Parser configuration
+            **config: Parser configuration options (currently unused)
         """
         self.logger = get_logger("email_parser")
         self.config = config
     
-    def parse_headers(self, email_message: email.message.Message) -> Dict[str, str]:
+    def parse_headers(
+        self,
+        email_message: email.message.Message
+    ) -> Dict[str, str]:
         """
         Parse email headers and metadata.
         
+        This method extracts all email headers, decodes them if necessary
+        (handling encoded headers with character sets), and returns them as
+        a dictionary with lowercase keys.
+        
         Args:
-            email_message: Email message object
+            email_message: Email message object from email library
             
         Returns:
-            dict: Header dictionary
+            dict: Dictionary mapping header names (lowercase) to decoded
+                  header values
         """
         headers = {}
         
@@ -202,15 +294,24 @@ class EmailParser:
         
         return headers
     
-    def parse_body(self, email_message: email.message.Message) -> Dict[str, str]:
+    def parse_body(
+        self,
+        email_message: email.message.Message
+    ) -> Dict[str, str]:
         """
         Parse email body content.
         
+        This method extracts both plain text and HTML content from email
+        messages, handling both multipart and single-part messages. Skips
+        attachment parts when extracting body content.
+        
         Args:
-            email_message: Email message object
+            email_message: Email message object from email library
             
         Returns:
-            dict: Body content dictionary with 'text' and 'html' keys
+            dict: Body content dictionary with:
+                - text: Plain text email body (empty string if not available)
+                - html: HTML email body (empty string if not available)
         """
         body = {"text": "", "html": ""}
         
@@ -264,11 +365,15 @@ class EmailParser:
         """
         Extract links from email content.
         
+        This method extracts URLs from email content, supporting both HTML
+        (extracts href attributes from anchor tags) and plain text (uses
+        regex pattern matching). Removes duplicate URLs.
+        
         Args:
-            email_content: Email content (HTML or text)
+            email_content: Email content (HTML or plain text)
             
         Returns:
-            list: List of extracted links
+            list: List of unique extracted URLs
         """
         links = []
         
@@ -295,30 +400,36 @@ class EmailIngestor:
     """
     Email protocol ingestion handler.
     
-    Connects to email servers via IMAP/POP3,
-    retrieves emails from mailboxes,
-    and processes email content and attachments.
+    This class provides comprehensive email ingestion capabilities, connecting
+    to email servers via IMAP/POP3, retrieving emails from mailboxes, and
+    processing email content and attachments.
     
-    Attributes:
-        imap_client: IMAP client for email access
-        pop3_client: POP3 client for email access
-        parser: Email content parser
-        attachment_processor: Attachment handling system
-        
-    Methods:
-        ingest_mailbox(): Ingest emails from mailbox
-        process_email(): Process individual email
-        extract_attachments(): Extract email attachments
-        analyze_threads(): Analyze email threads
+    Features:
+        - IMAP and POP3 protocol support
+        - Secure connections (SSL/TLS)
+        - Email filtering and pagination
+        - Thread analysis
+        - Attachment extraction
+    
+    Example Usage:
+        >>> ingestor = EmailIngestor()
+        >>> ingestor.connect_imap("imap.example.com", username="user", password="pass")
+        >>> emails = ingestor.ingest_mailbox("INBOX", max_emails=100, unread_only=True)
+        >>> threads = ingestor.analyze_threads(emails)
+        >>> ingestor.disconnect()
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize email ingestor.
         
+        Sets up the ingestor with email parser and attachment processor.
+        Connection to email servers must be established separately using
+        connect_imap() or connect_pop3().
+        
         Args:
-            config: Email ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Optional email ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("email_ingestor")
         self.config = config or {}
@@ -333,74 +444,146 @@ class EmailIngestor:
         # Connection objects (initialized on connect)
         self.imap_client: Optional[imaplib.IMAP4_SSL] = None
         self.pop3_client: Optional[poplib.POP3_SSL] = None
+        
+        self.logger.debug("Email ingestor initialized")
     
-    def connect_imap(self, server: str, port: int = 993, username: str = None, password: str = None):
+    def connect_imap(
+        self,
+        server: str,
+        port: int = 993,
+        username: Optional[str] = None,
+        password: Optional[str] = None
+    ):
         """
         Connect to IMAP server.
         
+        This method establishes a secure SSL connection to an IMAP server and
+        authenticates with the provided credentials. The connection is stored
+        for use in subsequent operations.
+        
         Args:
-            server: IMAP server address
-            port: IMAP server port (default: 993)
-            username: Email username
-            password: Email password
+            server: IMAP server address (hostname or IP)
+            port: IMAP server port (default: 993 for SSL)
+            username: Email username (optional, can be provided later)
+            password: Email password (optional, can be provided later)
+            
+        Raises:
+            ProcessingError: If connection or authentication fails
         """
         try:
             self.imap_client = imaplib.IMAP4_SSL(server, port)
             if username and password:
                 self.imap_client.login(username, password)
-            self.logger.info(f"Connected to IMAP server: {server}")
+                self.logger.info(f"Connected and authenticated to IMAP server: {server}:{port}")
+            else:
+                self.logger.info(f"Connected to IMAP server: {server}:{port} (not authenticated)")
         except Exception as e:
             self.logger.error(f"Failed to connect to IMAP: {e}")
-            raise ProcessingError(f"Failed to connect to IMAP server: {e}")
+            raise ProcessingError(f"Failed to connect to IMAP server: {e}") from e
     
-    def connect_pop3(self, server: str, port: int = 995, username: str = None, password: str = None):
+    def connect_pop3(
+        self,
+        server: str,
+        port: int = 995,
+        username: Optional[str] = None,
+        password: Optional[str] = None
+    ):
         """
         Connect to POP3 server.
         
+        This method establishes a secure SSL connection to a POP3 server and
+        authenticates with the provided credentials. The connection is stored
+        for use in subsequent operations.
+        
         Args:
-            server: POP3 server address
-            port: POP3 server port (default: 995)
-            username: Email username
-            password: Email password
+            server: POP3 server address (hostname or IP)
+            port: POP3 server port (default: 995 for SSL)
+            username: Email username (optional, can be provided later)
+            password: Email password (optional, can be provided later)
+            
+        Raises:
+            ProcessingError: If connection or authentication fails
         """
         try:
             self.pop3_client = poplib.POP3_SSL(server, port)
             if username and password:
                 self.pop3_client.user(username)
                 self.pop3_client.pass_(password)
-            self.logger.info(f"Connected to POP3 server: {server}")
+                self.logger.info(f"Connected and authenticated to POP3 server: {server}:{port}")
+            else:
+                self.logger.info(f"Connected to POP3 server: {server}:{port} (not authenticated)")
         except Exception as e:
             self.logger.error(f"Failed to connect to POP3: {e}")
-            raise ProcessingError(f"Failed to connect to POP3 server: {e}")
+            raise ProcessingError(f"Failed to connect to POP3 server: {e}") from e
     
-    def ingest_mailbox(self, mailbox_name: str = "INBOX", protocol: str = "imap", **filters) -> List[EmailData]:
+    def ingest_mailbox(
+        self,
+        mailbox_name: str = "INBOX",
+        protocol: str = "imap",
+        since: Optional[str] = None,
+        max_emails: Optional[int] = None,
+        unread_only: bool = False,
+        **filters
+    ) -> List[EmailData]:
         """
         Ingest emails from specified mailbox.
         
+        This method retrieves emails from a mailbox using the specified
+        protocol (IMAP or POP3), applies optional filters, and returns
+        processed email data.
+        
         Args:
-            mailbox_name: Mailbox name (default: "INBOX")
-            protocol: Protocol to use ("imap" or "pop3")
-            **filters: Email filtering criteria:
-                - since: Date to start from
-                - max_emails: Maximum number of emails
-                - unread_only: Only fetch unread emails
+            mailbox_name: Mailbox name (default: "INBOX", IMAP only)
+            protocol: Protocol to use ("imap" or "pop3", default: "imap")
+            since: Date to start from (IMAP only, format: "DD-MMM-YYYY")
+            max_emails: Maximum number of emails to retrieve (optional)
+            unread_only: Only fetch unread emails (IMAP only, default: False)
+            **filters: Additional filtering criteria (merged with above)
                 
         Returns:
-            list: Processed email collection
+            list: List of EmailData objects representing processed emails
+            
+        Raises:
+            ProcessingError: If protocol is unsupported or client not connected
+            ValidationError: If protocol is invalid
         """
+        # Merge explicit parameters with filters
+        merged_filters = {
+            "since": since or filters.get("since"),
+            "max_emails": max_emails or filters.get("max_emails"),
+            "unread_only": unread_only or filters.get("unread_only", False)
+        }
+        # Remove None values
+        merged_filters = {k: v for k, v in merged_filters.items() if v is not None}
+        
         if protocol.lower() == "imap":
             if not self.imap_client:
                 raise ProcessingError("IMAP client not connected. Call connect_imap() first.")
-            return self._ingest_imap(mailbox_name, **filters)
+            return self._ingest_imap(mailbox_name, **merged_filters)
         elif protocol.lower() == "pop3":
             if not self.pop3_client:
                 raise ProcessingError("POP3 client not connected. Call connect_pop3() first.")
-            return self._ingest_pop3(**filters)
+            return self._ingest_pop3(**merged_filters)
         else:
-            raise ValidationError(f"Unsupported protocol: {protocol}")
+            raise ValidationError(f"Unsupported protocol: {protocol}. Supported: 'imap', 'pop3'")
     
     def _ingest_imap(self, mailbox_name: str, **filters) -> List[EmailData]:
-        """Ingest emails using IMAP."""
+        """
+        Ingest emails using IMAP protocol.
+        
+        This private method handles IMAP-specific email retrieval, including
+        mailbox selection, search criteria building, and email fetching.
+        
+        Args:
+            mailbox_name: Name of the mailbox to access
+            **filters: Email filtering criteria (since, max_emails, unread_only)
+            
+        Returns:
+            list: List of EmailData objects
+            
+        Raises:
+            ProcessingError: If mailbox access or email retrieval fails
+        """
         try:
             # Select mailbox
             self.imap_client.select(mailbox_name)
@@ -443,7 +626,21 @@ class EmailIngestor:
             raise ProcessingError(f"Failed to ingest mailbox: {e}")
     
     def _ingest_pop3(self, **filters) -> List[EmailData]:
-        """Ingest emails using POP3."""
+        """
+        Ingest emails using POP3 protocol.
+        
+        This private method handles POP3-specific email retrieval. POP3 does
+        not support mailbox selection or advanced filtering like IMAP.
+        
+        Args:
+            **filters: Email filtering criteria (max_emails supported)
+            
+        Returns:
+            list: List of EmailData objects
+            
+        Raises:
+            ProcessingError: If email retrieval fails
+        """
         try:
             # Get email list
             num_messages = len(self.pop3_client.list()[1])
@@ -469,15 +666,22 @@ class EmailIngestor:
             self.logger.error(f"Error ingesting POP3: {e}")
             raise ProcessingError(f"Failed to ingest POP3: {e}")
     
-    def process_email(self, email_message: email.message.Message) -> EmailData:
+    def process_email(
+        self,
+        email_message: email.message.Message
+    ) -> EmailData:
         """
         Process individual email message.
         
+        This method extracts all relevant information from an email message,
+        including headers, body content, attachments, and thread information.
+        
         Args:
-            email_message: Email message object
+            email_message: Email message object from email library
             
         Returns:
-            EmailData: Structured email data
+            EmailData: Structured email data object with all extracted
+                      information
         """
         # Parse headers
         headers = self.parser.parse_headers(email_message)
@@ -522,15 +726,27 @@ class EmailIngestor:
             thread_id=thread_id
         )
     
-    def extract_attachments(self, email_message: email.message.Message) -> List[Dict[str, Any]]:
+    def extract_attachments(
+        self,
+        email_message: email.message.Message
+    ) -> List[Dict[str, Any]]:
         """
         Extract and process email attachments.
         
+        This method walks through the email message parts, identifies
+        attachments (based on Content-Disposition header), decodes filenames,
+        and processes each attachment using the attachment processor.
+        
         Args:
-            email_message: Email message object
+            email_message: Email message object from email library
             
         Returns:
-            list: Attachment information
+            list: List of attachment information dictionaries, each containing:
+                - filename: Attachment filename
+                - content_type: MIME content type
+                - size: File size in bytes
+                - saved_path: Path to saved temporary file
+                - text_content: Extracted text content (if applicable)
         """
         attachments = []
         
@@ -564,11 +780,22 @@ class EmailIngestor:
         """
         Analyze email threads and conversations.
         
+        This method groups emails into threads based on thread IDs (from
+        In-Reply-To or References headers) or message IDs, and analyzes
+        thread characteristics including participants and message counts.
+        
         Args:
-            emails: List of email data objects
+            emails: List of EmailData objects to analyze
             
         Returns:
-            dict: Thread analysis results
+            dict: Thread analysis dictionary containing:
+                - total_threads: Total number of unique threads
+                - threads: List of thread dictionaries, each containing:
+                    - thread_id: Thread identifier
+                    - emails: List of emails in the thread
+                    - participants: List of participant email addresses
+                    - subject: Thread subject (from first email)
+                    - message_count: Number of messages in thread
         """
         threads = {}
         
@@ -599,7 +826,19 @@ class EmailIngestor:
         }
     
     def _parse_address_list(self, address_string: str) -> List[str]:
-        """Parse email address list string into list of addresses."""
+        """
+        Parse email address list string into list of addresses.
+        
+        This private method parses email address strings (which may contain
+        multiple addresses in various formats) into a list of email addresses.
+        Uses email.utils for proper parsing, with regex fallback.
+        
+        Args:
+            address_string: Email address string (may contain multiple addresses)
+            
+        Returns:
+            list: List of email addresses
+        """
         if not address_string:
             return []
         
@@ -617,7 +856,12 @@ class EmailIngestor:
         return addresses
     
     def disconnect(self):
-        """Disconnect from email servers."""
+        """
+        Disconnect from email servers.
+        
+        This method closes all active connections (IMAP and POP3) and cleans
+        up resources. Should be called when done with email operations.
+        """
         if self.imap_client:
             try:
                 self.imap_client.close()

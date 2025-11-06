@@ -1,20 +1,37 @@
 """
 Stream Ingestion Module
 
-Handles real-time data stream processing from various sources.
+This module provides comprehensive real-time data stream processing capabilities
+for the Semantica framework, supporting multiple streaming platforms and
+protocols.
 
 Key Features:
     - Kafka stream processing
-    - Pulsar integration
+    - Apache Pulsar integration
     - RabbitMQ message handling
-    - Kinesis stream processing
-    - Real-time data transformation
-    - Stream monitoring
+    - AWS Kinesis stream processing
+    - Real-time data transformation and validation
+    - Stream health monitoring and metrics
+    - Error handling and retry logic
 
 Main Classes:
     - StreamIngestor: Main stream ingestion class
-    - StreamProcessor: Stream data processor
+    - StreamProcessor: Base stream data processor
+    - KafkaProcessor: Kafka-specific processor
+    - RabbitMQProcessor: RabbitMQ-specific processor
+    - KinesisProcessor: AWS Kinesis-specific processor
+    - PulsarProcessor: Apache Pulsar-specific processor
     - StreamMonitor: Stream health monitoring
+
+Example Usage:
+    >>> from semantica.ingest import StreamIngestor
+    >>> ingestor = StreamIngestor()
+    >>> processor = ingestor.ingest_kafka("topic", ["localhost:9092"])
+    >>> processor.set_message_handler(lambda msg: print(msg))
+    >>> processor.start_consuming()
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import json
@@ -30,7 +47,20 @@ from ..utils.logging import get_logger
 
 @dataclass
 class StreamMessage:
-    """Stream message representation."""
+    """
+    Stream message representation.
+    
+    This dataclass represents a message from a streaming source with its
+    content, metadata, and position information.
+    
+    Attributes:
+        content: Message content (any type)
+        metadata: Message metadata dictionary
+        timestamp: Message timestamp
+        source: Source identifier
+        partition: Partition number (for partitioned streams, optional)
+        offset: Message offset (optional)
+    """
     
     content: Any
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -44,17 +74,25 @@ class StreamProcessor:
     """
     Generic stream data processor.
     
-    Base class for processing data from various
-    streaming sources with common functionality.
+    This is the base class for processing data from various streaming sources
+    with common functionality including message transformation, validation,
+    error handling, and statistics tracking.
+    
+    Subclasses should implement `_consume_loop()` for source-specific
+    consumption logic.
     """
     
     def __init__(self, source_config: Dict[str, Any], **options):
         """
         Initialize stream processor.
         
+        Sets up the processor with source configuration and processing options.
+        
         Args:
-            source_config: Source-specific configuration
-            **options: Processing options
+            source_config: Source-specific configuration dictionary
+            **options: Processing options:
+                - transform: Optional transformation function for messages
+                - validate: Optional validation function for messages
         """
         self.logger = get_logger("stream_processor")
         self.source_config = source_config
@@ -492,29 +530,34 @@ class StreamIngestor:
     """
     Real-time stream ingestion handler.
     
-    Processes data streams from various sources with
-    support for different streaming protocols.
+    This class provides comprehensive stream ingestion capabilities, processing
+    data streams from various sources with support for different streaming
+    protocols (Kafka, Pulsar, RabbitMQ, Kinesis).
     
-    Attributes:
-        processors: Dictionary of stream processors
-        monitor: Stream health monitor
-        config: Stream configuration
-        
-    Methods:
-        ingest_kafka(): Ingest from Kafka streams
-        ingest_pulsar(): Ingest from Pulsar streams
-        ingest_rabbitmq(): Ingest from RabbitMQ
-        ingest_kinesis(): Ingest from Kinesis
-        start_streaming(): Start stream processing
+    Features:
+        - Multiple streaming platform support
+        - Stream health monitoring
+        - Error handling and recovery
+        - Message transformation and validation
+    
+    Example Usage:
+        >>> ingestor = StreamIngestor()
+        >>> kafka_proc = ingestor.ingest_kafka("topic", ["localhost:9092"])
+        >>> kafka_proc.set_message_handler(process_message)
+        >>> ingestor.start_streaming()
+        >>> health = ingestor.monitor.check_health()
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize stream ingestor.
         
+        Sets up the ingestor with stream monitor. Processors are created
+        dynamically when ingesting from specific sources.
+        
         Args:
-            config: Stream ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Optional stream ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("stream_ingestor")
         self.config = config or {}
@@ -525,6 +568,8 @@ class StreamIngestor:
         
         # Setup stream monitor
         self.monitor = StreamMonitor(**self.config)
+        
+        self.logger.debug("Stream ingestor initialized")
     
     def ingest_kafka(self, topic: str, bootstrap_servers: List[str], **options) -> KafkaProcessor:
         """

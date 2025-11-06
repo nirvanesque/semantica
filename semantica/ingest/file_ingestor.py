@@ -1,19 +1,25 @@
 """
 File Ingestion Module
 
-Handles ingestion from local filesystem and cloud storage providers.
+This module provides comprehensive file ingestion capabilities from local filesystems
+and cloud storage providers, with automatic file type detection and validation.
 
 Key Features:
-    - Local file system scanning
-    - Cloud storage integration (S3, GCS, Azure)
-    - File type detection
-    - Batch processing
-    - Progress tracking
+    - Local file system scanning (recursive and filtered)
+    - Cloud storage integration (AWS S3, Google Cloud Storage, Azure Blob)
+    - Automatic file type detection (extension, MIME type, magic numbers)
+    - Batch processing with progress tracking
+    - File size validation and limits
+    - Support for all common document, image, audio, and video formats
 
-Main Classes:
-    - FileIngestor: Main file ingestion class
-    - CloudStorageIngestor: Cloud storage specific handling
-    - FileTypeDetector: File type identification
+Example Usage:
+    >>> from semantica.ingest import FileIngestor
+    >>> ingestor = FileIngestor()
+    >>> files = ingestor.ingest_directory("./documents", recursive=True)
+    >>> file = ingestor.ingest_file("document.pdf", read_content=True)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import mimetypes
@@ -52,76 +58,120 @@ class FileTypeDetector:
     """
     File type detection and validation.
     
-    Identifies file types using multiple methods including
-    extension, MIME type, and content analysis.
+    This class identifies file types using multiple detection methods:
+    1. File extension analysis
+    2. MIME type detection
+    3. Magic number (file signature) analysis
+    
+    It supports a wide range of document, image, audio, and video formats.
     """
     
     def __init__(self):
-        """Initialize file type detector."""
+        """
+        Initialize file type detector.
+        
+        Sets up the detector with all supported file formats and initializes
+        the MIME types database for accurate type detection.
+        """
         self.logger = get_logger("file_type_detector")
+        
+        # Combine all supported formats into a single list
         self.supported_formats = (
             SUPPORTED_DOCUMENT_FORMATS +
             SUPPORTED_IMAGE_FORMATS +
             SUPPORTED_AUDIO_FORMATS +
             SUPPORTED_VIDEO_FORMATS
         )
-        # Initialize MIME types database
+        
+        # Initialize Python's MIME types database
         mimetypes.init()
+        
+        self.logger.debug(f"File type detector initialized with {len(self.supported_formats)} supported formats")
     
     def detect_type(self, file_path: Union[str, Path], content: Optional[bytes] = None) -> str:
         """
-        Detect file type using multiple methods.
+        Detect file type using multiple detection methods.
+        
+        This method tries three detection strategies in order:
+        1. File extension (fastest, most common)
+        2. MIME type detection (if file exists)
+        3. Magic number analysis (most reliable, requires content)
         
         Args:
-            file_path: Path to file
-            content: Optional file content
+            file_path: Path to file (can be string or Path object)
+            content: Optional file content bytes for magic number detection
             
         Returns:
-            str: Detected file type
+            str: Detected file type (extension without dot, e.g., "pdf", "jpg")
+                 Returns "unknown" if type cannot be determined
         """
         file_path = Path(file_path)
         
-        # Method 1: Check file extension
+        # Method 1: Check file extension (fastest method)
         extension = file_path.suffix.lstrip('.').lower()
         if extension:
+            self.logger.debug(f"Detected file type by extension: {extension}")
             return extension
         
-        # Method 2: Check MIME type
+        # Method 2: Check MIME type (if file exists on filesystem)
         if file_path.exists():
             mime_type, _ = mimetypes.guess_type(str(file_path))
             if mime_type:
-                # Map MIME type to extension
+                # Convert MIME type to file extension
                 ext = mimetypes.guess_extension(mime_type)
                 if ext:
-                    return ext.lstrip('.').lower()
+                    detected_type = ext.lstrip('.').lower()
+                    self.logger.debug(f"Detected file type by MIME type: {detected_type}")
+                    return detected_type
         
-        # Method 3: Check magic numbers if content provided
+        # Method 3: Check magic numbers (file signatures) if content provided
+        # This is the most reliable method but requires reading file content
         if content:
             file_type = self._detect_by_magic_numbers(content)
             if file_type:
+                self.logger.debug(f"Detected file type by magic numbers: {file_type}")
                 return file_type
         
+        # Could not determine file type
+        self.logger.warning(f"Could not determine file type for: {file_path}")
         return "unknown"
     
     def _detect_by_magic_numbers(self, content: bytes) -> Optional[str]:
-        """Detect file type by magic numbers (file signatures)."""
+        """
+        Detect file type by analyzing magic numbers (file signatures).
+        
+        Magic numbers are specific byte sequences at the beginning of files
+        that uniquely identify the file format. This is the most reliable
+        detection method but requires file content.
+        
+        Args:
+            content: File content bytes (at least first few bytes)
+            
+        Returns:
+            str: Detected file type or None if not recognized
+        """
+        # Need at least 4 bytes for most magic number checks
         if len(content) < 4:
             return None
         
-        # Common magic numbers
+        # Dictionary of magic numbers (file signatures) mapped to file types
+        # Format: {magic_bytes: file_extension}
         magic_numbers = {
-            b'\x25\x50\x44\x46': 'pdf',  # PDF
-            b'\x50\x4B\x03\x04': 'zip',  # ZIP/DOCX/XLSX/PPTX
-            b'\x89\x50\x4E\x47': 'png',  # PNG
-            b'\xFF\xD8\xFF': 'jpg',      # JPEG
-            b'\x47\x49\x46\x38': 'gif',  # GIF
-            b'%PDF': 'pdf',               # PDF (text)
+            b'\x25\x50\x44\x46': 'pdf',  # PDF (binary)
+            b'%PDF': 'pdf',               # PDF (text header)
+            b'\x50\x4B\x03\x04': 'zip',  # ZIP, DOCX, XLSX, PPTX (Office Open XML)
+            b'\x89\x50\x4E\x47': 'png',  # PNG image
+            b'\xFF\xD8\xFF': 'jpg',      # JPEG image
+            b'\x47\x49\x46\x38': 'gif',  # GIF image
+            b'PK\x03\x04': 'zip',        # ZIP (alternative)
         }
         
-        for magic, file_type in magic_numbers.items():
-            if content.startswith(magic):
+        # Check if content starts with any known magic number
+        for magic_bytes, file_type in magic_numbers.items():
+            if content.startswith(magic_bytes):
                 return file_type
         
+        # No matching magic number found
         return None
     
     def is_supported(self, file_type: str) -> bool:
@@ -297,42 +347,51 @@ class FileIngestor:
     """
     File system and cloud storage ingestion handler.
     
-    Supports local files, cloud storage (S3, GCS, Azure), and
-    various file formats with automatic type detection.
+    This class provides comprehensive file ingestion capabilities from:
+    - Local filesystem (files and directories)
+    - Cloud storage providers (AWS S3, Google Cloud Storage, Azure Blob)
     
-    Attributes:
-        config: Ingestion configuration
-        supported_formats: List of supported file formats
-        cloud_providers: Available cloud storage providers
-        
-    Methods:
-        ingest_directory(): Ingest entire directory
-        ingest_file(): Ingest single file
-        ingest_cloud(): Ingest from cloud storage
-        scan_directory(): Scan directory for files
+    Features:
+    - Automatic file type detection
+    - Recursive directory scanning
+    - File size validation
+    - Progress tracking callbacks
+    - Batch processing with error handling
+    
+    Example Usage:
+        >>> ingestor = FileIngestor()
+        >>> files = ingestor.ingest_directory("./documents", recursive=True)
+        >>> single_file = ingestor.ingest_file("report.pdf", read_content=True)
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize file ingestor.
         
+        Sets up the ingestor with configuration and initializes the file type
+        detector. Cloud storage providers are initialized lazily when needed.
+        
         Args:
-            config: Ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("file_ingestor")
+        
+        # Merge configuration
         self.config = config or {}
         self.config.update(kwargs)
         
-        # Initialize file type detector
+        # Initialize file type detector for automatic format detection
         self.type_detector = FileTypeDetector()
         self.supported_formats = self.type_detector.supported_formats
         
-        # Cloud providers (lazy initialization)
+        # Cloud storage providers (initialized on-demand for better performance)
         self._cloud_providers: Dict[str, CloudStorageIngestor] = {}
         
-        # Progress tracking
-        self._progress_callback = None
+        # Progress tracking callback (can be set by user)
+        self._progress_callback: Optional[callable] = None
+        
+        self.logger.info("File ingestor initialized")
     
     def ingest_directory(
         self,
@@ -387,52 +446,71 @@ class FileIngestor:
     
     def ingest_file(self, file_path: Union[str, Path], **options) -> FileObject:
         """
-        Ingest a single file.
+        Ingest a single file from the filesystem.
+        
+        This method reads a file, detects its type, validates its size,
+        and creates a FileObject with all relevant metadata.
         
         Args:
-            file_path: Path to file
-            **options: Processing options
-            
+            file_path: Path to the file to ingest (string or Path object)
+            **options: Processing options:
+                - read_content: Whether to read file content (default: True)
+                - Additional metadata to include in FileObject
+                
         Returns:
-            FileObject: Ingested file object
+            FileObject: Ingested file object with metadata and optional content
+            
+        Raises:
+            ValidationError: If file doesn't exist, isn't a file, or exceeds size limits
+            ProcessingError: If file cannot be read
         """
         file_path = Path(file_path)
         
-        # Validate file path
+        # Validate file exists
         if not file_path.exists():
             raise ValidationError(f"File not found: {file_path}")
         
+        # Validate it's actually a file (not a directory)
         if not file_path.is_file():
             raise ValidationError(f"Path is not a file: {file_path}")
         
-        # Check file size limits
+        # Check file size against limits
         file_size = file_path.stat().st_size
-        max_size = FILE_SIZE_LIMITS.get('MAX_DOCUMENT_SIZE', 104857600)
+        max_size = FILE_SIZE_LIMITS.get('MAX_DOCUMENT_SIZE', 104857600)  # 100MB default
         if file_size > max_size:
-            raise ValidationError(f"File size {file_size} exceeds maximum {max_size}")
+            raise ValidationError(
+                f"File size {file_size:,} bytes exceeds maximum {max_size:,} bytes "
+                f"({file_path.name})"
+            )
         
-        # Detect file type
+        # Detect file type using multiple methods
         file_type = self.type_detector.detect_type(file_path)
         
+        # Warn if file type is not in supported formats list
         if not self.type_detector.is_supported(file_type):
-            self.logger.warning(f"Unsupported file type: {file_type} for {file_path}")
+            self.logger.warning(
+                f"Unsupported file type '{file_type}' for file: {file_path}. "
+                "Processing may be limited."
+            )
         
-        # Read file content if requested
+        # Read file content if requested (default: True)
         content = None
-        if options.get('read_content', True):
+        read_content = options.get('read_content', True)
+        if read_content:
             try:
-                with open(file_path, 'rb') as f:
-                    content = f.read()
+                with open(file_path, 'rb') as file_handle:
+                    content = file_handle.read()
+                self.logger.debug(f"Read {len(content):,} bytes from {file_path.name}")
             except Exception as e:
-                self.logger.error(f"Failed to read file content: {e}")
-                raise ProcessingError(f"Failed to read file: {e}")
+                self.logger.error(f"Failed to read file content from {file_path}: {e}")
+                raise ProcessingError(f"Failed to read file: {e}") from e
         
-        # Get MIME type
+        # Detect MIME type for additional metadata
         mime_type, _ = mimetypes.guess_type(str(file_path))
         
-        # Create file object
+        # Create and return FileObject with all metadata
         file_obj = FileObject(
-            path=str(file_path),
+            path=str(file_path.absolute()),
             name=file_path.name,
             size=file_size,
             file_type=file_type,
@@ -442,10 +520,12 @@ class FileIngestor:
                 'extension': file_path.suffix,
                 'parent': str(file_path.parent),
                 'is_supported': self.type_detector.is_supported(file_type),
-                **options
+                'read_content': read_content,
+                **options  # Include any additional options as metadata
             }
         )
         
+        self.logger.debug(f"Successfully ingested file: {file_path.name} ({file_type})")
         return file_obj
     
     def ingest_cloud(

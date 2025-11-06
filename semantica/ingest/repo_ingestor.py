@@ -1,19 +1,32 @@
 """
 Repository Ingestion Module
 
-Handles Git repository processing and code analysis.
+This module provides comprehensive Git repository ingestion capabilities for the
+Semantica framework, enabling repository cloning, code analysis, and commit
+history processing.
 
 Key Features:
     - Git repository cloning and analysis
-    - Code file extraction
-    - Commit history processing
+    - Code file extraction with language detection
+    - Commit history processing and analysis
     - Branch and tag analysis
-    - Code structure analysis
+    - Code structure analysis (classes, functions, imports)
+    - Dependency analysis
+    - Documentation extraction
 
 Main Classes:
     - RepoIngestor: Main repository ingestion class
     - GitAnalyzer: Git repository analyzer
     - CodeExtractor: Code content extractor
+
+Example Usage:
+    >>> from semantica.ingest import RepoIngestor
+    >>> ingestor = RepoIngestor()
+    >>> repo_data = ingestor.ingest_repository("https://github.com/user/repo.git")
+    >>> commits = ingestor.analyze_commits(repo_path, max_commits=100)
+
+Author: Semantica Contributors
+License: MIT
 """
 
 import os
@@ -33,7 +46,21 @@ from ..utils.logging import get_logger
 
 @dataclass
 class CodeFile:
-    """Code file representation."""
+    """
+    Code file representation.
+    
+    This dataclass represents a code file with its content, metadata, and
+    structural information.
+    
+    Attributes:
+        path: File path relative to repository root
+        name: File name
+        language: Detected programming language
+        content: File content as string
+        size: File size in bytes
+        lines: Number of lines in file
+        metadata: Additional metadata (extension, modification date, structure)
+    """
     
     path: str
     name: str
@@ -46,7 +73,20 @@ class CodeFile:
 
 @dataclass
 class CommitInfo:
-    """Commit information representation."""
+    """
+    Commit information representation.
+    
+    This dataclass represents a Git commit with its metadata and statistics.
+    
+    Attributes:
+        hash: Commit hash (short form)
+        message: Commit message
+        author: Commit author
+        date: Commit date
+        files_changed: List of files changed in commit
+        additions: Number of lines added
+        deletions: Number of lines deleted
+    """
     
     hash: str
     message: str
@@ -61,8 +101,15 @@ class CodeExtractor:
     """
     Code content extraction and processing.
     
-    Extracts code content from various file types
-    and processes different programming languages.
+    This class extracts code content from various file types, detects
+    programming languages, extracts structure (classes, functions), and
+    analyzes dependencies.
+    
+    Example Usage:
+        >>> extractor = CodeExtractor()
+        >>> code_file = extractor.extract_file_content(Path("file.py"))
+        >>> docs = extractor.extract_documentation(Path("file.py"))
+        >>> deps = extractor.analyze_dependencies(Path("file.py"))
     """
     
     # File extension to language mapping
@@ -289,16 +336,23 @@ class GitAnalyzer:
     """
     Git repository analysis and statistics.
     
-    Analyzes repository structure and history,
-    calculates code metrics and statistics.
+    This class analyzes repository structure and history, calculates code
+    metrics and statistics, and detects code patterns.
+    
+    Example Usage:
+        >>> analyzer = GitAnalyzer()
+        >>> structure = analyzer.analyze_structure(repo_path)
+        >>> metrics = analyzer.calculate_metrics(repo_path)
     """
     
     def __init__(self, **config):
         """
         Initialize Git analyzer.
         
+        Sets up the analyzer with configuration options.
+        
         Args:
-            **config: Analyzer configuration
+            **config: Analyzer configuration options (currently unused)
         """
         self.logger = get_logger("git_analyzer")
         self.config = config
@@ -402,21 +456,25 @@ class RepoIngestor:
     """
     Git repository ingestion handler.
     
-    Clones and analyzes Git repositories,
-    extracts code files and documentation,
-    and processes commit history and metadata.
+    This class provides comprehensive Git repository ingestion capabilities,
+    cloning repositories, extracting code files and documentation, and
+    processing commit history and metadata.
     
-    Attributes:
-        git_client: Git client for repository operations
-        code_extractor: Code content extraction engine
-        analyzer: Repository analysis tools
-        supported_platforms: List of supported Git platforms
-        
-    Methods:
-        ingest_repository(): Clone and process repository
-        analyze_commits(): Analyze commit history
-        extract_code_files(): Extract and process code files
-        get_repository_info(): Get repository metadata
+    Features:
+        - Repository cloning from various platforms
+        - Code file extraction with filtering
+        - Commit history analysis
+        - Repository structure and metrics analysis
+        - Branch and tag information
+    
+    Example Usage:
+        >>> ingestor = RepoIngestor()
+        >>> repo_data = ingestor.ingest_repository(
+        ...     "https://github.com/user/repo.git",
+        ...     branch="main",
+        ...     include_history=True
+        ... )
+        >>> ingestor.cleanup()
     """
     
     SUPPORTED_PLATFORMS = ['github', 'gitlab', 'bitbucket', 'generic']
@@ -425,9 +483,12 @@ class RepoIngestor:
         """
         Initialize repository ingestor.
         
+        Sets up the ingestor with code extractor and analyzer. Note that
+        the `git` library must be installed for this module to work.
+        
         Args:
-            config: Repository ingestion configuration
-            **kwargs: Additional configuration parameters
+            config: Optional repository ingestion configuration dictionary
+            **kwargs: Additional configuration parameters (merged into config)
         """
         self.logger = get_logger("repo_ingestor")
         self.config = config or {}
@@ -441,6 +502,8 @@ class RepoIngestor:
         
         # Temporary directory for cloning
         self.temp_dir = None
+        
+        self.logger.debug("Repo ingestor initialized")
     
     def ingest_repository(self, repo_url: str, **options) -> Dict[str, Any]:
         """
