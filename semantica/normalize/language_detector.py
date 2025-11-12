@@ -38,6 +38,7 @@ except ImportError:
 
 from ..utils.exceptions import ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class LanguageDetector:
@@ -79,6 +80,9 @@ class LanguageDetector:
         
         if not LANGDETECT_AVAILABLE:
             self.logger.warning("langdetect library not available, language detection will be limited")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug(f"Language detector initialized (default={self.default_language})")
     

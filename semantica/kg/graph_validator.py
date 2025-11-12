@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 @dataclass
@@ -86,6 +87,9 @@ class GraphValidator:
         self.logger = get_logger("graph_validator")
         self.config = config
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Graph validator initialized")
     
     def validate(self, knowledge_graph: Any) -> ValidationResult:
@@ -131,9 +135,10 @@ class GraphValidator:
         elif hasattr(knowledge_graph, "get_relationships"):
             relationships = knowledge_graph.get_relationships()
         
-        # Validate entities
-        entity_ids = set()
-        for entity in entities:
+            self.progress_tracker.update_tracking(tracking_id, message="Validating entities...")
+            # Validate entities
+            entity_ids = set()
+            for entity in entities:
             entity_id = entity.get("id") or entity.get("entity_id")
             if not entity_id:
                 errors.append("Entity missing required 'id' field")
@@ -163,32 +168,40 @@ class GraphValidator:
             elif target not in entity_ids:
                 warnings.append(f"Relationship references unknown target entity: {target}")
             
-            if not rel_type:
-                errors.append("Relationship missing 'type' field")
-        
-        # Check for orphaned entities (entities with no relationships)
-        entity_has_relationships = set()
-        for rel in relationships:
-            source = rel.get("source") or rel.get("subject")
-            target = rel.get("target") or rel.get("object")
-            if source:
-                entity_has_relationships.add(source)
-            if target:
-                entity_has_relationships.add(target)
-        
-        orphaned = entity_ids - entity_has_relationships
-        if orphaned:
-            warnings.append(f"Found {len(orphaned)} orphaned entities (no relationships)")
-        
-        valid = len(errors) == 0
-        
-        self.logger.info(f"Validation complete: {len(errors)} errors, {len(warnings)} warnings")
-        
-        return ValidationResult(
-            valid=valid,
-            errors=errors,
-            warnings=warnings
-        )
+                if not rel_type:
+                    errors.append("Relationship missing 'type' field")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Checking for orphaned entities...")
+            # Check for orphaned entities (entities with no relationships)
+            entity_has_relationships = set()
+            for rel in relationships:
+                source = rel.get("source") or rel.get("subject")
+                target = rel.get("target") or rel.get("object")
+                if source:
+                    entity_has_relationships.add(source)
+                if target:
+                    entity_has_relationships.add(target)
+            
+            orphaned = entity_ids - entity_has_relationships
+            if orphaned:
+                warnings.append(f"Found {len(orphaned)} orphaned entities (no relationships)")
+            
+            valid = len(errors) == 0
+            
+            self.logger.info(f"Validation complete: {len(errors)} errors, {len(warnings)} warnings")
+            
+            result = ValidationResult(
+                valid=valid,
+                errors=errors,
+                warnings=warnings
+            )
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Validation complete: {len(errors)} errors, {len(warnings)} warnings")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def check_consistency(self, knowledge_graph: Any) -> bool:
         """

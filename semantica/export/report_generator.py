@@ -31,6 +31,7 @@ import json
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class ReportGenerator:
@@ -87,6 +88,9 @@ class ReportGenerator:
         self.include_charts = include_charts
         self.template = template
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"Report generator initialized: format={format}, "
             f"include_charts={include_charts}"
@@ -141,42 +145,61 @@ class ReportGenerator:
             >>> # Get as string
             >>> report = generator.generate_report(data, format="markdown")
         """
-        report_format = format or self.format
-        
-        self.logger.debug(
-            f"Generating report ({report_format}): "
-            f"title={data.get('title', 'Report')}, "
-            f"file_path={file_path}"
+        # Track report generation
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path) if file_path else None,
+            module="export",
+            submodule="ReportGenerator",
+            message=f"Generating {format or self.format} report"
         )
         
-        # Generate report based on format
-        if report_format == "markdown":
-            report = self._generate_markdown(data, **options)
-        elif report_format == "html":
-            report = self._generate_html(data, **options)
-        elif report_format == "json":
-            report = self._generate_json(data, **options)
-        elif report_format == "text":
-            report = self._generate_text(data, **options)
-        else:
-            raise ValidationError(
-                f"Unsupported report format: {report_format}. "
-                "Supported formats: markdown, html, json, text"
+        try:
+            report_format = format or self.format
+            
+            self.logger.debug(
+                f"Generating report ({report_format}): "
+                f"title={data.get('title', 'Report')}, "
+                f"file_path={file_path}"
             )
-        
-        # Write to file if path provided
-        if file_path:
-            file_path = Path(file_path)
-            ensure_directory(file_path.parent)
             
-            with open(file_path, "w", encoding=encoding) as f:
-                f.write(report)
+            self.progress_tracker.update_tracking(tracking_id, message=f"Generating {report_format} report...")
+            # Generate report based on format
+            if report_format == "markdown":
+                report = self._generate_markdown(data, **options)
+            elif report_format == "html":
+                report = self._generate_html(data, **options)
+            elif report_format == "json":
+                report = self._generate_json(data, **options)
+            elif report_format == "text":
+                report = self._generate_text(data, **options)
+            else:
+                raise ValidationError(
+                    f"Unsupported report format: {report_format}. "
+                    "Supported formats: markdown, html, json, text"
+                )
             
-            self.logger.info(f"Generated report ({report_format}) to: {file_path}")
-            return None
-        
-        # Return report string
-        return report
+            # Write to file if path provided
+            if file_path:
+                self.progress_tracker.update_tracking(tracking_id, message="Writing report to file...")
+                file_path = Path(file_path)
+                ensure_directory(file_path.parent)
+                
+                with open(file_path, "w", encoding=encoding) as f:
+                    f.write(report)
+                
+                self.logger.info(f"Generated report ({report_format}) to: {file_path}")
+                self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                                   message=f"Generated report ({report_format}) to: {file_path}")
+                return None
+            
+            # Return report string
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Generated {report_format} report")
+            return report
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def generate_quality_report(
         self,

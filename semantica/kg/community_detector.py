@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from collections import defaultdict
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class CommunityDetector:
@@ -84,6 +85,9 @@ class CommunityDetector:
             self.nx = None
             self.use_networkx = False
             self.logger.warning("NetworkX not available, using basic implementations")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
     
     def detect_communities_louvain(
         self,
@@ -115,37 +119,58 @@ class CommunityDetector:
                 - modularity: Calculated modularity score
                 - algorithm: Algorithm name ("louvain")
         """
-        self.logger.info("Detecting communities using Louvain algorithm")
+        # Track community detection
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg",
+            submodule="CommunityDetector",
+            message="Detecting communities using Louvain algorithm"
+        )
         
-        if self.use_networkx:
-            try:
-                import networkx.algorithms.community as nx_comm
-                nx_graph = self._to_networkx(graph)
-                resolution = options.get("resolution", 1.0)
-                
-                # Use greedy modularity communities (Louvain-like)
-                communities = nx_comm.greedy_modularity_communities(nx_graph, resolution=resolution)
-                
-                # Convert to node assignments
-                node_communities = {}
-                for i, community in enumerate(communities):
-                    for node in community:
-                        node_communities[node] = i
-                
-                modularity = nx_comm.modularity(nx_graph, communities)
-                
-                return {
-                    "communities": list(communities),
-                    "node_assignments": node_communities,
-                    "modularity": modularity,
-                    "algorithm": "louvain"
-                }
-            except Exception as e:
-                self.logger.warning(f"NetworkX Louvain failed: {e}, using basic implementation")
-        
-        # Basic greedy modularity implementation
-        adjacency = self._build_adjacency(graph)
-        return self._basic_community_detection(adjacency, algorithm="louvain", **options)
+        try:
+            self.logger.info("Detecting communities using Louvain algorithm")
+            
+            if self.use_networkx:
+                try:
+                    import networkx.algorithms.community as nx_comm
+                    nx_graph = self._to_networkx(graph)
+                    resolution = options.get("resolution", 1.0)
+                    
+                    self.progress_tracker.update_tracking(tracking_id, message="Detecting communities with NetworkX...")
+                    # Use greedy modularity communities (Louvain-like)
+                    communities = nx_comm.greedy_modularity_communities(nx_graph, resolution=resolution)
+                    
+                    # Convert to node assignments
+                    node_communities = {}
+                    for i, community in enumerate(communities):
+                        for node in community:
+                            node_communities[node] = i
+                    
+                    modularity = nx_comm.modularity(nx_graph, communities)
+                    
+                    result = {
+                        "communities": list(communities),
+                        "node_assignments": node_communities,
+                        "modularity": modularity,
+                        "algorithm": "louvain"
+                    }
+                    self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                                       message=f"Detected {len(communities)} communities")
+                    return result
+                except Exception as e:
+                    self.logger.warning(f"NetworkX Louvain failed: {e}, using basic implementation")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Using basic community detection...")
+            # Basic greedy modularity implementation
+            adjacency = self._build_adjacency(graph)
+            result = self._basic_community_detection(adjacency, algorithm="louvain", **options)
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Detected {len(result.get('communities', []))} communities")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def detect_communities_leiden(
         self,

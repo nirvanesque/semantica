@@ -31,6 +31,7 @@ from collections import defaultdict
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class CSVExporter:
@@ -88,6 +89,9 @@ class CSVExporter:
         self.encoding = encoding
         self.include_header = include_header
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"CSV exporter initialized: delimiter='{delimiter}', "
             f"encoding={encoding}, include_header={include_header}"
@@ -128,38 +132,57 @@ class CSVExporter:
             ...     "output_base"
             ... )
         """
-        file_path = Path(file_path)
-        ensure_directory(file_path.parent)
+        # Track CSV export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path),
+            module="export",
+            submodule="CSVExporter",
+            message=f"Exporting data to CSV: {file_path}"
+        )
         
-        self.logger.debug(f"Exporting data to CSV: {file_path}")
-        
-        # Handle different data structures
-        if isinstance(data, dict):
-            # Export each key as separate CSV file
-            exported_files = []
-            for key, value in data.items():
-                if isinstance(value, list):
-                    output_path = file_path.parent / f"{file_path.stem}_{key}.csv"
-                    self._write_csv(value, output_path, fieldnames=fieldnames, mode=mode, **options)
-                    exported_files.append(output_path)
-                else:
-                    self.logger.warning(
-                        f"Skipping key '{key}': value is not a list (type: {type(value)})"
-                    )
+        try:
+            file_path = Path(file_path)
+            ensure_directory(file_path.parent)
             
-            self.logger.info(
-                f"Exported {len(exported_files)} CSV file(s) from dictionary: "
-                f"{', '.join(str(f) for f in exported_files)}"
-            )
-        elif isinstance(data, list):
-            # Single CSV file
-            self._write_csv(data, file_path, fieldnames=fieldnames, mode=mode, **options)
-            self.logger.info(f"Exported CSV to: {file_path}")
-        else:
-            raise ValidationError(
-                f"Unsupported data type: {type(data)}. "
-                "Expected list of dicts or dict with list values."
-            )
+            self.logger.debug(f"Exporting data to CSV: {file_path}")
+            
+            # Handle different data structures
+            if isinstance(data, dict):
+                # Export each key as separate CSV file
+                exported_files = []
+                self.progress_tracker.update_tracking(tracking_id, message=f"Exporting {len(data)} data groups...")
+                for key, value in data.items():
+                    if isinstance(value, list):
+                        output_path = file_path.parent / f"{file_path.stem}_{key}.csv"
+                        self._write_csv(value, output_path, fieldnames=fieldnames, mode=mode, **options)
+                        exported_files.append(output_path)
+                    else:
+                        self.logger.warning(
+                            f"Skipping key '{key}': value is not a list (type: {type(value)})"
+                        )
+                
+                self.logger.info(
+                    f"Exported {len(exported_files)} CSV file(s) from dictionary: "
+                    f"{', '.join(str(f) for f in exported_files)}"
+                )
+                self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                                   message=f"Exported {len(exported_files)} CSV files")
+            elif isinstance(data, list):
+                # Single CSV file
+                self.progress_tracker.update_tracking(tracking_id, message=f"Exporting {len(data)} records...")
+                self._write_csv(data, file_path, fieldnames=fieldnames, mode=mode, **options)
+                self.logger.info(f"Exported CSV to: {file_path}")
+                self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                                   message=f"Exported CSV to: {file_path}")
+            else:
+                raise ValidationError(
+                    f"Unsupported data type: {type(data)}. "
+                    "Expected list of dicts or dict with list values."
+                )
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_entities(
         self,

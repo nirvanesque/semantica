@@ -29,6 +29,7 @@ import json
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class GraphExporter:
@@ -82,6 +83,9 @@ class GraphExporter:
         self.format = format
         self.include_attributes = include_attributes
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"Graph exporter initialized: format={format}, "
             f"include_attributes={include_attributes}"
@@ -126,33 +130,49 @@ class GraphExporter:
             ... }
             >>> exporter.export(graph_data, "graph.graphml", format="graphml")
         """
-        file_path = Path(file_path)
-        ensure_directory(file_path.parent)
-        
-        export_format = format or self.format
-        
-        self.logger.debug(
-            f"Exporting graph to {export_format}: {file_path}, "
-            f"nodes={len(graph_data.get('nodes', []))}, "
-            f"edges={len(graph_data.get('edges', []))}"
+        # Track graph export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path),
+            module="export",
+            submodule="GraphExporter",
+            message=f"Exporting graph to {format or self.format}: {file_path}"
         )
         
-        # Export based on format
-        if export_format == "json":
-            self._export_json(graph_data, file_path, **options)
-        elif export_format == "graphml":
-            self._export_graphml(graph_data, file_path, **options)
-        elif export_format == "gexf":
-            self._export_gexf(graph_data, file_path, **options)
-        elif export_format == "dot":
-            self._export_dot(graph_data, file_path, **options)
-        else:
-            raise ValidationError(
-                f"Unsupported graph format: {export_format}. "
-                f"Supported formats: json, graphml, gexf, dot"
+        try:
+            file_path = Path(file_path)
+            ensure_directory(file_path.parent)
+            
+            export_format = format or self.format
+            
+            self.logger.debug(
+                f"Exporting graph to {export_format}: {file_path}, "
+                f"nodes={len(graph_data.get('nodes', []))}, "
+                f"edges={len(graph_data.get('edges', []))}"
             )
-        
-        self.logger.info(f"Exported graph ({export_format}) to: {file_path}")
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Exporting in {export_format} format...")
+            # Export based on format
+            if export_format == "json":
+                self._export_json(graph_data, file_path, **options)
+            elif export_format == "graphml":
+                self._export_graphml(graph_data, file_path, **options)
+            elif export_format == "gexf":
+                self._export_gexf(graph_data, file_path, **options)
+            elif export_format == "dot":
+                self._export_dot(graph_data, file_path, **options)
+            else:
+                raise ValidationError(
+                    f"Unsupported graph format: {export_format}. "
+                    f"Supported formats: json, graphml, gexf, dot"
+                )
+            
+            self.logger.info(f"Exported graph ({export_format}) to: {file_path}")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Exported graph ({export_format}) to: {file_path}")
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_knowledge_graph(
         self,

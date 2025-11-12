@@ -39,6 +39,7 @@ except ImportError:
 
 from ..utils.exceptions import ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class TextCleaner:
@@ -78,6 +79,9 @@ class TextCleaner:
         
         if not BEAUTIFULSOUP_AVAILABLE:
             self.logger.warning("BeautifulSoup not available, HTML removal will use regex fallback")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug("Text cleaner initialized")
     

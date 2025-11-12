@@ -285,29 +285,42 @@ class GraphBuilder:
         Returns:
             Edge object with temporal annotations
         """
-        self.logger.info(f"Adding temporal edge: {source} -{relationship}-> {target}")
+        tracking_id = self.progress_tracker.start_tracking(
+            module="kg",
+            submodule="GraphBuilder",
+            message=f"Adding temporal edge: {source} -{relationship}-> {target}"
+        )
         
-        # Parse temporal information
-        valid_from = self._parse_time(valid_from) or self._get_timestamp()
-        valid_until = self._parse_time(valid_until) if valid_until else None
-        
-        # Create edge with temporal information
-        edge = {
-            "source": source,
-            "target": target,
-            "type": relationship,
-            "valid_from": valid_from,
-            "valid_until": valid_until,
-            "temporal_metadata": temporal_metadata or {},
-            **kwargs
-        }
-        
-        # Add to graph
-        if "relationships" not in graph:
-            graph["relationships"] = []
-        graph["relationships"].append(edge)
-        
-        return edge
+        try:
+            self.logger.info(f"Adding temporal edge: {source} -{relationship}-> {target}")
+            
+            # Parse temporal information
+            valid_from = self._parse_time(valid_from) or self._get_timestamp()
+            valid_until = self._parse_time(valid_until) if valid_until else None
+            
+            # Create edge with temporal information
+            edge = {
+                "source": source,
+                "target": target,
+                "type": relationship,
+                "valid_from": valid_from,
+                "valid_until": valid_until,
+                "temporal_metadata": temporal_metadata or {},
+                **kwargs
+            }
+            
+            # Add to graph
+            if "relationships" not in graph:
+                graph["relationships"] = []
+            graph["relationships"].append(edge)
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Added temporal edge: {source} -{relationship}-> {target}")
+            return edge
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def create_temporal_snapshot(self, graph, timestamp=None, snapshot_name=None, **options):
         """
@@ -322,45 +335,60 @@ class GraphBuilder:
         Returns:
             Temporal snapshot object
         """
-        self.logger.info(f"Creating temporal snapshot: {snapshot_name or 'unnamed'}")
+        tracking_id = self.progress_tracker.start_tracking(
+            module="kg",
+            submodule="GraphBuilder",
+            message=f"Creating temporal snapshot: {snapshot_name or 'unnamed'}"
+        )
         
-        snapshot_time = self._parse_time(timestamp) or self._get_timestamp()
-        
-        # Filter entities and relationships valid at snapshot time
-        entities = []
-        relationships = []
-        
-        # Get all entities
-        if "entities" in graph:
-            entities = graph["entities"].copy()
-        
-        # Filter relationships valid at snapshot time
-        if "relationships" in graph:
-            for rel in graph["relationships"]:
-                valid_from = self._parse_time(rel.get("valid_from"))
-                valid_until = self._parse_time(rel.get("valid_until"))
-                
-                # Check if relationship is valid at snapshot time
-                if valid_from and self._compare_times(snapshot_time, valid_from) < 0:
-                    continue
-                if valid_until and self._compare_times(snapshot_time, valid_until) > 0:
-                    continue
-                
-                relationships.append(rel)
-        
-        snapshot = {
-            "name": snapshot_name or f"snapshot_{snapshot_time}",
-            "timestamp": snapshot_time,
-            "entities": entities,
-            "relationships": relationships,
-            "metadata": {
-                "num_entities": len(entities),
-                "num_relationships": len(relationships),
-                "snapshot_time": snapshot_time
+        try:
+            self.logger.info(f"Creating temporal snapshot: {snapshot_name or 'unnamed'}")
+            
+            snapshot_time = self._parse_time(timestamp) or self._get_timestamp()
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Filtering entities and relationships...")
+            
+            # Filter entities and relationships valid at snapshot time
+            entities = []
+            relationships = []
+            
+            # Get all entities
+            if "entities" in graph:
+                entities = graph["entities"].copy()
+            
+            # Filter relationships valid at snapshot time
+            if "relationships" in graph:
+                for rel in graph["relationships"]:
+                    valid_from = self._parse_time(rel.get("valid_from"))
+                    valid_until = self._parse_time(rel.get("valid_until"))
+                    
+                    # Check if relationship is valid at snapshot time
+                    if valid_from and self._compare_times(snapshot_time, valid_from) < 0:
+                        continue
+                    if valid_until and self._compare_times(snapshot_time, valid_until) > 0:
+                        continue
+                    
+                    relationships.append(rel)
+            
+            snapshot = {
+                "name": snapshot_name or f"snapshot_{snapshot_time}",
+                "timestamp": snapshot_time,
+                "entities": entities,
+                "relationships": relationships,
+                "metadata": {
+                    "num_entities": len(entities),
+                    "num_relationships": len(relationships),
+                    "snapshot_time": snapshot_time
+                }
             }
-        }
-        
-        return snapshot
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Created snapshot with {len(entities)} entities, {len(relationships)} relationships")
+            return snapshot
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def query_temporal(
         self,
@@ -385,30 +413,47 @@ class GraphBuilder:
         Returns:
             Query results with temporal context
         """
-        self.logger.info(f"Executing temporal query: {query[:50]}...")
+        tracking_id = self.progress_tracker.start_tracking(
+            module="kg",
+            submodule="GraphBuilder",
+            message=f"Executing temporal query: {query[:50]}..."
+        )
         
-        # Create snapshot for query time
-        if at_time:
-            snapshot = self.create_temporal_snapshot(graph, timestamp=at_time)
-        elif time_range:
-            start_time, end_time = time_range
-            # Query at end time
-            snapshot = self.create_temporal_snapshot(graph, timestamp=end_time)
-        else:
-            # Use current graph
-            snapshot = graph
-        
-        # Basic query execution (simplified)
-        # In a real implementation, this would use a proper query engine
-        results = {
-            "query": query,
-            "timestamp": at_time or (time_range[1] if time_range else None),
-            "entities": snapshot.get("entities", []),
-            "relationships": snapshot.get("relationships", []),
-            "metadata": snapshot.get("metadata", {})
-        }
-        
-        return results
+        try:
+            self.logger.info(f"Executing temporal query: {query[:50]}...")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Creating temporal snapshot for query...")
+            
+            # Create snapshot for query time
+            if at_time:
+                snapshot = self.create_temporal_snapshot(graph, timestamp=at_time)
+            elif time_range:
+                start_time, end_time = time_range
+                # Query at end time
+                snapshot = self.create_temporal_snapshot(graph, timestamp=end_time)
+            else:
+                # Use current graph
+                snapshot = graph
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Executing query...")
+            
+            # Basic query execution (simplified)
+            # In a real implementation, this would use a proper query engine
+            results = {
+                "query": query,
+                "timestamp": at_time or (time_range[1] if time_range else None),
+                "entities": snapshot.get("entities", []),
+                "relationships": snapshot.get("relationships", []),
+                "metadata": snapshot.get("metadata", {})
+            }
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Query executed: {len(results.get('entities', []))} entities, {len(results.get('relationships', []))} relationships")
+            return results
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def load_from_neo4j(
         self,
@@ -435,15 +480,23 @@ class GraphBuilder:
         Returns:
             Knowledge graph loaded from Neo4j
         """
-        self.logger.info(f"Loading graph from Neo4j: {uri}")
+        tracking_id = self.progress_tracker.start_tracking(
+            module="kg",
+            submodule="GraphBuilder",
+            message=f"Loading graph from Neo4j: {uri}"
+        )
         
         try:
+            self.logger.info(f"Loading graph from Neo4j: {uri}")
+            
             from neo4j import GraphDatabase
             
+            self.progress_tracker.update_tracking(tracking_id, message="Connecting to Neo4j...")
             driver = GraphDatabase.driver(uri, auth=(username, password))
             
             with driver.session(database=database) as session:
                 # Load nodes
+                self.progress_tracker.update_tracking(tracking_id, message="Loading nodes from Neo4j...")
                 nodes_result = session.run("MATCH (n) RETURN n")
                 entities = []
                 for record in nodes_result:
@@ -456,6 +509,7 @@ class GraphBuilder:
                     entities.append(entity)
                 
                 # Load relationships
+                self.progress_tracker.update_tracking(tracking_id, message="Loading relationships from Neo4j...")
                 rels_result = session.run("MATCH (a)-[r]->(b) RETURN a, r, b")
                 relationships = []
                 for record in rels_result:
@@ -490,11 +544,16 @@ class GraphBuilder:
             }
             
             self.logger.info(f"Loaded {len(entities)} entities and {len(relationships)} relationships from Neo4j")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Loaded {len(entities)} entities and {len(relationships)} relationships from Neo4j")
             return graph
             
         except ImportError:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed",
+                                               message="neo4j library not available")
             raise ImportError("neo4j library not available. Install with: pip install neo4j")
         except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
             self.logger.error(f"Error loading from Neo4j: {e}")
             raise
     

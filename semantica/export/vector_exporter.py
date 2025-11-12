@@ -30,6 +30,7 @@ import numpy as np
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory, write_json_file
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class VectorExporter:
@@ -85,6 +86,9 @@ class VectorExporter:
         self.include_metadata = include_metadata
         self.include_text = include_text
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"Vector exporter initialized: format={format}, "
             f"include_metadata={include_metadata}, include_text={include_text}"
@@ -129,40 +133,57 @@ class VectorExporter:
             ... ]
             >>> exporter.export(vectors, "vectors.json", format="json")
         """
-        file_path = Path(file_path)
-        ensure_directory(file_path.parent)
-        
-        export_format = format or self.format
-        
-        self.logger.debug(
-            f"Exporting vectors to {export_format}: {file_path}, "
-            f"include_metadata={self.include_metadata}, include_text={self.include_text}"
+        # Track vector export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path),
+            module="export",
+            submodule="VectorExporter",
+            message=f"Exporting vectors to {format or self.format}: {file_path}"
         )
         
-        # Normalize input data
-        if isinstance(vectors, dict):
-            vector_list = vectors.get("vectors", [])
-            metadata = vectors.get("metadata", {})
-        else:
-            vector_list = vectors
-            metadata = {}
-        
-        # Export based on format
-        if export_format == "json":
-            self._export_json(vector_list, file_path, metadata, **options)
-        elif export_format == "numpy":
-            self._export_numpy(vector_list, file_path, **options)
-        elif export_format == "binary":
-            self._export_binary(vector_list, file_path, **options)
-        elif export_format == "faiss":
-            self._export_faiss(vector_list, file_path, **options)
-        else:
-            raise ValidationError(
-                f"Unsupported vector format: {export_format}. "
-                "Supported formats: json, numpy, binary, faiss"
+        try:
+            file_path = Path(file_path)
+            ensure_directory(file_path.parent)
+            
+            export_format = format or self.format
+            
+            self.logger.debug(
+                f"Exporting vectors to {export_format}: {file_path}, "
+                f"include_metadata={self.include_metadata}, include_text={self.include_text}"
             )
-        
-        self.logger.info(f"Exported vectors ({export_format}) to: {file_path}")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Normalizing input data...")
+            # Normalize input data
+            if isinstance(vectors, dict):
+                vector_list = vectors.get("vectors", [])
+                metadata = vectors.get("metadata", {})
+            else:
+                vector_list = vectors
+                metadata = {}
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Exporting in {export_format} format...")
+            # Export based on format
+            if export_format == "json":
+                self._export_json(vector_list, file_path, metadata, **options)
+            elif export_format == "numpy":
+                self._export_numpy(vector_list, file_path, **options)
+            elif export_format == "binary":
+                self._export_binary(vector_list, file_path, **options)
+            elif export_format == "faiss":
+                self._export_faiss(vector_list, file_path, **options)
+            else:
+                raise ValidationError(
+                    f"Unsupported vector format: {export_format}. "
+                    "Supported formats: json, numpy, binary, faiss"
+                )
+            
+            self.logger.info(f"Exported vectors ({export_format}) to: {file_path}")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Exported vectors ({export_format}) to: {file_path}")
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_embeddings(
         self,

@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 @dataclass
@@ -120,6 +121,9 @@ class QualityReporter:
         self.logger = get_logger("quality_reporter")
         self.config = kwargs
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Quality reporter initialized")
     
     def generate_report(
@@ -144,19 +148,36 @@ class QualityReporter:
             QualityReport: Comprehensive quality report with scores, issues,
                           and recommendations
         """
-        issues = self._identify_issues(knowledge_graph, quality_metrics)
-        recommendations = self._generate_recommendations(issues)
-        
-        report = QualityReport(
-            timestamp=datetime.now(),
-            overall_score=quality_metrics.get("overall", 0.0),
-            completeness_score=quality_metrics.get("completeness", 0.0),
-            consistency_score=quality_metrics.get("consistency", 0.0),
-            issues=issues,
-            recommendations=recommendations
+        # Track report generation
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg_qa",
+            submodule="QualityReporter",
+            message="Generating quality report"
         )
         
-        return report
+        try:
+            self.progress_tracker.update_tracking(tracking_id, message="Identifying issues...")
+            issues = self._identify_issues(knowledge_graph, quality_metrics)
+            self.progress_tracker.update_tracking(tracking_id, message="Generating recommendations...")
+            recommendations = self._generate_recommendations(issues)
+            
+            report = QualityReport(
+                timestamp=datetime.now(),
+                overall_score=quality_metrics.get("overall", 0.0),
+                completeness_score=quality_metrics.get("completeness", 0.0),
+                consistency_score=quality_metrics.get("consistency", 0.0),
+                issues=issues,
+                recommendations=recommendations
+            )
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Generated quality report with {len(issues)} issues")
+            return report
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_report(
         self,
@@ -324,6 +345,9 @@ class IssueTracker:
         self.config = kwargs
         self.issues: Dict[str, QualityIssue] = {}
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Issue tracker initialized")
     
     def add_issue(self, issue: QualityIssue) -> None:
@@ -423,6 +447,9 @@ class ImprovementSuggestions:
         """
         self.logger = get_logger("improvement_suggestions")
         self.config = kwargs
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug("Improvement suggestions generator initialized")
     

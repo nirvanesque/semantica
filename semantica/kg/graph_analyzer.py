@@ -25,6 +25,7 @@ License: MIT
 from .centrality_calculator import CentralityCalculator
 from .community_detector import CommunityDetector
 from .connectivity_analyzer import ConnectivityAnalyzer
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class GraphAnalyzer:
@@ -73,6 +74,9 @@ class GraphAnalyzer:
         """
         from ..utils.logging import get_logger
         self.logger = get_logger("graph_analyzer")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         # Merge configuration
         self.config = config or {}

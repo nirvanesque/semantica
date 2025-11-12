@@ -28,6 +28,8 @@ Author: Semantica Contributors
 License: MIT
 """
 
+from ..utils.progress_tracker import get_progress_tracker
+
 
 class TemporalGraphQuery:
     """
@@ -81,6 +83,9 @@ class TemporalGraphQuery:
         # Initialize temporal query engine
         from ..utils.logging import get_logger
         self.logger = get_logger("temporal_query")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         # Initialize pattern detector
         self.pattern_detector = TemporalPatternDetector(**kwargs.get("pattern_detection", {}))

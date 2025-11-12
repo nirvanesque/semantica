@@ -31,6 +31,7 @@ from datetime import datetime
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory, write_json_file
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class JSONExporter:
@@ -87,6 +88,9 @@ class JSONExporter:
         self.ensure_ascii = ensure_ascii
         self.format = format
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"JSON exporter initialized: indent={indent}, "
             f"ensure_ascii={ensure_ascii}, format={format}"
@@ -122,41 +126,58 @@ class JSONExporter:
             ...     format="json-ld"
             ... )
         """
-        file_path = Path(file_path)
-        ensure_directory(file_path.parent)
-        
-        export_format = format or self.format
-        
-        self.logger.debug(
-            f"Exporting data to JSON ({export_format}): {file_path}, "
-            f"include_metadata={include_metadata}, include_provenance={include_provenance}"
+        # Track JSON export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path),
+            module="export",
+            submodule="JSONExporter",
+            message=f"Exporting data to JSON: {file_path}"
         )
         
-        # Convert data to appropriate format
-        if export_format == "json-ld":
-            json_data = self._convert_to_jsonld(
-                data,
-                include_metadata=include_metadata,
-                include_provenance=include_provenance,
-                **options
+        try:
+            file_path = Path(file_path)
+            ensure_directory(file_path.parent)
+            
+            export_format = format or self.format
+            
+            self.logger.debug(
+                f"Exporting data to JSON ({export_format}): {file_path}, "
+                f"include_metadata={include_metadata}, include_provenance={include_provenance}"
             )
-        else:
-            json_data = self._convert_to_json(
-                data,
-                include_metadata=include_metadata,
-                include_provenance=include_provenance,
-                **options
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Converting to {export_format} format...")
+            # Convert data to appropriate format
+            if export_format == "json-ld":
+                json_data = self._convert_to_jsonld(
+                    data,
+                    include_metadata=include_metadata,
+                    include_provenance=include_provenance,
+                    **options
+                )
+            else:
+                json_data = self._convert_to_json(
+                    data,
+                    include_metadata=include_metadata,
+                    include_provenance=include_provenance,
+                    **options
+                )
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Writing JSON file...")
+            # Write JSON file
+            write_json_file(
+                json_data,
+                file_path,
+                indent=self.indent,
+                ensure_ascii=self.ensure_ascii
             )
-        
-        # Write JSON file
-        write_json_file(
-            json_data,
-            file_path,
-            indent=self.indent,
-            ensure_ascii=self.ensure_ascii
-        )
-        
-        self.logger.info(f"Exported JSON ({export_format}) to: {file_path}")
+            
+            self.logger.info(f"Exported JSON ({export_format}) to: {file_path}")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Exported JSON ({export_format}) to: {file_path}")
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_knowledge_graph(
         self,

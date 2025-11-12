@@ -23,6 +23,7 @@ License: MIT
 from typing import Any, Dict, List, Optional
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from ..deduplication.duplicate_detector import DuplicateDetector
 from ..deduplication.entity_merger import EntityMerger
 
@@ -62,6 +63,9 @@ class EntityResolver:
                 - merger: Configuration for entity merger
         """
         self.logger = get_logger("entity_resolver")
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         self.config = config
         
         # Resolution strategy and threshold
@@ -121,47 +125,48 @@ class EntityResolver:
             threshold=self.similarity_threshold
         )
         
-        self.logger.debug(f"Found {len(duplicate_groups)} duplicate group(s)")
-        
-        # Step 2: Merge duplicates in each group
-        merged_entities = []
-        processed_entity_ids = set()  # Track which entities have been merged
-        
-        for group in duplicate_groups:
-            # Skip groups with less than 2 entities (not duplicates)
-            if len(group.entities) < 2:
-                continue
+            self.logger.debug(f"Found {len(duplicate_groups)} duplicate group(s)")
             
-            # Merge the duplicate group into a single canonical entity
-            merge_operations = self.entity_merger.merge_duplicates(
-                group.entities,
-                **self.config
-            )
+            self.progress_tracker.update_tracking(tracking_id, message=f"Found {len(duplicate_groups)} duplicate group(s)")
+            # Step 2: Merge duplicates in each group
+            merged_entities = []
+            processed_entity_ids = set()  # Track which entities have been merged
             
-            # Process each merge operation
-            for operation in merge_operations:
-                merged_entity = operation.merged_entity
-                merged_entities.append(merged_entity)
+            for group in duplicate_groups:
+                # Skip groups with less than 2 entities (not duplicates)
+                if len(group.entities) < 2:
+                    continue
                 
-                # Mark all source entities as processed
-                for source_entity in operation.source_entities:
-                    entity_id = source_entity.get("id") or source_entity.get("entity_id")
-                    if entity_id:
-                        processed_entity_ids.add(entity_id)
-        
-        # Step 3: Add non-duplicate entities (entities not in any duplicate group)
-        for entity in entities:
-            entity_id = entity.get("id") or entity.get("entity_id")
-            if entity_id and entity_id not in processed_entity_ids:
-                # This entity was not merged, add it as-is
-                merged_entities.append(entity)
-        
-        # Log resolution statistics
-        original_count = len(entities)
-        resolved_count = len(merged_entities)
-        reduction = original_count - resolved_count
-        
-        self.logger.info(
+                # Merge the duplicate group into a single canonical entity
+                merge_operations = self.entity_merger.merge_duplicates(
+                    group.entities,
+                    **self.config
+                )
+                
+                # Process each merge operation
+                for operation in merge_operations:
+                    merged_entity = operation.merged_entity
+                    merged_entities.append(merged_entity)
+                    
+                    # Mark all source entities as processed
+                    for source_entity in operation.source_entities:
+                        entity_id = source_entity.get("id") or source_entity.get("entity_id")
+                        if entity_id:
+                            processed_entity_ids.add(entity_id)
+            
+            # Step 3: Add non-duplicate entities (entities not in any duplicate group)
+            for entity in entities:
+                entity_id = entity.get("id") or entity.get("entity_id")
+                if entity_id and entity_id not in processed_entity_ids:
+                    # This entity was not merged, add it as-is
+                    merged_entities.append(entity)
+            
+            # Log resolution statistics
+            original_count = len(entities)
+            resolved_count = len(merged_entities)
+            reduction = original_count - resolved_count
+            
+            self.logger.info(
             f"Entity resolution complete: {original_count} -> {resolved_count} "
             f"({reduction} duplicate(s) merged)"
         )

@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict, deque
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class ConnectivityAnalyzer:
@@ -73,6 +74,9 @@ class ConnectivityAnalyzer:
         self.connectivity_algorithms = [
             "dfs", "bfs", "tarjan", "kosaraju"
         ]
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         self.analysis_config = config.get("analysis_config", {})
         self.config = config
         

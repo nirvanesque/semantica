@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class NumberNormalizer:
@@ -78,6 +79,9 @@ class NumberNormalizer:
         self.unit_converter = UnitConverter(**self.config)
         self.currency_normalizer = CurrencyNormalizer(**self.config)
         self.scientific_handler = ScientificNotationHandler(**self.config)
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug("Number normalizer initialized")
     

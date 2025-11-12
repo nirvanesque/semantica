@@ -28,6 +28,7 @@ License: MIT
 from typing import Any, Dict, List, Optional
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from ..conflicts.conflict_detector import ConflictDetector as BaseConflictDetector, Conflict
 from ..conflicts.conflict_resolver import ConflictResolver
 
@@ -66,6 +67,9 @@ class ConflictDetector:
         """
         self.logger = get_logger("conflict_detector")
         self.config = config
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         # Initialize conflict detection components
         self.base_detector = BaseConflictDetector(**config.get("detection", {}))
@@ -112,81 +116,89 @@ class ConflictDetector:
         elif hasattr(knowledge_graph, "get_relationships"):
             relationships = knowledge_graph.get_relationships()
         
-        conflicts = []
-        
-        # Detect value conflicts
-        entity_properties = {}
-        for entity in entities:
-            entity_id = entity.get("id") or entity.get("entity_id")
-            if not entity_id:
-                continue
+            conflicts = []
             
-            for prop_name, prop_value in entity.items():
-                if prop_name in ["id", "entity_id", "type", "source"]:
+            self.progress_tracker.update_tracking(tracking_id, message="Detecting value conflicts...")
+            # Detect value conflicts
+            entity_properties = {}
+            for entity in entities:
+                entity_id = entity.get("id") or entity.get("entity_id")
+                if not entity_id:
                     continue
                 
-                if entity_id not in entity_properties:
-                    entity_properties[entity_id] = {}
-                
-                if prop_name not in entity_properties[entity_id]:
-                    entity_properties[entity_id][prop_name] = []
-                
-                entity_properties[entity_id][prop_name].append({
-                    "value": prop_value,
-                    "entity": entity
-                })
-        
-        # Check for conflicts
-        for entity_id, properties in entity_properties.items():
-            for prop_name, values in properties.items():
-                unique_values = {str(v["value"]) for v in values if v["value"] is not None}
-                if len(unique_values) > 1:
-                    conflicts.append({
-                        "entity_id": entity_id,
-                        "property": prop_name,
-                        "conflicting_values": list(unique_values),
-                        "type": "value_conflict",
-                        "sources": [v["entity"].get("source", "unknown") for v in values]
+                for prop_name, prop_value in entity.items():
+                    if prop_name in ["id", "entity_id", "type", "source"]:
+                        continue
+                    
+                    if entity_id not in entity_properties:
+                        entity_properties[entity_id] = {}
+                    
+                    if prop_name not in entity_properties[entity_id]:
+                        entity_properties[entity_id][prop_name] = []
+                    
+                    entity_properties[entity_id][prop_name].append({
+                        "value": prop_value,
+                        "entity": entity
                     })
-        
-        # Detect relationship conflicts
-        relationship_map = {}
-        for rel in relationships:
-            source = rel.get("source") or rel.get("subject")
-            target = rel.get("target") or rel.get("object")
-            rel_type = rel.get("type") or rel.get("predicate")
             
-            key = f"{source}::{rel_type}::{target}"
-            if key not in relationship_map:
-                relationship_map[key] = []
-            relationship_map[key].append(rel)
-        
-        # Check for relationship conflicts
-        for key, rels in relationship_map.items():
-            if len(rels) > 1:
-                # Check for conflicting properties
-                properties = {}
-                for rel in rels:
-                    for prop_name, prop_value in rel.items():
-                        if prop_name in ["source", "target", "subject", "object", "type", "predicate"]:
-                            continue
-                        if prop_name not in properties:
-                            properties[prop_name] = []
-                        properties[prop_name].append(prop_value)
-                
+            # Check for conflicts
+            for entity_id, properties in entity_properties.items():
                 for prop_name, values in properties.items():
-                    unique_values = {str(v) for v in values if v is not None}
+                    unique_values = {str(v["value"]) for v in values if v["value"] is not None}
                     if len(unique_values) > 1:
                         conflicts.append({
-                            "relationship": key,
+                            "entity_id": entity_id,
                             "property": prop_name,
                             "conflicting_values": list(unique_values),
-                            "type": "relationship_conflict",
-                            "sources": [rel.get("source", "unknown") for rel in rels]
+                            "type": "value_conflict",
+                            "sources": [v["entity"].get("source", "unknown") for v in values]
                         })
-        
-        self.logger.info(f"Detected {len(conflicts)} conflicts")
-        return conflicts
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Detecting relationship conflicts...")
+            # Detect relationship conflicts
+            relationship_map = {}
+            for rel in relationships:
+                source = rel.get("source") or rel.get("subject")
+                target = rel.get("target") or rel.get("object")
+                rel_type = rel.get("type") or rel.get("predicate")
+                
+                key = f"{source}::{rel_type}::{target}"
+                if key not in relationship_map:
+                    relationship_map[key] = []
+                relationship_map[key].append(rel)
+            
+            # Check for relationship conflicts
+            for key, rels in relationship_map.items():
+                if len(rels) > 1:
+                    # Check for conflicting properties
+                    properties = {}
+                    for rel in rels:
+                        for prop_name, prop_value in rel.items():
+                            if prop_name in ["source", "target", "subject", "object", "type", "predicate"]:
+                                continue
+                            if prop_name not in properties:
+                                properties[prop_name] = []
+                            properties[prop_name].append(prop_value)
+                    
+                    for prop_name, values in properties.items():
+                        unique_values = {str(v) for v in values if v is not None}
+                        if len(unique_values) > 1:
+                            conflicts.append({
+                                "relationship": key,
+                                "property": prop_name,
+                                "conflicting_values": list(unique_values),
+                                "type": "relationship_conflict",
+                                "sources": [rel.get("source", "unknown") for rel in rels]
+                            })
+            
+            self.logger.info(f"Detected {len(conflicts)} conflicts")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Detected {len(conflicts)} conflicts")
+            return conflicts
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def resolve_conflicts(
         self,

@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from .quality_metrics import QualityMetrics
 
 
@@ -89,6 +90,9 @@ class AutomatedFixer:
         self.config = kwargs
         self.quality_metrics = QualityMetrics()
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Automated fixer initialized")
     
     def fix_duplicates(
@@ -114,16 +118,33 @@ class AutomatedFixer:
                 - errors: List of error messages
                 - metadata: Additional fix metadata
         """
-        self.logger.info("Fixing duplicate entities")
-        
-        # In practice, this would use deduplication module
-        # For now, return placeholder
-        return FixResult(
-            success=True,
-            fixed_count=0,
-            errors=[],
-            metadata={}
+        # Track duplicate fixing
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg_qa",
+            submodule="AutomatedFixer",
+            message="Fixing duplicate entities"
         )
+        
+        try:
+            self.logger.info("Fixing duplicate entities")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Detecting duplicates...")
+            # In practice, this would use deduplication module
+            # For now, return placeholder
+            result = FixResult(
+                success=True,
+                fixed_count=0,
+                errors=[],
+                metadata={}
+            )
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Fixed {result.fixed_count} duplicate(s)")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def fix_inconsistencies(
         self,

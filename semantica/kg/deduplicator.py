@@ -28,6 +28,7 @@ License: MIT
 from typing import Any, Dict, List, Optional
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from ..deduplication.duplicate_detector import DuplicateDetector, DuplicateGroup
 from ..deduplication.entity_merger import EntityMerger
 
@@ -67,6 +68,9 @@ class Deduplicator:
         self.logger = get_logger("deduplicator")
         self.config = config
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         # Initialize deduplication components
         self.duplicate_detector = DuplicateDetector(**config.get("detection", {}))
         self.entity_merger = EntityMerger(**config.get("merger", {}))
@@ -99,14 +103,20 @@ class Deduplicator:
             **self.config
         )
         
-        # Convert to list of lists
-        result = []
-        for group in duplicate_groups:
-            if len(group.entities) >= 2:
-                result.append(group.entities)
-        
-        self.logger.info(f"Found {len(result)} duplicate groups")
-        return result
+            # Convert to list of lists
+            result = []
+            for group in duplicate_groups:
+                if len(group.entities) >= 2:
+                    result.append(group.entities)
+            
+            self.logger.info(f"Found {len(result)} duplicate groups")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Found {len(result)} duplicate groups")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def merge_duplicates(
         self,

@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Optional
 
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 # Optional imports for date parsing
 try:
@@ -88,6 +89,9 @@ class DateNormalizer:
         self.timezone_normalizer = TimeZoneNormalizer(**self.config)
         self.relative_date_processor = RelativeDateProcessor(**self.config)
         self.temporal_parser = TemporalExpressionParser(**self.config)
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug("Date normalizer initialized")
     

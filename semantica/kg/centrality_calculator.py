@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional
 from collections import defaultdict, deque
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class CentralityCalculator:
@@ -88,6 +89,9 @@ class CentralityCalculator:
                 "Install with: pip install networkx"
             )
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.info("Centrality calculator initialized")
     
     def calculate_degree_centrality(self, graph: Dict[str, Any]) -> Dict[str, Any]:
@@ -113,79 +117,102 @@ class CentralityCalculator:
             >>> top_node = result["rankings"][0]["node"]
             >>> top_score = result["rankings"][0]["score"]
         """
-        self.logger.info("Calculating degree centrality")
-        
-        # Use NetworkX if available for faster calculation
-        if self.use_networkx:
-            try:
-                nx_graph = self._to_networkx(graph)
-                centrality_dict = self.nx.degree_centrality(nx_graph)
-                
-                # Convert to rankings
-                ranked = sorted(
-                    centrality_dict.items(),
-                    key=lambda x: x[1],
-                    reverse=True
-                )
-                
-                max_degree = max(
-                    dict(nx_graph.degree()).values()
-                ) if nx_graph.number_of_nodes() > 0 else 0
-                
-                return {
-                    "centrality": centrality_dict,
-                    "rankings": [
-                        {"node": node, "score": score}
-                        for node, score in ranked
-                    ],
-                    "max_degree": max_degree,
-                    "total_nodes": nx_graph.number_of_nodes()
-                }
-            except Exception as e:
-                self.logger.warning(
-                    f"NetworkX calculation failed: {e}, using basic implementation"
-                )
-        
-        # Basic implementation using adjacency list
-        adjacency = self._build_adjacency(graph)
-        
-        # Calculate raw degrees (number of connections per node)
-        degrees = {}
-        max_degree = 0
-        
-        for node in adjacency:
-            degree = len(adjacency[node])
-            degrees[node] = degree
-            max_degree = max(max_degree, degree)
-        
-        # Calculate normalized centrality scores
-        # Normalization: degree / (n - 1) where n is number of nodes
-        centrality = {}
-        num_nodes = len(adjacency)
-        normalization = num_nodes - 1 if num_nodes > 1 else 1
-        
-        for node, degree in degrees.items():
-            centrality[node] = (
-                degree / normalization if normalization > 0 else 0.0
-            )
-        
-        # Rank nodes by centrality (highest first)
-        ranked = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
-        
-        self.logger.debug(
-            f"Degree centrality calculated: {num_nodes} nodes, "
-            f"max degree: {max_degree}"
+        # Track centrality calculation
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg",
+            submodule="CentralityCalculator",
+            message="Calculating degree centrality"
         )
         
-        return {
-            "centrality": centrality,
-            "rankings": [
-                {"node": node, "score": score}
-                for node, score in ranked
-            ],
-            "max_degree": max_degree,
-            "total_nodes": num_nodes
-        }
+        try:
+            self.logger.info("Calculating degree centrality")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Processing graph structure...")
+            # Use NetworkX if available for faster calculation
+            if self.use_networkx:
+                try:
+                    nx_graph = self._to_networkx(graph)
+                    centrality_dict = self.nx.degree_centrality(nx_graph)
+                    
+                    # Convert to rankings
+                    ranked = sorted(
+                        centrality_dict.items(),
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
+                    
+                    max_degree = max(
+                        dict(nx_graph.degree()).values()
+                    ) if nx_graph.number_of_nodes() > 0 else 0
+                    
+                    result = {
+                        "centrality": centrality_dict,
+                        "rankings": [
+                            {"node": node, "score": score}
+                            for node, score in ranked
+                        ],
+                        "max_degree": max_degree,
+                        "total_nodes": nx_graph.number_of_nodes()
+                    }
+                    self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                                       message=f"Calculated degree centrality for {nx_graph.number_of_nodes()} nodes")
+                    return result
+                except Exception as e:
+                    self.logger.warning(
+                        f"NetworkX calculation failed: {e}, using basic implementation"
+                    )
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Building adjacency list...")
+            # Basic implementation using adjacency list
+            adjacency = self._build_adjacency(graph)
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Calculating degrees...")
+            # Calculate raw degrees (number of connections per node)
+            degrees = {}
+            max_degree = 0
+            
+            for node in adjacency:
+                degree = len(adjacency[node])
+                degrees[node] = degree
+                max_degree = max(max_degree, degree)
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Normalizing centrality scores...")
+            # Calculate normalized centrality scores
+            # Normalization: degree / (n - 1) where n is number of nodes
+            centrality = {}
+            num_nodes = len(adjacency)
+            normalization = num_nodes - 1 if num_nodes > 1 else 1
+            
+            for node, degree in degrees.items():
+                centrality[node] = (
+                    degree / normalization if normalization > 0 else 0.0
+                )
+            
+            # Rank nodes by centrality (highest first)
+            ranked = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
+            
+            self.logger.debug(
+                f"Degree centrality calculated: {num_nodes} nodes, "
+                f"max degree: {max_degree}"
+            )
+            
+            result = {
+                "centrality": centrality,
+                "rankings": [
+                    {"node": node, "score": score}
+                    for node, score in ranked
+                ],
+                "max_degree": max_degree,
+                "total_nodes": num_nodes
+            }
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Calculated degree centrality for {num_nodes} nodes")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def calculate_betweenness_centrality(self, graph):
         """

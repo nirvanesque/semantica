@@ -33,6 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ..utils.exceptions import ProcessingError, ValidationError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class EncodingHandler:
@@ -73,6 +74,9 @@ class EncodingHandler:
         self.config = config
         self.default_encoding = config.get("default_encoding", "utf-8")
         self.fallback_encodings = config.get("fallback_encodings", ["latin-1", "cp1252", "iso-8859-1"])
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug(f"Encoding handler initialized (default={self.default_encoding})")
     

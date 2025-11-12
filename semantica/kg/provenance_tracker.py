@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class ProvenanceTracker:
@@ -67,6 +68,9 @@ class ProvenanceTracker:
         self.logger = get_logger("provenance_tracker")
         self.config = config
         self.provenance_data: Dict[str, Any] = {}
+        
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
         
         self.logger.debug("Provenance tracker initialized")
     

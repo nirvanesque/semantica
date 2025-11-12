@@ -28,6 +28,7 @@ from datetime import datetime
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class SemanticNetworkYAMLExporter:
@@ -74,6 +75,9 @@ class SemanticNetworkYAMLExporter:
                 "PyYAML not installed. Install with: pip install pyyaml"
             )
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Semantic network YAML exporter initialized")
     
     def export_semantic_network(
@@ -106,22 +110,41 @@ class SemanticNetworkYAMLExporter:
             ... }
             >>> yaml_str = exporter.export_semantic_network(network)
         """
-        yaml_data = {
-            "metadata": {
-                "exported_at": datetime.now().isoformat(),
-                "version": "1.0",
-                **semantic_network.get("metadata", {})
-            },
-            "entities": semantic_network.get("entities", []),
-            "relationships": semantic_network.get("relationships", []),
-            "triples": semantic_network.get("triples", [])
-        }
-        
-        return self.yaml.dump(
-            yaml_data,
-            default_flow_style=False,
-            sort_keys=False
+        # Track YAML export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="export",
+            submodule="SemanticNetworkYAMLExporter",
+            message="Exporting semantic network to YAML"
         )
+        
+        try:
+            self.progress_tracker.update_tracking(tracking_id, message="Preparing YAML data...")
+            yaml_data = {
+                "metadata": {
+                    "exported_at": datetime.now().isoformat(),
+                    "version": "1.0",
+                    **semantic_network.get("metadata", {})
+                },
+                "entities": semantic_network.get("entities", []),
+                "relationships": semantic_network.get("relationships", []),
+                "triples": semantic_network.get("triples", [])
+            }
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Serializing to YAML...")
+            result = self.yaml.dump(
+                yaml_data,
+                default_flow_style=False,
+                sort_keys=False
+            )
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message="Exported semantic network to YAML")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export(
         self,

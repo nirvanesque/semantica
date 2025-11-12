@@ -29,6 +29,7 @@ from datetime import datetime
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class OWLExporter:
@@ -84,6 +85,9 @@ class OWLExporter:
         self.version = version
         self.format = format
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"OWL exporter initialized: uri={ontology_uri}, "
             f"version={version}, format={format}"
@@ -132,34 +136,51 @@ class OWLExporter:
             ... }
             >>> exporter.export(ontology, "ontology.owl", format="owl-xml")
         """
-        file_path = Path(file_path)
-        ensure_directory(file_path.parent)
-        
-        export_format = format or self.format
-        
-        self.logger.debug(
-            f"Exporting ontology to {export_format}: {file_path}, "
-            f"classes={len(ontology.get('classes', []))}, "
-            f"object_properties={len(ontology.get('object_properties', []))}, "
-            f"data_properties={len(ontology.get('data_properties', []))}"
+        # Track OWL export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=str(file_path),
+            module="export",
+            submodule="OWLExporter",
+            message=f"Exporting ontology to {format or self.format}: {file_path}"
         )
         
-        # Generate OWL content based on format
-        if export_format == "owl-xml":
-            owl_content = self._export_owl_xml(ontology, **options)
-        elif export_format == "turtle":
-            owl_content = self._export_owl_turtle(ontology, **options)
-        else:
-            raise ValidationError(
-                f"Unsupported OWL format: {export_format}. "
-                "Supported formats: owl-xml, turtle"
+        try:
+            file_path = Path(file_path)
+            ensure_directory(file_path.parent)
+            
+            export_format = format or self.format
+            
+            self.logger.debug(
+                f"Exporting ontology to {export_format}: {file_path}, "
+                f"classes={len(ontology.get('classes', []))}, "
+                f"object_properties={len(ontology.get('object_properties', []))}, "
+                f"data_properties={len(ontology.get('data_properties', []))}"
             )
-        
-        # Write OWL file
-        with open(file_path, "w", encoding=encoding) as f:
-            f.write(owl_content)
-        
-        self.logger.info(f"Exported OWL ({export_format}) to: {file_path}")
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Converting ontology to {export_format}...")
+            # Generate OWL content based on format
+            if export_format == "owl-xml":
+                owl_content = self._export_owl_xml(ontology, **options)
+            elif export_format == "turtle":
+                owl_content = self._export_owl_turtle(ontology, **options)
+            else:
+                raise ValidationError(
+                    f"Unsupported OWL format: {export_format}. "
+                    "Supported formats: owl-xml, turtle"
+                )
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Writing OWL file...")
+            # Write OWL file
+            with open(file_path, "w", encoding=encoding) as f:
+                f.write(owl_content)
+            
+            self.logger.info(f"Exported OWL ({export_format}) to: {file_path}")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Exported OWL ({export_format}) to: {file_path}")
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def export_ontology(
         self,

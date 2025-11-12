@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 @dataclass
@@ -88,6 +89,9 @@ class QualityMetrics:
         self.logger = get_logger("quality_metrics")
         self.config = kwargs
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Quality metrics calculator initialized")
     
     def calculate_overall_score(
@@ -108,13 +112,23 @@ class QualityMetrics:
         Returns:
             float: Overall quality score between 0.0 and 1.0 (higher is better)
         """
-        completeness = self.calculate_entity_quality(knowledge_graph)
-        consistency = self._calculate_consistency(knowledge_graph)
-        
-        # Weighted average
-        overall = (0.6 * completeness) + (0.4 * consistency)
-        
-        return min(1.0, max(0.0, overall))
+            self.progress_tracker.update_tracking(tracking_id, message="Calculating entity quality...")
+            completeness = self.calculate_entity_quality(knowledge_graph)
+            self.progress_tracker.update_tracking(tracking_id, message="Calculating consistency...")
+            consistency = self._calculate_consistency(knowledge_graph)
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Aggregating scores...")
+            # Weighted average
+            overall = (0.6 * completeness) + (0.4 * consistency)
+            
+            result = min(1.0, max(0.0, overall))
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Overall quality score: {result:.2f}")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def calculate_entity_quality(
         self,

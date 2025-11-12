@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional
 
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class EntityNormalizer:
@@ -77,6 +78,9 @@ class EntityNormalizer:
         self.disambiguator = EntityDisambiguator(**self.config)
         self.variant_handler = NameVariantHandler(**self.config)
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Entity normalizer initialized")
     
     def normalize_entity(
@@ -101,25 +105,35 @@ class EntityNormalizer:
         Returns:
             str: Normalized entity name in standard form
         """
-        if not entity_name:
-            return ""
-        
-        normalized = entity_name.strip()
-        
-        # Clean and standardize
-        normalized = re.sub(r'\s+', ' ', normalized)
-        normalized = normalized.title() if entity_type == "Person" else normalized
-        
-        # Resolve aliases
-        if resolve_aliases:
-            resolved = self.alias_resolver.resolve_aliases(normalized, entity_type=entity_type)
-            if resolved:
-                normalized = resolved
-        
-        # Handle name variants
-        normalized = self.variant_handler.normalize_name_format(normalized, format_type="standard")
-        
-        return normalized
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Normalizing entity",
+            file=None
+        )
+        try:
+            if not entity_name:
+                self.progress_tracker.stop_tracking(tracking_id, status="completed")
+                return ""
+            
+            normalized = entity_name.strip()
+            
+            # Clean and standardize
+            normalized = re.sub(r'\s+', ' ', normalized)
+            normalized = normalized.title() if entity_type == "Person" else normalized
+            
+            # Resolve aliases
+            if resolve_aliases:
+                resolved = self.alias_resolver.resolve_aliases(normalized, entity_type=entity_type)
+                if resolved:
+                    normalized = resolved
+            
+            # Handle name variants
+            normalized = self.variant_handler.normalize_name_format(normalized, format_type="standard")
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed")
+            return normalized
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed")
+            raise
     
     def resolve_aliases(
         self,
@@ -139,7 +153,17 @@ class EntityNormalizer:
         Returns:
             Optional[str]: Resolved canonical form if found, None otherwise
         """
-        return self.alias_resolver.resolve_aliases(entity_name, **context)
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Resolving aliases",
+            file=None
+        )
+        try:
+            result = self.alias_resolver.resolve_aliases(entity_name, **context)
+            self.progress_tracker.stop_tracking(tracking_id, status="completed")
+            return result
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed")
+            raise
     
     def disambiguate_entity(
         self,
@@ -163,7 +187,17 @@ class EntityNormalizer:
                 - confidence: Confidence score (0.0 to 1.0)
                 - candidates: List of candidate entity names
         """
-        return self.disambiguator.disambiguate(entity_name, **context)
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Disambiguating entity",
+            file=None
+        )
+        try:
+            result = self.disambiguator.disambiguate(entity_name, **context)
+            self.progress_tracker.stop_tracking(tracking_id, status="completed")
+            return result
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed")
+            raise
     
     def link_entities(
         self,
@@ -183,13 +217,22 @@ class EntityNormalizer:
         Returns:
             dict: Dictionary mapping original entity names to canonical forms
         """
-        linked = {}
-        
-        for entity in entities:
-            canonical = self.normalize_entity(entity, **options)
-            linked[entity] = canonical
-        
-        return linked
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Linking entities",
+            file=None
+        )
+        try:
+            linked = {}
+            
+            for entity in entities:
+                canonical = self.normalize_entity(entity, **options)
+                linked[entity] = canonical
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed")
+            return linked
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed")
+            raise
 
 
 class AliasResolver:

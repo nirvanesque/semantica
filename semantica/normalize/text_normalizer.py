@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional
 
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from .text_cleaner import TextCleaner
 
 
@@ -82,6 +83,9 @@ class TextNormalizer:
         self.whitespace_normalizer = WhitespaceNormalizer(**self.config)
         self.special_char_processor = SpecialCharacterProcessor(**self.config)
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Text normalizer initialized")
     
     def normalize_text(
@@ -120,20 +124,26 @@ class TextNormalizer:
         Returns:
             str: Normalized text
         """
-        if not text:
-            return ""
-        
-        normalized = text
-        
-        # Unicode normalization
-        normalized = self.unicode_normalizer.normalize_unicode(normalized, form=unicode_form)
-        
-        # Whitespace normalization
-        normalized = self.whitespace_normalizer.normalize_whitespace(
-            normalized, line_break_type=line_break_type, **options
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Normalizing text",
+            file=None
         )
-        
-        # Special character processing
+        try:
+            if not text:
+                self.progress_tracker.stop_tracking(tracking_id, status="completed")
+                return ""
+            
+            normalized = text
+            
+            # Unicode normalization
+            normalized = self.unicode_normalizer.normalize_unicode(normalized, form=unicode_form)
+            
+            # Whitespace normalization
+            normalized = self.whitespace_normalizer.normalize_whitespace(
+                normalized, line_break_type=line_break_type, **options
+            )
+            
+            # Special character processing
         normalized = self.special_char_processor.process_special_chars(
             normalized, normalize_diacritics=normalize_diacritics, **options
         )

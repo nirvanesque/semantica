@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class SeedManager:
@@ -67,6 +68,9 @@ class SeedManager:
         self.config = config
         self.seed_data: List[Dict[str, Any]] = []
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Seed manager initialized")
     
     def load_seed_data(self, source: str, data: Any) -> None:
@@ -82,42 +86,59 @@ class SeedManager:
             data: Seed data to load (list of entities, dict with "entities" key,
                  or single entity dict)
         """
-        self.logger.info(f"Loading seed data from source: {source}")
+        # Track seed data loading
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg",
+            submodule="SeedManager",
+            message=f"Loading seed data from source: {source}"
+        )
         
-        # Normalize data format
-        if isinstance(data, list):
-            entities = data
-        elif isinstance(data, dict):
-            entities = data.get("entities", [data])
-        else:
-            entities = [data]
-        
-        # Validate and process entities
-        processed_entities = []
-        for entity in entities:
-            if not isinstance(entity, dict):
-                self.logger.warning(f"Skipping invalid entity format: {type(entity)}")
-                continue
+        try:
+            self.logger.info(f"Loading seed data from source: {source}")
             
-            # Ensure entity has required fields
-            if "id" not in entity and "entity_id" not in entity:
-                # Generate ID if missing
-                entity["id"] = f"{source}_{len(processed_entities)}"
+            self.progress_tracker.update_tracking(tracking_id, message="Normalizing data format...")
+            # Normalize data format
+            if isinstance(data, list):
+                entities = data
+            elif isinstance(data, dict):
+                entities = data.get("entities", [data])
+            else:
+                entities = [data]
             
-            # Add source metadata
-            entity["source"] = source
-            entity["seed_data"] = True
+            self.progress_tracker.update_tracking(tracking_id, message=f"Processing {len(entities)} entities...")
+            # Validate and process entities
+            processed_entities = []
+            for entity in entities:
+                if not isinstance(entity, dict):
+                    self.logger.warning(f"Skipping invalid entity format: {type(entity)}")
+                    continue
+                
+                # Ensure entity has required fields
+                if "id" not in entity and "entity_id" not in entity:
+                    # Generate ID if missing
+                    entity["id"] = f"{source}_{len(processed_entities)}"
+                
+                # Add source metadata
+                entity["source"] = source
+                entity["seed_data"] = True
+                
+                processed_entities.append(entity)
             
-            processed_entities.append(entity)
-        
-        self.seed_data.append({
-            "source": source,
-            "entities": processed_entities,
-            "count": len(processed_entities),
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        self.logger.info(f"Loaded {len(processed_entities)} entities from {source}")
+            self.seed_data.append({
+                "source": source,
+                "entities": processed_entities,
+                "count": len(processed_entities),
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            self.logger.info(f"Loaded {len(processed_entities)} entities from {source}")
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Loaded {len(processed_entities)} entities from {source}")
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def load_from_file(
         self,

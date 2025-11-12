@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 from ..utils.exceptions import ValidationError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 @dataclass
@@ -87,6 +88,9 @@ class ValidationEngine:
         self.config = kwargs
         self.rules: List[Callable] = []
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Validation engine initialized")
     
     def validate(
@@ -115,27 +119,35 @@ class ValidationEngine:
                 - warnings: List of warning messages
                 - metadata: Additional validation metadata
         """
-        rules_to_use = rules or self.rules
-        errors = []
-        warnings = []
-        
-        for rule in rules_to_use:
-            try:
-                result = rule(knowledge_graph)
-                if isinstance(result, dict):
-                    if result.get("error"):
-                        errors.append(result["error"])
-                    if result.get("warning"):
-                        warnings.append(result["warning"])
-            except Exception as e:
-                self.logger.error(f"Validation rule error: {e}")
-                errors.append(f"Validation rule failed: {e}")
-        
-        return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+            rules_to_use = rules or self.rules
+            errors = []
+            warnings = []
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Validating with {len(rules_to_use)} rule(s)...")
+            for rule in rules_to_use:
+                try:
+                    result = rule(knowledge_graph)
+                    if isinstance(result, dict):
+                        if result.get("error"):
+                            errors.append(result["error"])
+                        if result.get("warning"):
+                            warnings.append(result["warning"])
+                except Exception as e:
+                    self.logger.error(f"Validation rule error: {e}")
+                    errors.append(f"Validation rule failed: {e}")
+            
+            result = ValidationResult(
+                valid=len(errors) == 0,
+                errors=errors,
+                warnings=warnings
+            )
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Validation complete: {len(errors)} errors, {len(warnings)} warnings")
+            return result
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def add_rule(self, rule: Callable) -> None:
         """

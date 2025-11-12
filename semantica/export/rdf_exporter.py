@@ -35,6 +35,7 @@ from pathlib import Path
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
 from ..utils.helpers import ensure_directory
+from ..utils.progress_tracker import get_progress_tracker
 
 
 class NamespaceManager:
@@ -761,6 +762,9 @@ class RDFExporter:
         # Supported RDF formats
         self.supported_formats = ["turtle", "rdfxml", "jsonld", "ntriples", "n3"]
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug(
             f"RDF exporter initialized with {len(self.supported_formats)} format(s)"
         )
@@ -793,27 +797,38 @@ class RDFExporter:
             >>> rdf_string = exporter.export_to_rdf(data, format="turtle")
             >>> print(rdf_string)
         """
-        if format not in self.supported_formats:
-            raise ValidationError(
-                f"Unsupported RDF format: {format}. "
-                f"Supported formats: {', '.join(self.supported_formats)}"
-            )
+        # Track RDF export
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="export",
+            submodule="RDFExporter",
+            message=f"Exporting data to RDF format: {format}"
+        )
         
-        self.logger.debug(f"Exporting to RDF format: {format}")
-        
-        # Validate input data
-        validation = self.validator.validate_rdf_syntax(data, format)
-        if not validation["valid"]:
-            self.logger.warning(
-                f"RDF validation issues found: {validation['errors']}. "
-                "Continuing with export, but data may be invalid."
-            )
-        if validation["warnings"]:
-            self.logger.debug(f"RDF validation warnings: {validation['warnings']}")
-        
-        # Serialize based on format
-        if format == "turtle":
-            return self.serializer.serialize_to_turtle(data, **options)
+        try:
+            if format not in self.supported_formats:
+                raise ValidationError(
+                    f"Unsupported RDF format: {format}. "
+                    f"Supported formats: {', '.join(self.supported_formats)}"
+                )
+            
+            self.logger.debug(f"Exporting to RDF format: {format}")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Validating RDF data...")
+            # Validate input data
+            validation = self.validator.validate_rdf_syntax(data, format)
+            if not validation["valid"]:
+                self.logger.warning(
+                    f"RDF validation issues found: {validation['errors']}. "
+                    "Continuing with export, but data may be invalid."
+                )
+            if validation["warnings"]:
+                self.logger.debug(f"RDF validation warnings: {validation['warnings']}")
+            
+            self.progress_tracker.update_tracking(tracking_id, message=f"Serializing to {format} format...")
+            # Serialize based on format
+            if format == "turtle":
+                result = self.serializer.serialize_to_turtle(data, **options)
         elif format == "rdfxml":
             return self.serializer.serialize_to_rdfxml(data, **options)
         elif format == "jsonld":

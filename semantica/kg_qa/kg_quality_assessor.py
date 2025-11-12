@@ -31,6 +31,7 @@ License: MIT
 from typing import Any, Dict, List, Optional
 
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 from .quality_metrics import QualityMetrics, CompletenessMetrics, ConsistencyMetrics
 from .validation_engine import ValidationEngine
 from .reporting import QualityReporter, QualityReport
@@ -78,6 +79,9 @@ class KGQualityAssessor:
         self.validation_engine = ValidationEngine(**kwargs)
         self.quality_reporter = QualityReporter(**kwargs)
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("KG quality assessor initialized")
     
     def assess_overall_quality(
@@ -99,12 +103,28 @@ class KGQualityAssessor:
         Returns:
             float: Overall quality score between 0.0 and 1.0 (higher is better)
         """
-        self.logger.info("Assessing overall quality")
+        # Track quality assessment
+        tracking_id = self.progress_tracker.start_tracking(
+            file=None,
+            module="kg_qa",
+            submodule="KGQualityAssessor",
+            message="Assessing overall quality"
+        )
         
-        # Calculate metrics
-        overall_score = self.quality_metrics.calculate_overall_score(knowledge_graph)
-        
-        return overall_score
+        try:
+            self.logger.info("Assessing overall quality")
+            
+            self.progress_tracker.update_tracking(tracking_id, message="Calculating quality metrics...")
+            # Calculate metrics
+            overall_score = self.quality_metrics.calculate_overall_score(knowledge_graph)
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed",
+                                               message=f"Overall quality score: {overall_score:.2f}")
+            return overall_score
+            
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            raise
     
     def generate_quality_report(
         self,

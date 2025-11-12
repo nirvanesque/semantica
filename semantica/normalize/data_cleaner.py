@@ -35,6 +35,7 @@ from collections import defaultdict
 
 from ..utils.exceptions import ValidationError, ProcessingError
 from ..utils.logging import get_logger
+from ..utils.progress_tracker import get_progress_tracker
 
 
 @dataclass
@@ -116,6 +117,9 @@ class DataCleaner:
         self.data_validator = DataValidator(**self.config)
         self.missing_value_handler = MissingValueHandler(**self.config)
         
+        # Initialize progress tracker
+        self.progress_tracker = get_progress_tracker()
+        
         self.logger.debug("Data cleaner initialized")
     
     def clean_data(
@@ -145,36 +149,45 @@ class DataCleaner:
         Returns:
             list: Cleaned dataset (list of record dictionaries)
         """
-        cleaned = list(dataset)
-        
-        # Handle missing values
-        if handle_missing:
-            strategy = options.get("missing_strategy", "remove")
-            cleaned = self.missing_value_handler.handle_missing_values(cleaned, strategy=strategy)
-        
-        # Validate data
-        if validate:
-            schema = options.get("schema")
-            validation = self.data_validator.validate_dataset(cleaned, schema)
-            if not validation.valid:
-                self.logger.warning(f"Validation found {len(validation.errors)} errors")
-        
-        # Remove duplicates
-        if remove_duplicates:
-            criteria = options.get("duplicate_criteria", {})
-            duplicates = self.detect_duplicates(cleaned, **criteria)
+        tracking_id = self.progress_tracker.start_tracking(
+            message="Semantica: Cleaning data",
+            file=None
+        )
+        try:
+            cleaned = list(dataset)
             
-            # Remove duplicates (keep first occurrence)
-            duplicate_indices = set()
-            for group in duplicates:
-                for record in group.records[1:]:  # Skip first (canonical)
-                    if record in cleaned:
-                        idx = cleaned.index(record)
-                        duplicate_indices.add(idx)
+            # Handle missing values
+            if handle_missing:
+                strategy = options.get("missing_strategy", "remove")
+                cleaned = self.missing_value_handler.handle_missing_values(cleaned, strategy=strategy)
             
-            cleaned = [r for i, r in enumerate(cleaned) if i not in duplicate_indices]
-        
-        return cleaned
+            # Validate data
+            if validate:
+                schema = options.get("schema")
+                validation = self.data_validator.validate_dataset(cleaned, schema)
+                if not validation.valid:
+                    self.logger.warning(f"Validation found {len(validation.errors)} errors")
+            
+            # Remove duplicates
+            if remove_duplicates:
+                criteria = options.get("duplicate_criteria", {})
+                duplicates = self.detect_duplicates(cleaned, **criteria)
+                
+                # Remove duplicates (keep first occurrence)
+                duplicate_indices = set()
+                for group in duplicates:
+                    for record in group.records[1:]:  # Skip first (canonical)
+                        if record in cleaned:
+                            idx = cleaned.index(record)
+                            duplicate_indices.add(idx)
+                
+                cleaned = [r for i, r in enumerate(cleaned) if i not in duplicate_indices]
+            
+            self.progress_tracker.stop_tracking(tracking_id, status="completed")
+            return cleaned
+        except Exception as e:
+            self.progress_tracker.stop_tracking(tracking_id, status="failed")
+            raise
     
     def detect_duplicates(
         self,
