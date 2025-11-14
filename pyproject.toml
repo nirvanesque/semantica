@@ -163,6 +163,19 @@ models-huggingface = [
     "transformers>=4.20.0",
     "torch>=1.12.0"
 ]
+split-tiktoken = [
+    "tiktoken>=0.5.0"
+]
+split-community = [
+    "python-louvain>=0.16"
+]
+split-topic = [
+    "bertopic>=0.15.0",
+    "gensim>=4.3.0"
+]
+split-all = [
+    "semantica[split-tiktoken,split-community,split-topic]"
+]
 
 [project.urls]
 Homepage = "https://semantica.dev"
