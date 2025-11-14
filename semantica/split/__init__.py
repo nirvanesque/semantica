@@ -5,7 +5,30 @@ This module provides comprehensive document chunking and splitting capabilities
 for optimal processing and semantic analysis, enabling efficient handling of
 large documents through various chunking strategies.
 
+Supported Methods:
+    - Standard: recursive, token, sentence, paragraph, character, word, semantic_transformer, llm, huggingface, nltk
+    - KG/Ontology: entity_aware, relation_aware, graph_based, ontology_aware, hierarchical, community_detection, centrality_based, subgraph, topic_based
+
+Algorithms Used:
+    - Recursive Splitting: Separator hierarchy and greedy splitting
+    - Token Counting: BPE tokenization (tiktoken, transformers)
+    - Sentence Segmentation: NLTK, spaCy, regex-based
+    - Semantic Boundary Detection: Sentence transformer embeddings and similarity
+    - LLM-based Splitting: Prompt engineering for optimal split point detection
+    - Entity Boundary Detection: NER-based entity extraction and boundary preservation
+    - Triple Preservation: Graph-based triple integrity checking
+    - Graph Centrality Analysis: Degree, betweenness, closeness, eigenvector centrality
+    - Community Detection: Louvain algorithm, Leiden algorithm, modularity optimization
+
 Key Features:
+    - Multiple standard splitting methods
+    - KG/ontology/graph analytics-specific chunking methods
+    - Unified TextSplitter interface
+    - Entity-aware chunking for GraphRAG
+    - Relation-aware chunking for KG workflows
+    - Graph structure-based chunking
+    - Ontology concept-aware chunking
+    - Hierarchical multi-level chunking
     - Semantic-based chunking using NLP
     - Structure-aware chunking (headings, paragraphs, lists)
     - Sliding window chunking with overlap
@@ -14,21 +37,33 @@ Key Features:
     - Provenance tracking for data lineage
 
 Main Classes:
+    - TextSplitter: Unified text splitter with method parameter
     - SemanticChunker: Semantic-based chunking coordinator
     - StructuralChunker: Structure-aware chunking
     - SlidingWindowChunker: Fixed-size sliding window chunking
     - TableChunker: Table-specific chunking
+    - EntityAwareChunker: Entity boundary-preserving chunker
+    - RelationAwareChunker: Triple-preserving chunker
+    - GraphBasedChunker: Graph structure-based chunker
+    - OntologyAwareChunker: Ontology concept-based chunker
+    - HierarchicalChunker: Multi-level hierarchical chunker
     - ChunkValidator: Chunk quality validation
     - ProvenanceTracker: Chunk provenance tracking
     - Chunk: Chunk representation dataclass
 
 Example Usage:
+    >>> from semantica.split import TextSplitter
+    >>> splitter = TextSplitter(method="recursive", chunk_size=1000, chunk_overlap=200)
+    >>> chunks = splitter.split(text)
+    >>> 
+    >>> # Entity-aware for GraphRAG
+    >>> splitter = TextSplitter(method="entity_aware", ner_method="llm", chunk_size=1000)
+    >>> chunks = splitter.split(text)
+    >>> 
+    >>> # Using existing chunkers
     >>> from semantica.split import SemanticChunker
     >>> chunker = SemanticChunker(chunk_size=1000, chunk_overlap=200)
     >>> chunks = chunker.chunk(long_text)
-    >>> from semantica.split import StructuralChunker
-    >>> struct_chunker = StructuralChunker()
-    >>> chunks = struct_chunker.chunk(structured_document)
 
 Author: Semantica Contributors
 License: MIT
@@ -40,8 +75,39 @@ from .sliding_window_chunker import SlidingWindowChunker
 from .table_chunker import TableChunker
 from .chunk_validator import ChunkValidator
 from .provenance_tracker import ProvenanceTracker
+from .splitter import TextSplitter
+from .kg_chunkers import (
+    EntityAwareChunker,
+    RelationAwareChunker,
+    GraphBasedChunker,
+    OntologyAwareChunker,
+    HierarchicalChunker
+)
+from .methods import (
+    get_split_method,
+    list_available_methods,
+    split_recursive,
+    split_by_tokens,
+    split_by_sentences,
+    split_by_paragraphs,
+    split_by_characters,
+    split_by_words,
+    split_semantic_transformer,
+    split_llm,
+    split_entity_aware,
+    split_relation_aware,
+    split_graph_based,
+    split_ontology_aware,
+    split_hierarchical
+)
+from .config import SplitConfig, split_config
+from .registry import MethodRegistry, method_registry
 
 __all__ = [
+    # Unified splitter
+    "TextSplitter",
+    
+    # Existing chunkers
     "SemanticChunker",
     "Chunk",
     "StructuralChunker",
@@ -49,4 +115,34 @@ __all__ = [
     "TableChunker",
     "ChunkValidator",
     "ProvenanceTracker",
+    
+    # KG/Ontology chunkers
+    "EntityAwareChunker",
+    "RelationAwareChunker",
+    "GraphBasedChunker",
+    "OntologyAwareChunker",
+    "HierarchicalChunker",
+    
+    # Methods
+    "get_split_method",
+    "list_available_methods",
+    "split_recursive",
+    "split_by_tokens",
+    "split_by_sentences",
+    "split_by_paragraphs",
+    "split_by_characters",
+    "split_by_words",
+    "split_semantic_transformer",
+    "split_llm",
+    "split_entity_aware",
+    "split_relation_aware",
+    "split_graph_based",
+    "split_ontology_aware",
+    "split_hierarchical",
+    
+    # Config and Registry
+    "SplitConfig",
+    "split_config",
+    "MethodRegistry",
+    "method_registry",
 ]
