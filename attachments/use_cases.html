@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantica - Use Case Examples</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+        h3 { color: #555; margin-top: 20px; }
+        pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+        .usecase { background-color: #f9f9f9; padding: 20px; margin: 20px 0; border-left: 4px solid #3498db; }
+        .benefit { background-color: #e8f5e9; padding: 10px; margin: 10px 0; border-left: 4px solid #4caf50; }
+        code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+    </style>
+</head>
+<body>
+    <h1>Semantica Framework - Use Case Examples</h1>
+    
+    <h2>Use Case 1: Enterprise Knowledge Graph Construction</h2>
+    <div class="usecase">
+        <h3>Scenario</h3>
+        <p>A large enterprise needs to build a unified knowledge graph from diverse internal sources: company documents (PDFs, Word files), emails, databases, and web content. The knowledge graph should enable semantic search, relationship discovery, and support AI-powered assistants.</p>
+        
+        <h3>Implementation</h3>
+        <pre><code>from semantica import Semantica
+from semantica.ingest import FileIngestor, EmailIngestor, DBIngestor
+
+# Initialize framework
+core = Semantica(
+    graph_db="neo4j",
+    merge_entities=True,
+    resolve_conflicts=True
+)
+
+# Ingest from multiple sources
+file_ingestor = FileIngestor(recursive=True)
+sources = []
+sources.extend(file_ingestor.ingest("/company/documents/"))
+sources.extend(file_ingestor.ingest("/company/reports/"))
+
+email_ingestor = EmailIngestor()
+sources.extend(email_ingestor.ingest("/company/emails/"))
+
+db_ingestor = DBIngestor(connection_string="postgresql://...")
+sources.extend(db_ingestor.ingest("SELECT * FROM knowledge_base"))
+
+# Build unified knowledge graph
+kg = core.build_knowledge_graph(
+    sources=sources,
+    merge_entities=True,
+    resolve_conflicts=True,
+    generate_embeddings=True
+)
+
+# Export to Neo4j for production use
+kg.to_neo4j("bolt://neo4j-server:7687", "neo4j", "password")
+
+print(f"✅ Built knowledge graph: {kg.node_count} nodes, {kg.edge_count} edges")</code></pre>
+        
+        <h3>Expected Outcomes</h3>
+        <div class="benefit">
+            <ul>
+                <li><strong>Unified Knowledge:</strong> Single source of truth from all enterprise data</li>
+                <li><strong>Semantic Search:</strong> Find information by meaning, not just keywords</li>
+                <li><strong>Relationship Discovery:</strong> Automatically discover connections between entities</li>
+                <li><strong>AI Assistant Support:</strong> Structured knowledge for RAG and agent systems</li>
+            </ul>
+        </div>
+        
+        <h3>Benefits</h3>
+        <ul>
+            <li>80% faster information discovery compared to traditional search</li>
+            <li>Automatic cross-reference detection across documents</li>
+            <li>Reduced manual knowledge management overhead</li>
+        </ul>
+    </div>
+    
+    <h2>Use Case 2: GraphRAG for Research Assistant</h2>
+    <div class="usecase">
+        <h3>Scenario</h3>
+        <p>A research organization wants to build an AI assistant that can answer complex questions about scientific literature by combining vector search with knowledge graph traversal for better context understanding.</p>
+        
+        <h3>Implementation</h3>
+        <pre><code>from semantica import Semantica
+from semantica.qa_rag import GraphRAGEngine
+from semantica.vector_store import VectorStore, PineconeAdapter
+
+# Build knowledge base from research papers
+core = Semantica(
+    vector_store="pinecone",
+    graph_db="neo4j",
+    embedding_model="text-embedding-3-large"
+)
+
+kb = core.build_knowledge_base(
+    sources=["research_papers/"],
+    generate_embeddings=True,
+    build_graph=True
+)
+
+# Initialize GraphRAG
+vector_store = VectorStore(adapter=PineconeAdapter(
+    api_key="your-key",
+    index_name="research-kb"
+))
+
+graphrag = GraphRAGEngine(
+    vector_store=kb.vector_store,
+    knowledge_graph=kb.graph,
+    embedding_model="text-embedding-3-large",
+    rerank=True
+)
+
+# Query with hybrid retrieval
+query = "What are the main findings about climate change impacts on agriculture?"
+response = graphrag.query(
+    query=query,
+    top_k=5,
+    expand_graph=True,
+    max_hops=2
+)
+
+print(f"Answer: {response.answer}")
+print(f"Confidence: {response.confidence:.2f}")
+print(f"Sources: {len(response.sources)}")
+for source in response.sources:
+    print(f"  - {source.title} (relevance: {source.score:.2f})")</code></pre>
+        
+        <h3>Expected Outcomes</h3>
+        <div class="benefit">
+            <ul>
+                <li><strong>30% Accuracy Improvement:</strong> Over vector-only RAG systems</li>
+                <li><strong>Better Context:</strong> Graph traversal provides related concepts</li>
+                <li><strong>Citation Support:</strong> Traceable sources for all answers</li>
+                <li><strong>Complex Queries:</strong> Answer multi-hop questions requiring reasoning</li>
+            </ul>
+        </div>
+        
+        <h3>Benefits</h3>
+        <ul>
+            <li>More accurate answers for research questions</li>
+            <li>Ability to answer complex, multi-part questions</li>
+            <li>Transparent source attribution</li>
+        </ul>
+    </div>
+    
+    <h2>Use Case 3: Automatic Ontology Generation for Domain Modeling</h2>
+    <div class="usecase">
+        <h3>Scenario</h3>
+        <p>A healthcare organization needs to create a formal ontology for their domain knowledge to enable semantic interoperability and reasoning. Manual ontology engineering is time-consuming and error-prone.</p>
+        
+        <h3>Implementation</h3>
+        <pre><code>from semantica.ontology import (
+    OntologyGenerator,
+    OntologyValidator,
+    RequirementsSpec
+)
+
+# Define competency questions
+requirements = RequirementsSpec()
+requirements.add_competency_question(
+    "What medical conditions exist?",
+    category="entity_identification"
+)
+requirements.add_competency_question(
+    "What are the relationships between conditions and treatments?",
+    category="relationship_modeling"
+)
+
+# Generate ontology from documents
+generator = OntologyGenerator(
+    llm_provider="openai",
+    model="gpt-4",
+    validation_mode="hybrid"
+)
+
+ontology = generator.generate_from_documents(
+    sources=["medical_documents/", "clinical_notes/", "research_papers/"],
+    requirements=requirements,
+    quality_threshold=0.95,
+    namespace="https://example.org/medical#",
+    prefix="med"
+)
+
+# Validate with symbolic reasoner
+validator = OntologyValidator(reasoner="hermit")
+validation_report = validator.validate(ontology)
+
+if validation_report.is_consistent:
+    print(f"✅ Ontology generated: {len(ontology.classes)} classes")
+    print(f"✅ Validation score: {ontology.validation_score:.2f}")
+    
+    # Export to OWL
+    from semantica.ontology import OWLGenerator
+    owl_generator = OWLGenerator()
+    owl_generator.generate(ontology, "medical_ontology.ttl", format="turtle")
+    print("✅ Saved to medical_ontology.ttl")
+else:
+    print("❌ Validation issues found")
+    for issue in validation_report.issues:
+        print(f"  - {issue.message}")</code></pre>
+        
+        <h3>Expected Outcomes</h3>
+        <div class="benefit">
+            <ul>
+                <li><strong>Automatic Generation:</strong> W3C-compliant OWL ontology from unstructured content</li>
+                <li><strong>High Quality:</strong> F1 scores up to 0.99 with symbolic validation</li>
+                <li><strong>Time Savings:</strong> 40x faster than manual ontology engineering</li>
+                <li><strong>Interoperability:</strong> Standard OWL format for integration</li>
+            </ul>
+        </div>
+        
+        <h3>Benefits</h3>
+        <ul>
+            <li>Eliminates weeks of manual ontology engineering</li>
+            <li>Ensures logical consistency through automated validation</li>
+            <li>Enables semantic interoperability with other systems</li>
+        </ul>
+    </div>
+    
+    <h2>Use Case 4: AI Agent with Persistent Memory</h2>
+    <div class="usecase">
+        <h3>Scenario</h3>
+        <p>An AI agent needs persistent memory across conversations, understanding user preferences, and maintaining context about past interactions. The agent should be able to reason about relationships and make decisions based on structured knowledge.</p>
+        
+        <h3>Implementation</h3>
+        <pre><code>from semantica.context import (
+    ContextGraphBuilder,
+    AgentMemory,
+    ContextRetriever
+)
+from semantica.vector_store import VectorStore, PineconeAdapter
+
+# Build context graph from conversations
+context_builder = ContextGraphBuilder(
+    extract_entities=True,
+    extract_relationships=True,
+    link_external_entities=True
+)
+
+context_graph = context_builder.build_from_conversations(
+    conversations=["conv_history.json"],
+    link_entities=True,
+    extract_intents=True
+)
+
+# Initialize agent memory
+vector_store = VectorStore(adapter=PineconeAdapter(
+    api_key="your-key",
+    index_name="agent-memory"
+))
+
+memory = AgentMemory(
+    vector_store=vector_store,
+    knowledge_graph=context_graph,
+    retention_policy="30_days",
+    max_memory_size=10000
+)
+
+# Store context
+memory.store(
+    content="User prefers technical documentation over tutorials",
+    metadata={"user_id": "user_123", "category": "preferences"},
+    entities=["User", "Documentation", "Tutorials"],
+    relationships=[("prefers", "User", "Documentation")]
+)
+
+# Retrieve relevant context
+context_retriever = ContextRetriever(
+    memory_store=memory,
+    use_graph_expansion=True,
+    max_expansion_hops=2
+)
+
+relevant_context = context_retriever.retrieve(
+    query="What are the user's learning preferences?",
+    max_results=5,
+    min_relevance_score=0.7
+)
+
+# Use context for agent decision-making
+for ctx in relevant_context:
+    print(f"- {ctx.content} (score: {ctx.score:.2f})")
+    if ctx.related_entities:
+        print(f"  Related: {[e.name for e in ctx.related_entities]}")</code></pre>
+        
+        <h3>Expected Outcomes</h3>
+        <div class="benefit">
+            <ul>
+                <li><strong>Persistent Memory:</strong> Context maintained across conversations</li>
+                <li><strong>Graph-Enhanced Retrieval:</strong> Related concepts discovered through graph traversal</li>
+                <li><strong>Personalization:</strong> Agent adapts to user preferences</li>
+                <li><strong>Context-Aware Responses:</strong> Better understanding of user intent</li>
+            </ul>
+        </div>
+        
+        <h3>Benefits</h3>
+        <ul>
+            <li>More personalized and context-aware agent interactions</li>
+            <li>Reduced need to repeat information in conversations</li>
+            <li>Better decision-making through relationship understanding</li>
+        </ul>
+    </div>
+    
+    <h2>Use Case 5: Multi-Source Data Integration with Conflict Resolution</h2>
+    <div class="usecase">
+        <h3>Scenario</h3>
+        <p>A financial institution needs to integrate data from multiple sources (internal databases, external APIs, news feeds) into a unified knowledge graph, handling conflicts and duplicates automatically.</p>
+        
+        <h3>Implementation</h3>
+        <pre><code>from semantica import Semantica
+from semantica.conflicts import ConflictDetector, ConflictResolver
+from semantica.deduplication import DuplicateDetector, EntityMerger
+
+# Initialize with conflict resolution
+core = Semantica(
+    graph_db="neo4j",
+    merge_entities=True,
+    resolve_conflicts=True
+)
+
+# Build knowledge graph from multiple sources
+kg = core.build_knowledge_graph(
+    sources=[
+        "internal_database/",
+        "external_apis/",
+        "news_feeds/"
+    ],
+    merge_entities=True,
+    resolve_conflicts=True
+)
+
+# Detect and resolve conflicts
+conflict_detector = ConflictDetector()
+conflicts = conflict_detector.detect_conflicts(
+    entities=kg.entities,
+    properties=["revenue", "employee_count", "market_cap"]
+)
+
+print(f"⚠️  Found {len(conflicts)} conflicts")
+
+# Resolve conflicts automatically
+conflict_resolver = ConflictResolver()
+for conflict in conflicts:
+    resolution = conflict_resolver.resolve(
+        conflict=conflict,
+        strategy="highest_confidence"  # or "most_recent", "source_priority"
+    )
+    print(f"✅ Resolved: {conflict.entity.name}.{conflict.property} = {resolution.chosen_value}")
+
+# Detect and merge duplicates
+duplicate_detector = DuplicateDetector()
+duplicates = duplicate_detector.find_duplicates(
+    entities=kg.entities,
+    similarity_threshold=0.85
+)
+
+entity_merger = EntityMerger()
+merged = entity_merger.merge_duplicates(
+    duplicates=duplicates,
+    strategy="highest_confidence"
+)
+
+print(f"✅ Merged {len(duplicates)} duplicate groups into {len(merged)} canonical entities")
+
+# Quality assessment
+from semantica.kg_qa import QualityAssessor
+assessor = QualityAssessor()
+report = assessor.assess(kg)
+
+print(f"✅ Quality Score: {report.overall_score}/100")
+print(f"   Completeness: {report.completeness_score}/100")
+print(f"   Consistency: {report.consistency_score}/100")</code></pre>
+        
+        <h3>Expected Outcomes</h3>
+        <div class="benefit">
+            <ul>
+                <li><strong>Unified Knowledge Graph:</strong> Single source of truth from multiple sources</li>
+                <li><strong>Automatic Conflict Resolution:</strong> Handles conflicting information intelligently</li>
+                <li><strong>Duplicate Elimination:</strong> Merges duplicate entities automatically</li>
+                <li><strong>Quality Assurance:</strong> Comprehensive quality metrics and reporting</li>
+            </ul>
+        </div>
+        
+        <h3>Benefits</h3>
+        <ul>
+            <li>Eliminates manual data reconciliation</li>
+            <li>Ensures data consistency across sources</li>
+            <li>Provides transparency through conflict reporting</li>
+            <li>Maintains data quality automatically</li>
+        </ul>
+    </div>
+    
+    <h2>Target User Personas</h2>
+    
+    <h3>Persona 1: AI/ML Engineer</h3>
+    <ul>
+        <li><strong>Needs:</strong> Build RAG systems, AI agents with structured knowledge</li>
+        <li><strong>Use Case:</strong> GraphRAG, context engineering for agents</li>
+        <li><strong>Value:</strong> 30% accuracy improvement, easier agent development</li>
+    </ul>
+    
+    <h3>Persona 2: Data Engineer</h3>
+    <ul>
+        <li><strong>Needs:</strong> Integrate semantic layers into data pipelines</li>
+        <li><strong>Use Case:</strong> Multi-source knowledge graph construction</li>
+        <li><strong>Value:</strong> Automated data integration, conflict resolution</li>
+    </ul>
+    
+    <h3>Persona 3: Knowledge Manager</h3>
+    <ul>
+        <li><strong>Needs:</strong> Build enterprise knowledge graphs from documents</li>
+        <li><strong>Use Case:</strong> Enterprise knowledge graph construction</li>
+        <li><strong>Value:</strong> 80% faster information discovery, automatic relationship discovery</li>
+    </ul>
+    
+    <h3>Persona 4: Researcher</h3>
+    <ul>
+        <li><strong>Needs:</strong> Extract and structure knowledge from literature</li>
+        <li><strong>Use Case:</strong> Research assistant, ontology generation</li>
+        <li><strong>Value:</strong> Automatic ontology generation, semantic search</li>
+    </ul>
+    
+    <hr>
+    <p><em>Document Version: 1.0 | Last Updated: 2025 | Semantica Framework Use Cases</em></p>
+</body>
+</html>
+

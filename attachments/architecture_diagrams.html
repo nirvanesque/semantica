@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantica - Architecture Diagrams</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 40px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+        pre { background-color: #f4f4f4; padding: 20px; border-radius: 5px; overflow-x: auto; font-size: 12px; line-height: 1.4; }
+        .diagram { margin: 30px 0; }
+        .caption { font-style: italic; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Semantica Framework - Architecture Diagrams</h1>
+    
+    <h2>1. High-Level System Architecture</h2>
+    <div class="diagram">
+        <pre>
+┌─────────────────────────────────────────────────────────────────────┐
+│                        SEMANTICA FRAMEWORK                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │              DATA INGESTION LAYER                            │  │
+│  │  ┌────────┬────────┬────────┬────────┬────────┬──────────┐  │  │
+│  │  │ Files  │  Web   │ Feeds  │  APIs  │Streams │ Archives │  │  │
+│  │  └────────┴────────┴────────┴────────┴────────┴──────────┘  │  │
+│  │           50+ Formats • Real-time • Multi-modal             │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │            SEMANTIC PROCESSING LAYER                         │  │
+│  │  ┌──────────┬────────────┬────────────┬──────────────────┐  │  │
+│  │  │  Parse   │ Normalize  │   Extract  │  Build Graph     │  │  │
+│  │  │          │            │  Semantics │                  │  │  │
+│  │  └──────────┴────────────┴────────────┴──────────────────┘  │  │
+│  │     NLP • Embeddings • Ontologies • Quality Assurance    │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │               APPLICATION LAYER                              │  │
+│  │  ┌──────────┬────────────┬────────────┬──────────────────┐  │  │
+│  │  │ GraphRAG │ AI Agents  │Multi-Agent │  Analytics       │  │  │
+│  │  │          │            │  Systems   │  Copilots        │  │  │
+│  │  └──────────┴────────────┴────────────┴──────────────────┘  │  │
+│  │        Hybrid Retrieval • Context Engineering • Reasoning   │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+        </pre>
+        <p class="caption">Figure 1: High-level system architecture showing three main layers</p>
+    </div>
+    
+    <h2>2. Data Ingestion Pipeline Flow</h2>
+    <div class="diagram">
+        <pre>
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Files     │     │    Web      │     │   Feeds     │
+│  (50+ fmt)  │     │  Scraping   │     │  RSS/Atom   │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           │
+                  ┌────────▼────────┐
+                  │  FileIngestor   │
+                  │  WebIngestor    │
+                  │  FeedIngestor   │
+                  │  DBIngestor     │
+                  │  StreamIngestor │
+                  └────────┬────────┘
+                           │
+                  ┌────────▼────────┐
+                  │  Source Objects  │
+                  │  (with metadata) │
+                  └────────┬────────┘
+                           │
+                  ┌────────▼────────┐
+                  │  Parse Layer    │
+                  │  (DocumentParser)│
+                  └─────────────────┘
+        </pre>
+        <p class="caption">Figure 2: Data ingestion pipeline supporting multiple input sources</p>
+    </div>
+    
+    <h2>3. Semantic Processing Pipeline</h2>
+    <div class="diagram">
+        <pre>
+Raw Text/Data
+     │
+     ├─→ [Parse] ──→ Structured Content
+     │
+     ├─→ [Normalize] ──→ Cleaned Text
+     │
+     ├─→ [Split] ──→ Chunks
+     │
+     ├─→ [Embed] ──→ Vector Embeddings ──→ Vector Store
+     │
+     └─→ [Extract Semantics]
+              │
+              ├─→ Entities ──→ Entity Store
+              │
+              ├─→ Relations ──→ Relation Store
+              │
+              ├─→ Events ──→ Event Store
+              │
+              └─→ Triples ──→ Triple Store
+                     │
+                     └─→ [Build Graph] ──→ Knowledge Graph
+                              │
+                              ├─→ Entity Resolution
+                              ├─→ Conflict Detection
+                              ├─→ Deduplication
+                              └─→ Quality Assurance
+        </pre>
+        <p class="caption">Figure 3: Complete semantic processing pipeline from raw data to knowledge graph</p>
+    </div>
+    
+    <h2>4. Knowledge Graph Construction Flow</h2>
+    <div class="diagram">
+        <pre>
+Multiple Sources
+     │
+     ├─→ Source 1 ──→ Entities + Relations
+     ├─→ Source 2 ──→ Entities + Relations
+     └─→ Source N ──→ Entities + Relations
+              │
+              ▼
+     ┌────────────────┐
+     │ Entity Pool    │
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Entity         │
+     │ Resolution     │──→ Merge Duplicates
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Conflict       │
+     │ Detection      │──→ Resolve Conflicts
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Graph Builder  │
+     │                │
+     │ • Add Nodes    │
+     │ • Add Edges    │
+     │ • Add Metadata│
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Knowledge Graph│
+     │                │
+     │ • Nodes        │
+     │ • Edges        │
+     │ • Properties   │
+     └────────────────┘
+        </pre>
+        <p class="caption">Figure 4: Knowledge graph construction with entity resolution and conflict handling</p>
+    </div>
+    
+    <h2>5. GraphRAG Query Flow</h2>
+    <div class="diagram">
+        <pre>
+User Query
+     │
+     ├─→ [Vector Search] ──→ Top-K Similar Chunks
+     │                            │
+     │                            ├─→ Extract Entities
+     │                            │
+     │                            └─→ Seed Entities
+     │                                    │
+     │                                    ▼
+     │                            ┌──────────────┐
+     │                            │ Graph        │
+     │                            │ Expansion    │
+     │                            │ (2-3 hops)   │
+     │                            └──────┬───────┘
+     │                                   │
+     │                                   ▼
+     │                            Expanded Context
+     │                                   │
+     └─→ [Graph Traversal] ──────────────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Hybrid         │
+     │ Retrieval      │──→ Rerank Results
+     │ (Vector + Graph)│
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Context        │
+     │ Building       │──→ Structured Context
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ LLM Generation │──→ Final Answer
+     └────────────────┘
+        </pre>
+        <p class="caption">Figure 5: GraphRAG query flow combining vector search with graph traversal</p>
+    </div>
+    
+    <h2>6. Component Interaction Diagram</h2>
+    <div class="diagram">
+        <pre>
+┌──────────────┐
+│   Semantica  │
+│   (Core)     │
+└──────┬───────┘
+       │
+       ├─→ Orchestrator
+       │       │
+       │       ├─→ ConfigManager
+       │       ├─→ PluginRegistry
+       │       └─→ LifecycleManager
+       │
+       ├─→ Pipeline
+       │       │
+       │       ├─→ PipelineBuilder
+       │       ├─→ ExecutionEngine
+       │       └─→ ParallelismManager
+       │
+       ├─→ Ingest Layer
+       │       │
+       │       ├─→ FileIngestor
+       │       ├─→ WebIngestor
+       │       └─→ DBIngestor
+       │
+       ├─→ Parse Layer
+       │       │
+       │       ├─→ DocumentParser
+       │       ├─→ WebParser
+       │       └─→ StructuredDataParser
+       │
+       ├─→ Semantic Extract
+       │       │
+       │       ├─→ NamedEntityRecognizer
+       │       ├─→ RelationExtractor
+       │       └─→ TripleExtractor
+       │
+       ├─→ Knowledge Graph
+       │       │
+       │       ├─→ GraphBuilder
+       │       ├─→ EntityResolver
+       │       └─→ GraphAnalyzer
+       │
+       └─→ Application Layer
+               │
+               ├─→ GraphRAGEngine
+               ├─→ ContextBuilder
+               └─→ ReasoningEngine
+        </pre>
+        <p class="caption">Figure 6: Component interaction and module organization</p>
+    </div>
+    
+    <h2>7. Deployment Architecture - Single Node</h2>
+    <div class="diagram">
+        <pre>
+┌─────────────────────────────────────┐
+│         Application Server          │
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │   Semantica Framework        │  │
+│  │   • Orchestrator             │  │
+│  │   • Processing Modules       │  │
+│  │   • API Endpoints            │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │   Local Storage              │  │
+│  │   • FAISS (Vectors)          │  │
+│  │   • NetworkX (Graph)         │  │
+│  │   • File System (Cache)      │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+        </pre>
+        <p class="caption">Figure 7: Single node deployment for small to medium scale</p>
+    </div>
+    
+    <h2>8. Deployment Architecture - Distributed</h2>
+    <div class="diagram">
+        <pre>
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│   Worker 1   │  │   Worker 2   │  │   Worker N   │
+│  (Ingestion) │  │ (Processing) │  │  (Graph)     │
+│              │  │              │  │              │
+│ • FileIngest │  │ • NER        │  │ • GraphBuild │
+│ • WebIngest  │  │ • Relations  │  │ • Analytics  │
+│ • Parse      │  │ • Embeddings │  │ • Queries    │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                 │
+       └─────────────────┼─────────────────┘
+                         │
+              ┌──────────▼──────────┐
+              │   Message Queue     │
+              │   (Kafka/RabbitMQ)  │
+              │   • Task Queue      │
+              │   • Event Stream    │
+              └──────────┬──────────┘
+                         │
+       ┌─────────────────┼─────────────────┐
+       │                 │                 │
+┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐
+│  Neo4j      │  │  Vector DB   │  │  Triple     │
+│  (Graph)    │  │  (Pinecone)  │  │  Store      │
+│             │  │              │  │  (Virtuoso) │
+└─────────────┘  └──────────────┘  └─────────────┘
+        </pre>
+        <p class="caption">Figure 8: Distributed deployment for enterprise scale</p>
+    </div>
+    
+    <h2>9. 6-Stage Ontology Generation Pipeline</h2>
+    <div class="diagram">
+        <pre>
+Unstructured Content
+     │
+     ▼
+┌─────────────────────┐
+│ Stage 1: Semantic   │
+│ Network Parsing     │──→ Extract domain concepts
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Stage 2: YAML-to-   │
+│ Definition          │──→ Transform to class definitions
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Stage 3: Definition│
+│ to Types            │──→ Map to OWL types
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Stage 4: Hierarchy  │
+│ Generation          │──→ Build taxonomic structures
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Stage 5: TTL        │
+│ Generation          │──→ Generate OWL/Turtle syntax
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Stage 6: Symbolic   │
+│ Validation          │──→ HermiT/Pellet reasoning
+│                     │    (F1 up to 0.99)
+└──────────┬──────────┘
+           │
+           ▼
+    W3C-Compliant
+    OWL Ontology
+        </pre>
+        <p class="caption">Figure 9: Automatic ontology generation pipeline with symbolic validation</p>
+    </div>
+    
+    <h2>10. Real-Time Streaming Architecture (Future)</h2>
+    <div class="diagram">
+        <pre>
+Data Streams
+     │
+     ├─→ Kafka Topic ──→ Stream Processor
+     ├─→ RabbitMQ    ──→ Stream Processor
+     └─→ Kinesis     ──→ Stream Processor
+              │
+              ▼
+     ┌────────────────┐
+     │ Event Handler  │
+     │ • Parse        │
+     │ • Extract      │
+     │ • Validate     │
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Incremental    │
+     │ Graph Update   │
+     │ • Add Entities │
+     │ • Add Relations│
+     │ • Resolve      │
+     └────────┬───────┘
+              │
+              ▼
+     ┌────────────────┐
+     │ Graph Store    │
+     │ (Versioned)    │
+     └────────────────┘
+        </pre>
+        <p class="caption">Figure 10: Real-time streaming architecture for incremental knowledge graph updates</p>
+    </div>
+    
+    <hr>
+    <p><em>Document Version: 1.0 | Semantica Framework Architecture Diagrams</em></p>
+</body>
+</html>
+
