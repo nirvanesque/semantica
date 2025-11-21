@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "semantica"
 version = "0.1.0"
-description = "Semantic Layer & Knowledge Engineering Framework"
+description = "🧠 Semantica - An Open Source Framework for building Semantic Layers and Knowledge Engineering 📊🔗"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Semantica Contributors", email = "contributors@semantica.dev"}
+    {name = "Hawksight AI", email = "semantica-dev@users.noreply.github.com"}
 ]
 maintainers = [
-    {name = "Semantica Contributors", email = "contributors@semantica.dev"}
+    {name = "Hawksight AI", email = "semantica-dev@users.noreply.github.com"}
 ]
 keywords = [
     "semantic-layer", "knowledge-engineering", "nlp", "knowledge-graph",
@@ -122,7 +122,7 @@ viz = [
     "umap-learn>=0.5.0"
 ]
 gpu = [
-    "torch>=1.12.0+cu116",
+    "torch>=1.12.0",
     "faiss-gpu>=1.7.0",
     "cupy>=10.0.0"
 ]
@@ -177,12 +177,6 @@ split-all = [
     "semantica[split-tiktoken,split-community,split-topic]"
 ]
 
-[project.urls]
-Homepage = "https://semantica.dev"
-Documentation = "https://docs.semantica.dev"
-Repository = "https://github.com/semantica-dev/semantica"
-Issues = "https://github.com/semantica-dev/semantica/issues"
-Changelog = "https://github.com/semantica-dev/semantica/blob/main/CHANGELOG.md"
 
 [project.scripts]
 semantica = "semantica.cli:main"

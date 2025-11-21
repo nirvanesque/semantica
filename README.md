@@ -111,6 +111,60 @@ Semantica fills this gap with a **complete semantic intelligence framework**:
 
 ---
 
+## 📦 Installation
+
+#### Prerequisites
+
+- **Python**: 3.8 or higher (3.9+ recommended)
+- **pip**: Latest version
+
+#### Install from Source (Current Method)
+
+Since Semantica is currently in development, install from the local source:
+
+```bash
+# Navigate to the semantica directory
+cd path/to/semantica
+
+# Install in editable mode with core dependencies
+pip install -e .
+
+# Or install with all optional dependencies
+pip install -e ".[all]"
+```
+
+#### Development Installation
+
+```bash
+# Clone the repository (if not already cloned)
+git clone https://github.com/semantica-dev/semantica.git
+cd semantica
+
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
+
+#### Custom Installation
+
+```bash
+# Install specific extras as needed
+pip install -e ".[llm-openai]"        # LLM providers
+pip install -e ".[graph-neo4j]"       # Graph databases
+pip install -e ".[vector-pinecone]"   # Vector stores
+pip install -e ".[dev]"               # Development tools
+pip install -e ".[gpu]"               # GPU support
+```
+
+#### Verify Installation
+
+```bash
+python -c "import semantica; print(semantica.__version__)"
+```
+
+> **Note:** Once published to PyPI, you'll be able to install with `pip install semantica`
+
+---
+
 ## ✨ Core Capabilities
 
 ### 1. 📊 Universal Data Ingestion
@@ -1644,24 +1698,6 @@ print(f"  Missing properties: {report.missing_property_count}")
 ---
 
 ## 🚀 Quick Start
-
-### Installation
-
-```bash
-# Complete installation (recommended)
-pip install "semantica[all]"
-
-# Lightweight installation
-pip install semantica
-
-# Custom installation
-pip install "semantica[pdf,office,web,neo4j,ai]"
-
-# Development installation
-git clone https://github.com/semantica/semantica.git
-cd semantica
-pip install -e ".[dev,test,docs]"
-```
 
 ### Quick Start Examples
 
