@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "semantica"
 version = "0.1.0"
-description = "🧠 Semantica - An Open Source Framework for building Semantic Layers and Knowledge Engineering 📊🔗"
+description = "🧠 Semantica - An Open Source Framework for building Semantic Layers and Knowledge Engineering "
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
