@@ -43,26 +43,12 @@ html {
   height: 2.4rem !important;
 }
 
-/* Hamburger menu button - perfect alignment */
-.md-header__button {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 2.4rem !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
+/* Hide hamburger menu button */
 .md-header__button--menu {
-  margin-right: 0.5rem !important;
-  width: 2.4rem !important;
-  height: 2.4rem !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  display: none !important;
 }
 
-/* "Semantica" perfectly aligned with hamburger menu */
+/* "Semantica" with brain emoji and version badge */
 .md-header__title {
   font-size: 1.25rem !important;
   font-weight: 700 !important;
@@ -80,6 +66,19 @@ html {
   color: #FFFFFF !important;
   letter-spacing: 0.5px;
   z-index: 10;
+}
+
+/* Add brain emoji before title - perfectly aligned */
+.md-header__title::before {
+  content: "🧠";
+  font-size: 1.25rem !important;
+  margin-right: 0.5rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  height: 2.4rem !important;
+  vertical-align: middle !important;
 }
 
 .md-header__title .md-header__button {
@@ -102,9 +101,30 @@ html {
   color: #FFFFFF !important;
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
   line-height: 1 !important;
-  height: auto !important;
+  height: 2.4rem !important;
   vertical-align: middle !important;
+  position: relative !important;
+}
+
+/* Add version badge after "Semantica" text - perfectly aligned */
+.md-header__title span::after {
+  content: "0.0.1";
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  padding: 0.15rem 0.4rem !important;
+  border-radius: 0.75rem !important;
+  margin-left: 0.5rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  align-self: center !important;
 }
 
 /* Hide logo */
@@ -272,4 +292,47 @@ html {
 
 .md-typeset a:hover {
   color: #8C9464;
+}
+
+/* Theme toggle button - visible and accessible in header */
+.md-header__button[for^="__palette"] {
+  margin: 0 !important;
+  margin-left: auto !important;
+  margin-right: 0.5rem !important;
+  padding: 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 2.4rem !important;
+  width: 2.4rem !important;
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  cursor: pointer !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.md-header__button[for^="__palette"]:hover {
+  opacity: 0.8 !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.25rem !important;
+}
+
+/* Ensure toggle button icon is visible */
+.md-header__button[for^="__palette"] svg {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  fill: currentColor !important;
+  color: #FFFFFF !important;
+}
+
+/* Ensure only one palette toggle button is visible */
+.md-header input[type="radio"][name="__palette"]:not(:checked) + label {
+  display: none !important;
+}
+
+/* Material theme automatically shows only one toggle - ensure proper spacing */
+.md-header__inner {
+  padding-bottom: 0.5rem !important;
+  gap: 0.5rem !important;
 }
