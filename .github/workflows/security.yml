@@ -1,7 +1,7 @@
 name: Security Scan
 
-# This workflow scans for security vulnerabilities
-# It runs on pushes, pull requests, and weekly on Mondays
+# Scans dependencies and code for security vulnerabilities
+# Runs on push, PR, weekly schedule, and manual trigger
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: '0 0 * * 1' # Weekly on Monday
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -17,79 +17,29 @@ permissions:
   security-events: write
 
 jobs:
-  # Job 1: Check Dependencies for Vulnerabilities
   dependency-scan:
-    name: Dependency Security Scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6GB
-          tool-cache: false
-          
-          # all of these default to true, but feel free to set to
-          # "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install security tools
-        run: |
-          python -m pip install --upgrade pip
+      - run: |
           pip install safety pip-audit
-
-      - name: Install project dependencies
-        run: |
           pip install -e ".[dev]"
 
-      - name: Run pip-audit
-        # Checks if any installed packages have known vulnerabilities
-        run: |
-          echo "Running pip-audit security scan..."
-          pip-audit --format json --output pip-audit-report.json
-
-      - name: Run safety check
-        # Another tool to check for vulnerabilities
-        run: |
-          echo "Running safety security check..."
-          safety check --output json > safety-report.json
+      - run: pip-audit
+      - run: safety check
         continue-on-error: true
 
-      - name: Upload security reports
-        # Save the reports so you can download them later
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-reports
-          path: |
-            pip-audit-report.json
-            safety-report.json
-          retention-days: 30
-
-  # Job 2: Scan Code for Vulnerabilities
   code-scan:
-    name: Code Security Scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
-        # Scans the file system for vulnerabilities
-        uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -97,13 +47,8 @@ jobs:
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
 
-      - name: Upload Trivy results to GitHub Security
-        # Shows results in the "Security" tab of your repo
+      - uses: github/codeql-action/upload-sarif@v3
         if: always() && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
         continue-on-error: true
-
-
-
