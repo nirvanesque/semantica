@@ -125,11 +125,9 @@ __all__ = [
     "InferenceEngine",
     "InferenceResult",
     "InferenceStrategy",
-    
     # SPARQL reasoning
     "SPARQLReasoner",
     "SPARQLQueryResult",
-    
     # Rete algorithm
     "ReteEngine",
     "Fact",
@@ -138,27 +136,23 @@ __all__ = [
     "AlphaNode",
     "BetaNode",
     "TerminalNode",
-    
     # Abductive reasoning
     "AbductiveReasoner",
     "Observation",
     "Hypothesis",
     "AbductiveExplanation",
     "HypothesisRanking",
-    
     # Deductive reasoning
     "DeductiveReasoner",
     "Premise",
     "Conclusion",
     "Proof",
     "Argument",
-    
     # Rule management
     "RuleManager",
     "Rule",
     "RuleExecution",
     "RuleType",
-    
     # Explanation
     "ExplanationGenerator",
     "Explanation",

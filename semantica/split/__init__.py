@@ -106,7 +106,6 @@ from .table_chunker import TableChunker
 __all__ = [
     # Unified splitter
     "TextSplitter",
-    
     # Existing chunkers
     "SemanticChunker",
     "Chunk",
@@ -115,14 +114,12 @@ __all__ = [
     "TableChunker",
     "ChunkValidator",
     "ProvenanceTracker",
-    
     # KG/Ontology chunkers
     "EntityAwareChunker",
     "RelationAwareChunker",
     "GraphBasedChunker",
     "OntologyAwareChunker",
     "HierarchicalChunker",
-    
     # Methods
     "get_split_method",
     "list_available_methods",
@@ -139,7 +136,6 @@ __all__ = [
     "split_graph_based",
     "split_ontology_aware",
     "split_hierarchical",
-    
     # Config and Registry
     "SplitConfig",
     "split_config",

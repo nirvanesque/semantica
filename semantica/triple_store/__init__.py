@@ -136,22 +136,18 @@ __all__ = [
     # Triple management
     "TripleManager",
     "TripleStore",
-    
     # Store adapters
     "BlazegraphAdapter",
     "JenaAdapter",
     "RDF4JAdapter",
     "VirtuosoAdapter",
-    
     # Query engine
     "QueryEngine",
     "QueryResult",
     "QueryPlan",
-    
     # Bulk loading
     "BulkLoader",
     "LoadProgress",
-    
     # Convenience functions
     "register_store",
     "add_triple",
@@ -166,7 +162,6 @@ __all__ = [
     "validate_triples",
     "get_triple_store_method",
     "list_available_methods",
-    
     # Configuration and registry
     "TripleStoreConfig",
     "triple_store_config",

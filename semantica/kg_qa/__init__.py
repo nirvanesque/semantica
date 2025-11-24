@@ -178,4 +178,3 @@ __all__ = [
     "KGQAConfig",
     "kg_qa_config",
 ]
-

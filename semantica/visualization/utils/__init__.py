@@ -53,4 +53,3 @@ __all__ = [
     "export_matplotlib_figure",
     "save_html",
 ]
-

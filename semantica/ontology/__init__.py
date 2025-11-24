@@ -188,22 +188,18 @@ __all__ = [
     "PropertyGenerator",
     "PropertyInferencer",  # Legacy alias
     "OntologyOptimizer",
-    
     # Validation and evaluation
     "OntologyValidator",
     "ValidationResult",
     "OntologyEvaluator",
     "EvaluationResult",
-    
     # OWL/RDF generation
     "OWLGenerator",
-    
     # Requirements and competency questions
     "RequirementsSpecManager",
     "RequirementsSpec",
     "CompetencyQuestionsManager",
     "CompetencyQuestion",
-    
     # Management
     "ReuseManager",
     "ReuseDecision",
@@ -216,11 +212,9 @@ __all__ = [
     "DomainOntologies",
     "OntologyDocumentationManager",
     "OntologyDocumentation",
-    
     # Special classes
     "AssociativeClassBuilder",
     "AssociativeClass",
-    
     # Registry and Methods
     "MethodRegistry",
     "method_registry",
@@ -239,7 +233,6 @@ __all__ = [
     "create_associative_class",
     "get_ontology_method",
     "list_available_methods",
-    
     # Configuration
     "OntologyConfig",
     "ontology_config",

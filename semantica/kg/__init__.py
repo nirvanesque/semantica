@@ -222,14 +222,14 @@ def build(
     track_history: bool = False,
     version_snapshots: bool = False,
     entity_resolver: Optional[EntityResolver] = None,
-    **options
+    **options,
 ) -> Dict[str, Any]:
     """
     Build knowledge graph from sources (module-level convenience function).
-    
+
     This is a user-friendly wrapper around GraphBuilder.build() that creates
     a GraphBuilder instance and builds the knowledge graph.
-    
+
     Args:
         sources: List of sources (documents, entities, relationships, or dicts with entities/relationships)
         merge_entities: Whether to merge duplicate entities (default: True)
@@ -241,13 +241,13 @@ def build(
         version_snapshots: Create version snapshots (default: False)
         entity_resolver: Optional EntityResolver instance (default: None, creates one if needed)
         **options: Additional build options
-        
+
     Returns:
         Dictionary containing:
             - entities: List of entities
             - relationships: List of relationships
             - metadata: Graph metadata including counts and timestamps
-            
+
     Examples:
         >>> import semantica
         >>> result = semantica.kg.build(
@@ -260,7 +260,7 @@ def build(
     # Normalize sources to list
     if not isinstance(sources, list):
         sources = [sources]
-    
+
     # Create GraphBuilder instance
     graph_builder = GraphBuilder(
         merge_entities=merge_entities,
@@ -270,10 +270,10 @@ def build(
         temporal_granularity=temporal_granularity,
         track_history=track_history,
         version_snapshots=version_snapshots,
-        **options
+        **options,
     )
-    
+
     # Build knowledge graph
     graph = graph_builder.build(sources, entity_resolver=entity_resolver, **options)
-    
+
     return graph
