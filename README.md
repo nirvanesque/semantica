@@ -11,9 +11,6 @@
 [![Discord](https://img.shields.io/discord/semantica?color=7289da&label=discord)](https://discord.gg/semantica)
 [![CI](https://github.com/Hawksight-AI/semantica/workflows/CI/badge.svg)](https://github.com/Hawksight-AI/semantica/actions)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Contributors](https://img.shields.io/github/contributors/Hawksight-AI/semantica)](https://github.com/Hawksight-AI/semantica/graphs/contributors)
-[![Issues](https://img.shields.io/github/issues/Hawksight-AI/semantica)](https://github.com/Hawksight-AI/semantica/issues)
-[![Pull Requests](https://img.shields.io/github/issues-pr/Hawksight-AI/semantica)](https://github.com/Hawksight-AI/semantica/pulls)
 
 **Open Source Framework for Semantic Layer & Knowledge Engineering**
 
