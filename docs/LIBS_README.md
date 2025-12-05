@@ -1,7 +1,7 @@
 # Semantica - Semantic Layer & Knowledge Engineering Framework
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Hawksight-AI/semantica/blob/main/LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/semantica-dev/semantica)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.semantica.dev)
 
@@ -1413,7 +1413,7 @@ pytest tests/ -m "integration"
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/Hawksight-AI/semantica/blob/main/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

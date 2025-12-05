@@ -277,7 +277,7 @@ Interested in contributing to Semantica's core? See our [Contributing Guide](htt
 ---
 
 For more information:
-- **[API Reference](reference/) - Detailed API documentation
+- **[API Reference](reference/core.md) - Detailed API documentation
 - **[Learning More](learning-more.md)** - Additional resources
 - **[GitHub Repository](https://github.com/Hawksight-AI/semantica)** - Source code
 

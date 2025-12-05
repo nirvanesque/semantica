@@ -231,7 +231,7 @@ Now that Semantica is installed:
 
 1. **[Quick Start Guide](quickstart.md)** - Build your first knowledge graph
 2. **[Examples](examples.md)** - See real-world use cases
-3. **[API Reference](reference/) - Explore the full API
+3. **[API Reference](reference/core.md) - Explore the full API
 4. **[Cookbook](cookbook.md)** - Interactive tutorials
 
 ## Getting Help
