@@ -98,7 +98,6 @@ Main Classes:
     - ExportConfig: Configuration manager for export module
 
 Convenience Functions:
-    - export_knowledge_graph: Unified knowledge graph export with format dispatch
     - export_rdf: RDF export wrapper
     - export_json: JSON/JSON-LD export wrapper
     - export_csv: CSV export wrapper
@@ -110,9 +109,8 @@ Convenience Functions:
     - generate_report: Report generation wrapper
 
 Example Usage:
-    >>> from semantica.export import export_knowledge_graph, export_lpg, JSONExporter
+    >>> from semantica.export import export_lpg, JSONExporter
     >>> # Using convenience function
-    >>> export_knowledge_graph(kg, "output.json", format="json")
     >>> export_lpg(kg, "output.cypher", method="cypher")
     >>> # Using classes directly
     >>> json_exporter = JSONExporter()
@@ -131,7 +129,6 @@ from .methods import (
     export_csv,
     export_graph,
     export_json,
-    export_knowledge_graph,
     export_lpg,
     export_owl,
     export_rdf,
@@ -175,7 +172,6 @@ __all__ = [
     "export_vector",
     "export_lpg",
     "generate_report",
-    "export_knowledge_graph",
     "get_export_method",
     "list_available_methods",
     # Configuration

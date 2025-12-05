@@ -139,14 +139,13 @@ Main Functions:
     - export_vector: Vector export wrapper
     - export_lpg: LPG export wrapper
     - generate_report: Report generation wrapper
-    - export_knowledge_graph: Unified knowledge graph export with format dispatch
     - get_export_method: Get export method by name
     - list_available_methods: List registered methods
 
 Example Usage:
-    >>> from semantica.export.methods import export_knowledge_graph, export_rdf, export_lpg
+    >>> from semantica.export.methods import export_rdf, export_json, export_lpg
     >>> kg = {"entities": [...], "relationships": [...]}
-    >>> export_knowledge_graph(kg, "output.json", format="json")
+    >>> export_json(kg, "output.json", format="json")
     >>> export_rdf(kg, "output.ttl", format="turtle")
     >>> export_lpg(kg, "output.cypher", method="cypher")
 """

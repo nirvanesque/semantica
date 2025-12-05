@@ -22,23 +22,6 @@ This guide demonstrates how to use the export module for exporting knowledge gra
 
 ## Basic Usage
 
-### Using the Convenience Function
-
-```python
-from semantica.export import export_knowledge_graph
-
-# Export knowledge graph to JSON
-kg = {
-    "entities": [...],
-    "relationships": [...],
-    "metadata": {...}
-}
-
-export_knowledge_graph(kg, "output.json", format="json")
-export_knowledge_graph(kg, "output.ttl", format="turtle")
-export_knowledge_graph(kg, "output.cypher", format="cypher")
-```
-
 ### Using Main Classes
 
 ```python
@@ -56,6 +39,34 @@ lpg_exporter.export_knowledge_graph(kg, "output.cypher")
 ```
 
 ## RDF Export
+
+### RDFExporter Class
+
+The `RDFExporter` class provides comprehensive RDF export functionality.
+
+**Additional RDF Classes:**
+- `RDFSerializer`: RDF serialization engine for format conversion
+- `RDFValidator`: RDF validation engine for syntax checking
+- `NamespaceManager`: RDF namespace management and conflict resolution
+
+```python
+from semantica.export import RDFExporter, RDFSerializer, RDFValidator, NamespaceManager
+
+# Using RDFSerializer directly
+serializer = RDFSerializer()
+turtle_string = serializer.serialize_to_turtle(rdf_data)
+jsonld_string = serializer.serialize_to_jsonld(rdf_data)
+
+# Using RDFValidator
+validator = RDFValidator()
+validation_result = validator.validate_rdf_syntax(rdf_data, format="turtle")
+consistency = validator.check_rdf_consistency(rdf_data)
+
+# Using NamespaceManager
+namespace_mgr = NamespaceManager()
+namespaces = namespace_mgr.extract_namespaces(rdf_data)
+declarations = namespace_mgr.generate_namespace_declarations(namespaces, format="turtle")
+```
 
 ### Turtle Format
 
@@ -483,10 +494,10 @@ generate_report(data, "report.md", format="markdown")
 
 ## Knowledge Graph Export
 
-### Unified Export Function
+### Using Exporter Classes
 
 ```python
-from semantica.export.methods import export_knowledge_graph
+from semantica.export import JSONExporter, RDFExporter, LPGExporter
 
 kg = {
     "entities": [...],
@@ -494,27 +505,39 @@ kg = {
     "metadata": {...}
 }
 
-# Auto-detect format from file extension
-export_knowledge_graph(kg, "output.json")  # JSON format
-export_knowledge_graph(kg, "output.ttl")    # Turtle format
-export_knowledge_graph(kg, "output.cypher") # Cypher format
+# Export to different formats using exporter classes
+json_exporter = JSONExporter()
+json_exporter.export_knowledge_graph(kg, "output.json")
 
-# Explicit format specification
-export_knowledge_graph(kg, "output.json", format="json-ld")
-export_knowledge_graph(kg, "output.rdf", format="rdfxml")
+rdf_exporter = RDFExporter()
+rdf_exporter.export_knowledge_graph(kg, "output.ttl", format="turtle")
+
+lpg_exporter = LPGExporter()
+lpg_exporter.export_knowledge_graph(kg, "output.cypher")
 ```
 
 ### Multiple Format Export
 
 ```python
-from semantica.export.methods import export_knowledge_graph
+from semantica.export import JSONExporter, RDFExporter, CSVExporter, LPGExporter
 
 kg = {...}
 
-# Export to multiple formats
-formats = ["json", "turtle", "csv", "cypher"]
-for fmt in formats:
-    export_knowledge_graph(kg, f"output.{fmt}", format=fmt)
+# Export to multiple formats using different exporters
+exporters = {
+    "json": JSONExporter(),
+    "turtle": RDFExporter(),
+    "csv": CSVExporter(),
+    "cypher": LPGExporter()
+}
+
+for fmt, exporter in exporters.items():
+    if fmt == "turtle":
+        exporter.export_knowledge_graph(kg, f"output.{fmt}", format="turtle")
+    elif fmt == "csv":
+        exporter.export_knowledge_graph(kg, f"output_{fmt}")
+    else:
+        exporter.export_knowledge_graph(kg, f"output.{fmt}")
 ```
 
 ## Using Methods
@@ -560,10 +583,25 @@ export_lpg(kg, "graph.cypher", method="cypher")
 
 ## Using Registry
 
+### MethodRegistry Class
+
+The `MethodRegistry` class provides a registry system for registering custom export methods.
+
+```python
+from semantica.export import MethodRegistry, method_registry
+
+# Using the global instance
+method_registry.register("json", "custom_method", custom_json_export)
+
+# Or create your own instance
+registry = MethodRegistry()
+registry.register("rdf", "custom_rdf", custom_rdf_export)
+```
+
 ### Registering Custom Methods
 
 ```python
-from semantica.export.registry import method_registry
+from semantica.export import method_registry
 
 def custom_json_export(data, file_path, **kwargs):
     """Custom JSON export function."""
@@ -576,6 +614,32 @@ method_registry.register("json", "custom_method", custom_json_export)
 # Use custom method
 from semantica.export.methods import export_json
 export_json(data, "output.json", method="custom_method")
+```
+
+### MethodRegistry Methods
+
+```python
+from semantica.export import MethodRegistry
+
+registry = MethodRegistry()
+
+# Register a method
+registry.register("json", "my_method", my_function)
+
+# Get a method
+method = registry.get("json", "my_method")
+
+# List all methods
+all_methods = registry.list_all()
+json_methods = registry.list_all("json")
+
+# Unregister a method
+registry.unregister("json", "my_method")
+
+# Clear all methods for a task
+registry.clear("json")
+# Or clear all
+registry.clear()
 ```
 
 ### Listing Available Methods
@@ -622,9 +686,9 @@ export EXPORT_VALIDATE="true"
 ### Programmatic Configuration
 
 ```python
-from semantica.export.config import export_config
+from semantica.export.config import export_config, ExportConfig
 
-# Set configuration
+# Using the global instance
 export_config.set("default_format", "json")
 export_config.set("output_dir", "./exports")
 export_config.set("include_metadata", True)
@@ -636,6 +700,10 @@ output_dir = export_config.get("output_dir", default="./")
 # Method-specific configuration
 export_config.set_method_config("rdf", format="turtle")
 rdf_config = export_config.get_method_config("rdf")
+
+# Create a custom ExportConfig instance
+config = ExportConfig(config_file="custom_config.yaml")
+config.set("default_format", "json-ld")
 ```
 
 ### Config File (YAML)
@@ -679,8 +747,8 @@ config = ExportConfig(config_file="config.yaml")
 
 ```python
 from semantica.export.methods import (
-    export_knowledge_graph,
     export_rdf,
+    export_json,
     export_lpg
 )
 
@@ -691,7 +759,7 @@ kg = {
 }
 
 # Export to multiple formats
-export_knowledge_graph(kg, "output.json", format="json")
+export_json(kg, "output.json", format="json")
 export_rdf(kg, "output.ttl", format="turtle")
 export_lpg(kg, "output.cypher", method="cypher")
 ```
@@ -699,23 +767,27 @@ export_lpg(kg, "output.cypher", method="cypher")
 ### Batch Export with Format Detection
 
 ```python
-from semantica.export.methods import export_knowledge_graph
+from semantica.export.methods import export_json, export_rdf, export_csv, export_lpg, export_graph
 from pathlib import Path
 
 kg = {...}
 
-# Export to multiple formats based on file extensions
-output_files = [
-    "output.json",
-    "output.ttl",
-    "output.csv",
-    "output.cypher",
-    "output.graphml"
+# Export to multiple formats using appropriate methods
+export_configs = [
+    ("json", "output.json", export_json),
+    ("turtle", "output.ttl", export_rdf),
+    ("csv", "output.csv", export_csv),
+    ("cypher", "output.cypher", export_lpg),
+    ("graphml", "output.graphml", export_graph)
 ]
 
-for file_path in output_files:
-    export_knowledge_graph(kg, file_path)
-    # Format auto-detected from extension
+for format_name, file_path, export_func in export_configs:
+    if format_name == "turtle":
+        export_func(kg, file_path, format="turtle")
+    elif format_name == "graphml":
+        export_func(kg, file_path, format="graphml")
+    else:
+        export_func(kg, file_path)
 ```
 
 ### Custom Export Method
@@ -764,26 +836,29 @@ exporter.export_knowledge_graph(large_kg, "large_graph.cypher")
 ### Multi-Format Knowledge Graph Export
 
 ```python
-from semantica.export.methods import export_knowledge_graph
+from semantica.export.methods import (
+    export_json, export_rdf, export_csv, export_graph,
+    export_yaml, export_owl, export_lpg
+)
 
 kg = {...}
 
-# Export to all supported formats
-formats = {
-    "json": "output.json",
-    "json-ld": "output.jsonld",
-    "turtle": "output.ttl",
-    "rdfxml": "output.rdf",
-    "csv": "output_base",
-    "graphml": "graph.graphml",
-    "cypher": "graph.cypher",
-    "yaml": "network.yaml",
-    "owl": "ontology.owl"
-}
+# Export to all supported formats using appropriate methods
+export_configs = [
+    ("json", "output.json", export_json, {"format": "json"}),
+    ("json-ld", "output.jsonld", export_json, {"format": "json-ld"}),
+    ("turtle", "output.ttl", export_rdf, {"format": "turtle"}),
+    ("rdfxml", "output.rdf", export_rdf, {"format": "rdfxml"}),
+    ("csv", "output_base", export_csv, {}),
+    ("graphml", "graph.graphml", export_graph, {"format": "graphml"}),
+    ("cypher", "graph.cypher", export_lpg, {}),
+    ("yaml", "network.yaml", export_yaml, {}),
+    ("owl", "ontology.owl", export_owl, {"format": "owl-xml"})
+]
 
-for format_name, file_path in formats.items():
+for format_name, file_path, export_func, kwargs in export_configs:
     try:
-        export_knowledge_graph(kg, file_path, format=format_name)
+        export_func(kg, file_path, **kwargs)
         print(f"✓ Exported to {format_name}: {file_path}")
     except Exception as e:
         print(f"✗ Failed to export {format_name}: {e}")
@@ -818,15 +893,17 @@ for format_name, file_path in formats.items():
 
 5. **Error Handling**: Always handle export errors gracefully
    ```python
+   from semantica.export.methods import export_json
    try:
-       export_knowledge_graph(kg, "output.json")
+       export_json(kg, "output.json", format="json")
    except Exception as e:
        logger.error(f"Export failed: {e}")
    ```
 
-6. **Format Auto-Detection**: Use file extensions for automatic format detection
+6. **Format Selection**: Use appropriate exporter methods for each format
    ```python
-   export_knowledge_graph(kg, "output.ttl")  # Auto-detects Turtle format
+   from semantica.export.methods import export_rdf
+   export_rdf(kg, "output.ttl", format="turtle")  # Explicit format specification
    ```
 
 7. **Configuration Management**: Use environment variables or config files for consistent settings
@@ -860,15 +937,18 @@ for format_name, file_path in formats.items():
 
 4. **Caching**: Cache exported files when possible
    ```python
+   from semantica.export.methods import export_json
+   from pathlib import Path
    # Check if export already exists
    if not Path("output.json").exists():
-       export_knowledge_graph(kg, "output.json")
+       export_json(kg, "output.json", format="json")
    ```
 
 5. **Compression**: Compress large exports
    ```python
    import gzip
-   export_knowledge_graph(kg, "output.json")
+   from semantica.export.methods import export_json
+   export_json(kg, "output.json", format="json")
    # Then compress
    with open("output.json", "rb") as f_in:
        with gzip.open("output.json.gz", "wb") as f_out:

@@ -82,10 +82,44 @@ Export knowledge graphs to RDF formats (Turtle, RDF/XML, JSON-LD, N-Triples).
 | Method | Description | Algorithm |
 |--------|-------------|-----------|
 | `export(graph, filename, format)` | Export to RDF format | RDF serialization with format-specific encoding |
+| `export_knowledge_graph(kg, filename, format)` | Export knowledge graph | Knowledge graph to RDF conversion |
 | `serialize(graph, format)` | Serialize to string | In-memory RDF generation |
-| `validate(rdf_data)` | Validate RDF syntax | RDF schema validation |
-| `add_namespace(prefix, uri)` | Add namespace | Prefix registration |
-| `set_base_uri(uri)` | Set base URI | Base URI configuration |
+| `validate_rdf(rdf_data)` | Validate RDF syntax | RDF schema validation |
+
+### RDFSerializer
+
+RDF serialization engine for format conversion.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `serialize_to_turtle(rdf_data)` | Serialize to Turtle | Compact RDF format with prefix compression |
+| `serialize_to_rdfxml(rdf_data)` | Serialize to RDF/XML | XML-based RDF format |
+| `serialize_to_jsonld(rdf_data)` | Serialize to JSON-LD | JSON-based linked data format |
+
+### RDFValidator
+
+RDF validation engine for syntax and consistency checking.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `validate_rdf_syntax(rdf_data, format)` | Validate RDF syntax | Format-specific syntax validation |
+| `check_rdf_consistency(rdf_data)` | Check consistency | Entity reference and structure validation |
+
+### NamespaceManager
+
+RDF namespace management and conflict resolution.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `extract_namespaces(rdf_data)` | Extract namespaces | Namespace discovery from RDF data |
+| `generate_namespace_declarations(namespaces, format)` | Generate declarations | Format-specific namespace declaration |
+| `resolve_conflicts(namespaces)` | Resolve conflicts | Prefix conflict resolution |
 
 **Supported RDF Formats:**
 
@@ -208,19 +242,17 @@ exporter.to_dot(kg, "graph.dot")
 
 ---
 
-### Neo4jExporter
+### LPGExporter
 
-Export directly to Neo4j graph database with Cypher query generation.
+Export to LPG (Labeled Property Graph) format for Neo4j, Memgraph, and similar databases.
 
 **Methods:**
 
 | Method | Description | Algorithm |
 |--------|-------------|-----------|
-| `export(graph, uri, username, password)` | Export to Neo4j | Cypher query execution |
-| `generate_cypher(graph)` | Generate Cypher queries | CREATE/MERGE statement generation |
-| `batch_import(graph, batch_size)` | Batch import | Chunked Cypher execution |
-| `create_indexes(properties)` | Create indexes | Index creation for performance |
-| `create_constraints(constraints)` | Create constraints | Uniqueness constraint creation |
+| `export(knowledge_graph, file_path)` | Export to LPG format | Cypher query generation |
+| `export_knowledge_graph(kg, file_path)` | Export knowledge graph | Knowledge graph to Cypher conversion |
+| `generate_cypher(kg)` | Generate Cypher queries | CREATE/MERGE statement generation |
 
 **Cypher Generation:**
 ```cypher
@@ -235,17 +267,12 @@ CREATE (a)-[:FOUNDED]->(b)
 **Example:**
 
 ```python
-from semantica.export import Neo4jExporter
+from semantica.export import LPGExporter
 
-exporter = Neo4jExporter()
+exporter = LPGExporter(batch_size=1000, include_indexes=True)
 
-# Direct export to Neo4j
-exporter.export(
-    graph=kg,
-    uri="bolt://localhost:7687",
-    username="neo4j",
-    password="password"
-)
+# Export to Cypher file
+exporter.export_knowledge_graph(kg, "graph.cypher")
 
 # Generate Cypher queries
 cypher_queries = exporter.generate_cypher(kg)
@@ -298,10 +325,211 @@ Export vector embeddings to various formats.
 
 | Method | Description | Algorithm |
 |--------|-------------|-----------|
-| `export(embeddings, filename, format)` | Export vectors | Format-specific vector serialization |
-| `export_numpy(embeddings, filename)` | Export to NumPy | .npy format |
-| `export_hdf5(embeddings, filename)` | Export to HDF5 | Hierarchical data format |
-| `export_parquet(embeddings, filename)` | Export to Parquet | Columnar storage format |
+| `export(vectors, filename, format)` | Export vectors | Format-specific vector serialization |
+| `export_numpy(vectors, filename)` | Export to NumPy | .npy format |
+| `export_hdf5(vectors, filename)` | Export to HDF5 | Hierarchical data format |
+| `export_parquet(vectors, filename)` | Export to Parquet | Columnar storage format |
+
+**Example:**
+
+```python
+from semantica.export import VectorExporter
+
+exporter = VectorExporter(format="json", include_metadata=True)
+exporter.export(vectors, "vectors.json")
+```
+
+---
+
+### OWLExporter
+
+Export ontologies to OWL format (OWL/XML, Turtle).
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `export(ontology, filename, format)` | Export ontology | OWL serialization |
+| `export_classes(classes, filename)` | Export classes | Class definition export |
+| `export_properties(properties, filename)` | Export properties | Property definition export |
+
+**Example:**
+
+```python
+from semantica.export import OWLExporter
+
+exporter = OWLExporter(ontology_uri="http://example.org/ontology#")
+exporter.export(ontology, "ontology.owl", format="owl-xml")
+```
+
+---
+
+### SemanticNetworkYAMLExporter
+
+Export semantic networks to YAML format.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `export(semantic_network, filename)` | Export semantic network | YAML serialization |
+| `export_semantic_network(semantic_network)` | Export to string | In-memory YAML generation |
+
+**Example:**
+
+```python
+from semantica.export import SemanticNetworkYAMLExporter
+
+exporter = SemanticNetworkYAMLExporter()
+exporter.export(semantic_network, "network.yaml")
+```
+
+---
+
+### YAMLSchemaExporter
+
+Export ontology schemas to YAML format.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `export(schema, filename)` | Export schema | YAML schema serialization |
+
+**Example:**
+
+```python
+from semantica.export import YAMLSchemaExporter
+
+exporter = YAMLSchemaExporter()
+exporter.export(schema, "schema.yaml")
+```
+
+---
+
+### ReportGenerator
+
+Generate reports in multiple formats (HTML, Markdown, JSON, Text).
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `generate_report(data, filename, format)` | Generate report | Template-based report generation |
+| `generate_quality_report(metrics, filename, format)` | Generate quality report | Quality metrics aggregation |
+
+**Example:**
+
+```python
+from semantica.export import ReportGenerator
+
+generator = ReportGenerator(format="html", include_charts=True)
+generator.generate_report(data, "report.html")
+```
+
+---
+
+### MethodRegistry
+
+Registry for custom export methods.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `register(task, name, method_func)` | Register method | Dictionary-based registration |
+| `get(task, name)` | Get method | Hash-based lookup |
+| `list_all(task)` | List methods | Method discovery |
+| `unregister(task, name)` | Unregister method | Method removal |
+| `clear(task)` | Clear methods | Registry cleanup |
+
+**Global Instance:**
+- `method_registry`: Global method registry instance
+
+**Example:**
+
+```python
+from semantica.export import method_registry
+
+method_registry.register("json", "custom_method", custom_json_export)
+method = method_registry.get("json", "custom_method")
+all_methods = method_registry.list_all()
+```
+
+---
+
+### ExportConfig
+
+Configuration manager for export module.
+
+**Methods:**
+
+| Method | Description | Algorithm |
+|--------|-------------|-----------|
+| `set(key, value)` | Set configuration | Configuration storage |
+| `get(key, default)` | Get configuration | Configuration retrieval |
+| `set_method_config(task, **config)` | Set method config | Method-specific configuration |
+| `get_method_config(task)` | Get method config | Method configuration retrieval |
+
+**Global Instance:**
+- `export_config`: Global export configuration instance
+
+**Example:**
+
+```python
+from semantica.export.config import export_config, ExportConfig
+
+# Using global instance
+export_config.set("default_format", "json")
+format = export_config.get("default_format", default="json")
+
+# Create custom instance
+config = ExportConfig(config_file="config.yaml")
+```
+
+---
+
+## Convenience Functions
+
+### Export Functions
+
+| Function | Description | Format |
+|----------|-------------|--------|
+| `export_rdf(data, file_path, format)` | Export to RDF | turtle, rdfxml, jsonld, ntriples, n3 |
+| `export_json(data, file_path, format)` | Export to JSON | json, json-ld |
+| `export_csv(data, file_path)` | Export to CSV | csv |
+| `export_graph(graph_data, file_path, format)` | Export to graph format | graphml, gexf, dot |
+| `export_yaml(data, file_path, method)` | Export to YAML | semantic_network, schema |
+| `export_owl(ontology, file_path, format)` | Export to OWL | owl-xml, turtle |
+| `export_vector(vectors, file_path, format)` | Export vectors | json, numpy, binary, faiss |
+| `export_lpg(kg, file_path, method)` | Export to LPG | cypher, lpg |
+| `generate_report(data, file_path, format)` | Generate report | html, markdown, json, text |
+
+### Registry Functions
+
+| Function | Description |
+|----------|-------------|
+| `get_export_method(task, name)` | Get registered export method |
+| `list_available_methods(task)` | List all available methods |
+
+**Example:**
+
+```python
+from semantica.export.methods import (
+    export_rdf, export_json, export_csv, export_graph,
+    export_yaml, export_owl, export_vector, export_lpg,
+    generate_report, get_export_method, list_available_methods
+)
+
+# Export functions
+export_rdf(kg, "output.ttl", format="turtle")
+export_json(kg, "output.json", format="json")
+export_lpg(kg, "graph.cypher", method="cypher")
+
+# Registry functions
+method = get_export_method("json", "custom_method")
+all_methods = list_available_methods()
+```
 
 ---
 
