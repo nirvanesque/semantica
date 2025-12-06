@@ -246,4 +246,4 @@ kg.add_triples(inferred_triples)
 
 - [Ontology Module](ontology.md) - Source of schema-based rules
 - [Triple Store Module](triple_store.md) - Backend for SPARQL reasoning
-- [KG QA Module](kg_qa.md) - Uses reasoning for consistency checking
+- [Modules Guide](../modules.md#quality-assurance) - Consistency checking overview

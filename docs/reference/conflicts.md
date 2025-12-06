@@ -318,4 +318,4 @@ tracker.set_source_credibility("bad_source", 0.1)
 
 - [Deduplication Module](deduplication.md) - For merging duplicate entities
 - [Normalize Module](normalize.md) - For pre-processing data
-- [KG QA Module](kg_qa.md) - For overall graph quality
+- [Modules Guide](../modules.md#quality-assurance) - Quality assurance overview
