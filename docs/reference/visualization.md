@@ -86,7 +86,9 @@ Visualizes Knowledge Graph structure and communities.
 |--------|-------------|
 | `visualize_network(graph)` | Standard network plot |
 | `visualize_communities(graph)` | Color by community |
-| `visualize_path(path)` | Highlight specific path |
+| `visualize_centrality(graph, centrality, centrality_type)` | Size/color by centrality |
+| `visualize_entity_types(graph)` | Entity type distribution |
+| `visualize_relationship_matrix(graph)` | Relationship frequency heatmap |
 
 **Example:**
 
@@ -108,6 +110,10 @@ Visualizes schema and taxonomy.
 |--------|-------------|
 | `visualize_hierarchy(ontology)` | Tree view of classes |
 | `visualize_properties(ontology)` | Property domain/range graph |
+| `visualize_structure(ontology)` | Class-property network |
+| `visualize_class_property_matrix(ontology)` | Class vs property heatmap |
+| `visualize_metrics(ontology)` | Metrics dashboard |
+| `visualize_semantic_model(model)` | Visualize semantic model/network |
 
 ### EmbeddingVisualizer
 
@@ -117,9 +123,12 @@ Project high-dimensional vectors to 2D/3D.
 
 | Method | Description | Algorithm |
 |--------|-------------|-----------|
-| `visualize_2d(embeddings)` | 2D Scatter plot | UMAP/t-SNE |
-| `visualize_3d(embeddings)` | 3D Scatter plot | UMAP/t-SNE |
-| `visualize_clusters(embeddings)` | Colored by cluster | K-Means/DBSCAN |
+| `visualize_2d_projection(embeddings, labels, method)` | 2D Scatter plot | UMAP/t-SNE/PCA |
+| `visualize_3d_projection(embeddings, labels, method)` | 3D Scatter plot | UMAP/t-SNE/PCA |
+| `visualize_similarity_heatmap(embeddings, labels)` | Pairwise similarity | Cosine |
+| `visualize_clustering(embeddings, cluster_labels, method)` | Colored by cluster | UMAP/t-SNE/PCA |
+| `visualize_multimodal_comparison(text_emb, image_emb, audio_emb)` | Compare modalities | UMAP/PCA |
+| `visualize_quality_metrics(embeddings)` | Norms and stats | N/A |
 
 **Example:**
 
@@ -135,6 +144,47 @@ viz.visualize_2d_projection(
 )
 ```
 
+### SemanticNetworkVisualizer
+
+Visualizes semantic network structure and distributions.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `visualize_network(semantic_network)` | Network visualization |
+| `visualize_node_types(semantic_network)` | Node type distribution |
+| `visualize_edge_types(semantic_network)` | Edge type distribution |
+
+### QualityVisualizer
+
+Visualizes data quality metrics and issues.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `visualize_dashboard(quality_report)` | Quality metrics dashboard |
+| `visualize_score_distribution(quality_scores)` | Score histogram |
+| `visualize_issues(quality_report)` | Issues by type/severity |
+| `visualize_completeness_metrics(completeness_metrics)` | Completeness bar chart |
+| `visualize_consistency_heatmap(consistency_data)` | Consistency heatmap |
+
+### AnalyticsVisualizer
+
+Visualizes graph analytics results.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `visualize_centrality_rankings(centrality, centrality_type, top_n)` | Top-k bar chart |
+| `visualize_community_structure(graph, communities)` | Community network |
+| `visualize_connectivity(connectivity)` | Components and sizes |
+| `visualize_degree_distribution(graph)` | Degree histogram |
+| `visualize_metrics_dashboard(metrics)` | Metrics dashboard |
+| `visualize_centrality_comparison(centrality_results, top_n)` | Grouped comparison |
+
 ### TemporalVisualizer
 
 Visualizes time-series and graph evolution.
@@ -144,18 +194,36 @@ Visualizes time-series and graph evolution.
 | Method | Description |
 |--------|-------------|
 | `visualize_timeline(events)` | Event timeline |
-| `visualize_evolution(snapshots)` | Graph changes over time |
+| `visualize_temporal_patterns(patterns)` | Pattern durations |
+| `visualize_snapshot_comparison(snapshots)` | Compare snapshots |
+| `visualize_version_history(version_history)` | Version timeline |
+| `visualize_metrics_evolution(metrics_history, timestamps)` | Metrics over time |
 
 ---
 
 ## Convenience Functions
 
 ```python
-from semantica.visualization import visualize_kg, visualize_embeddings
+from semantica.visualization import (
+    visualize_kg,
+    visualize_embeddings,
+    visualize_ontology,
+    visualize_semantic_network,
+    visualize_quality,
+    visualize_analytics,
+    visualize_temporal,
+    list_available_methods,
+)
 
 # One-line visualization
 visualize_kg(kg, output="graph.html")
 visualize_embeddings(embeddings, method="umap")
+visualize_ontology(ontology, method="hierarchy")
+visualize_semantic_network(semantic_network)
+visualize_quality(quality_report)
+visualize_analytics({"centrality": centrality}, method="centrality")
+visualize_temporal(temporal_data, method="timeline")
+list_available_methods()
 ```
 
 ---
@@ -165,9 +233,9 @@ visualize_embeddings(embeddings, method="umap")
 ### Environment Variables
 
 ```bash
-export VIZ_DEFAULT_LAYOUT=force
-export VIZ_COLOR_SCHEME=vibrant
-export VIZ_RENDERER=plotly
+export VISUALIZATION_DEFAULT_LAYOUT=force
+export VISUALIZATION_COLOR_SCHEME=vibrant
+export VISUALIZATION_OUTPUT_FORMAT=interactive
 ```
 
 ### YAML Configuration
@@ -209,7 +277,8 @@ kg_viz.visualize_network(kg, output="structure.html")
 
 # 3. Visualize Analytics
 analytics_viz = AnalyticsVisualizer()
-analytics_viz.visualize_centrality(kg, output="centrality.png")
+centrality = {"rankings": [{"node": "A", "score": 0.9}, {"node": "B", "score": 0.7}]}
+analytics_viz.visualize_centrality_rankings(centrality, centrality_type="degree", top_n=10, output="centrality.png")
 analytics_viz.visualize_degree_distribution(kg, output="degree_dist.png")
 ```
 

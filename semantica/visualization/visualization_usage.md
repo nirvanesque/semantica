@@ -951,6 +951,34 @@ viz = KGVisualizer(layout="circular", radius=1.5)
 - `visualize_similarity_heatmap(embeddings, labels, output, file_path, **options)`: Similarity heatmap
 - `visualize_clustering(embeddings, cluster_labels, method, output, file_path, **options)`: Clustering visualization
 - `visualize_multimodal_comparison(text_emb, image_emb, audio_emb, output, file_path, **options)`: Multi-modal comparison
+- `visualize_quality_metrics(embeddings, output, file_path, **options)`: Quality metrics (norms, stats)
+
+#### SemanticNetworkVisualizer Methods
+- `visualize_network(semantic_network, output, file_path, **options)`: Visualize semantic network
+- `visualize_node_types(semantic_network, output, file_path, **options)`: Node type distribution
+- `visualize_edge_types(semantic_network, output, file_path, **options)`: Edge type distribution
+
+#### QualityVisualizer Methods
+- `visualize_dashboard(quality_report, output, file_path, **options)`: Quality metrics dashboard
+- `visualize_score_distribution(quality_scores, output, file_path, **options)`: Score distribution
+- `visualize_issues(quality_report, output, file_path, **options)`: Issues by type and severity
+- `visualize_completeness_metrics(completeness_metrics, output, file_path, **options)`: Completeness metrics
+- `visualize_consistency_heatmap(consistency_data, output, file_path, **options)`: Consistency heatmap
+
+#### AnalyticsVisualizer Methods
+- `visualize_centrality_rankings(centrality, centrality_type, top_n, output, file_path, **options)`: Centrality rankings
+- `visualize_community_structure(graph, communities, output, file_path, **options)`: Community structure
+- `visualize_connectivity(connectivity, output, file_path, **options)`: Connectivity analysis
+- `visualize_degree_distribution(graph, output, file_path, **options)`: Degree distribution
+- `visualize_metrics_dashboard(metrics, output, file_path, **options)`: Metrics dashboard
+- `visualize_centrality_comparison(centrality_results, top_n, output, file_path, **options)`: Compare multiple centralities
+
+#### TemporalVisualizer Methods
+- `visualize_timeline(temporal_data, output, file_path, **options)`: Event timeline
+- `visualize_temporal_patterns(patterns, output, file_path, **options)`: Temporal patterns
+- `visualize_snapshot_comparison(snapshots, output, file_path, **options)`: Snapshot comparison
+- `visualize_version_history(version_history, output, file_path, **options)`: Version history
+- `visualize_metrics_evolution(metrics_history, timestamps, output, file_path, **options)`: Metrics over time
 
 #### Convenience Functions
 - `visualize_kg(graph, output, file_path, method, **options)`: Knowledge graph visualization wrapper
