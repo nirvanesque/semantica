@@ -437,6 +437,101 @@ print(f"Valid: {validation_report['conforms']}")
 
 ---
 
+#### RDF4JAdapter
+
+Java-based RDF framework with multiple storage backends.
+
+**Features:**
+- Multiple storage backends (Memory, Native, HTTP)
+- Transaction support with ACID guarantees
+- SPARQL 1.1 Update support
+- RDF Schema and OWL reasoning
+- Repository federation
+
+**Example:**
+
+```python
+from semantica.triple_store import RDF4JAdapter
+
+adapter = RDF4JAdapter(
+    server_url="http://localhost:8080/rdf4j-server",
+    repository_id="my_repo"
+)
+
+adapter.connect()
+
+# Add triples with transaction
+adapter.begin_transaction()
+try:
+    adapter.add_triple(
+        subject="http://example.org/Alice",
+        predicate="http://example.org/name",
+        object_literal="Alice"
+    )
+    adapter.commit_transaction()
+except Exception as e:
+    adapter.rollback_transaction()
+
+# Query with reasoning
+results = adapter.query("""
+    PREFIX ex: <http://example.org/>
+    SELECT ?person WHERE {
+        ?person ex:name ?name .
+    }
+""", enable_reasoning=True)
+```
+
+---
+
+#### VirtuosoAdapter
+
+Enterprise-grade RDF store with SQL integration.
+
+**Features:**
+- High-performance SPARQL execution
+- SQL/SPARQL hybrid queries
+- Quad store with named graphs
+- Full-text indexing
+- Geospatial support
+
+**Example:**
+
+```python
+from semantica.triple_store import VirtuosoAdapter
+
+adapter = VirtuosoAdapter(
+    host="localhost",
+    port=1111,
+    user="dba",
+    password="dba"
+)
+
+adapter.connect()
+
+# Add triples to named graph
+graph_uri = "http://example.org/graph1"
+adapter.create_graph(graph_uri)
+
+adapter.add_triple(
+    subject="http://example.org/Alice",
+    predicate="http://example.org/name",
+    object_literal="Alice",
+    graph=graph_uri
+)
+
+# Query specific graph
+results = adapter.query(f"""
+    PREFIX ex: <http://example.org/>
+    SELECT ?person ?name
+    FROM <{graph_uri}>
+    WHERE {{
+        ?person ex:name ?name .
+    }}
+""")
+```
+
+---
+
 ## Convenience Functions
 
 Quick access to triple store operations:
@@ -479,6 +574,72 @@ export_graph(
     format="rdf/xml"
 )
 ```
+
+---
+
+## Dataclasses
+
+### TripleStore
+
+Configuration dataclass for triple store instances.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `store_id` | str | Unique store identifier |
+| `store_type` | str | Backend type (blazegraph, jena, rdf4j, virtuoso) |
+| `endpoint` | str | SPARQL endpoint URL |
+| `config` | dict | Additional configuration options |
+
+---
+
+### QueryResult
+
+Query execution result dataclass.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `variables` | List[str] | Query variable names |
+| `bindings` | List[Dict] | Result bindings |
+| `execution_time` | float | Query execution time (seconds) |
+| `metadata` | Dict | Additional metadata (cached, optimized, etc.) |
+
+---
+
+### QueryPlan
+
+Query execution plan dataclass.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `query` | str | Original SPARQL query |
+| `optimized_query` | str | Optimized query |
+| `estimated_cost` | float | Estimated execution cost |
+| `execution_steps` | List[str] | Planned execution steps |
+
+---
+
+### LoadProgress
+
+Bulk loading progress dataclass.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `loaded_triples` | int | Number of triples loaded |
+| `total_triples` | int | Total triples to load |
+| `failed_triples` | int | Number of failed triples |
+| `progress_percentage` | float | Loading progress (0-100) |
+| `elapsed_time` | float | Time elapsed (seconds) |
+| `current_batch` | int | Current batch number |
+| `total_batches` | int | Total number of batches |
+| `metadata` | Dict | Additional metadata (throughput, ETA, etc.) |
 
 ---
 
