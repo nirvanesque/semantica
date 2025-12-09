@@ -14,11 +14,11 @@
 
 <p align="center">
     <a href="https://github.com/Hawksight-AI/semantica/stargazers">
-        <img src="https://img.shields.io/badge/Give%20a%20Star-%E2%AD%90-yellow?style=for-the-badge&labelColor=1a1b27" alt="Give a Star">
+        <img src="https://img.shields.io/badge/Give%20a%20Star-%E2%AD%90-yellow?style=for-the-badge&labelColor=555555" alt="Give a Star">
     </a>
     &nbsp;&nbsp;
     <a href="https://github.com/Hawksight-AI/semantica/fork">
-        <img src="https://img.shields.io/badge/Support%20Project-Fork%20Us-blue?style=for-the-badge&labelColor=1a1b27" alt="Support Project">
+        <img src="https://img.shields.io/badge/Support%20Project-Fork%20Us-blue?style=for-the-badge&labelColor=555555" alt="Support Project">
     </a>
 </p>
 
