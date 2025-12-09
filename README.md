@@ -271,7 +271,7 @@ sources.extend(db_ingestor.ingest(query="SELECT * FROM articles"))
 print(f" Ingested {len(sources)} sources")
 ```
 
-[**Cookbook: Data Ingestion**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/02_Data_Ingestion.ipynb)
+[**Cookbook: Data Ingestion**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/02_Data_Ingestion.ipynb) • [**Document Parsing**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/03_Document_Parsing.ipynb) • [**Data Normalization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/04_Data_Normalization.ipynb) • [**Chunking & Splitting**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/11_Chunking_and_Splitting.ipynb)
 
 ### Semantic Intelligence Engine
 
@@ -288,7 +288,7 @@ results = core.extract_semantics(text)
 print(f"Entities: {len(results.entities)}, Relationships: {len(results.relationships)}")
 ```
 
-[**Cookbook: Entity Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/05_Entity_Extraction.ipynb) • [**Relation Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/06_Relation_Extraction.ipynb)
+[**Cookbook: Entity Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/05_Entity_Extraction.ipynb) • [**Relation Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/06_Relation_Extraction.ipynb) • [**Advanced Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/01_Advanced_Extraction.ipynb)
 
 ### Knowledge Graph Construction
 
@@ -310,7 +310,9 @@ result = kg.query("Who founded the company?", return_format="structured")
 print(f"Nodes: {kg.node_count}, Answer: {result.answer}")
 ```
 
-[**Cookbook: Building Knowledge Graphs**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/07_Building_Knowledge_Graphs.ipynb) • [**Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/10_Graph_Analytics.ipynb)
+[**Cookbook: Building Knowledge Graphs**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/07_Building_Knowledge_Graphs.ipynb) • [**Graph Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/09_Graph_Store.ipynb) • [**Triple Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/20_Triple_Store.ipynb) • [**Visualization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/16_Visualization.ipynb)
+
+[**Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/10_Graph_Analytics.ipynb) • [**Advanced Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/02_Advanced_Graph_Analytics.ipynb)
 
 ### Ontology Generation & Management
 
@@ -345,7 +347,7 @@ retriever = ContextRetriever(memory_store=memory)
 context = retriever.retrieve("What are user preferences?", max_results=5)
 ```
 
-[**Cookbook: Vector Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/13_Vector_Store.ipynb)
+[**Cookbook: Vector Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/13_Vector_Store.ipynb) • [**Embedding Generation**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/12_Embedding_Generation.ipynb) • [**Context Module**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/19_Context_Module.ipynb) • [**Advanced Vector Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/Advanced_Vector_Store_and_Search.ipynb)
 
 ### Knowledge Graph-Powered RAG (GraphRAG)
 
@@ -397,7 +399,21 @@ duplicates = DuplicateDetector().find_duplicates(entities=kg.entities, similarit
 print(f"Conflicts: {len(conflicts)} | Duplicates: {len(duplicates)}")
 ```
 
-[**Cookbook: Conflict Detection**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/17_Conflict_Detection.ipynb) • [**Deduplication**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/18_Deduplication.ipynb)
+[**Cookbook: Conflict Detection**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/17_Conflict_Detection.ipynb) • [**Deduplication**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/18_Deduplication.ipynb) • [**Graph Quality**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/11_Graph_Quality.ipynb) • [**Conflict Resolution**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/04_Conflict_Resolution_Strategies.ipynb)
+
+### Export & Integration
+
+> **Multi-Format Export** • JSON, CSV, RDF, GraphML
+
+```python
+from semantica.export import GraphExporter
+
+exporter = GraphExporter(kg)
+exporter.export("graph.json", format="json")
+exporter.export("graph.ttl", format="turtle")
+```
+
+[**Cookbook: Export**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/15_Export.ipynb) • [**Multi-Format Export**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/05_Multi_Format_Export.ipynb) • [**Multi-Source Integration**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/06_Multi_Source_Data_Integration.ipynb)
 
 ## 🚀 Quick Start
 
