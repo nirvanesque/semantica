@@ -235,7 +235,8 @@ class GraphBuilder:
             # Detect and resolve conflicts if conflict detector is available
             if self.conflict_detector:
                 self.logger.debug("Detecting conflicts in graph")
-                detected_conflicts = self.conflict_detector.detect_conflicts(graph)
+                # Pass only entities to detect_conflicts as it expects List[Dict]
+                detected_conflicts = self.conflict_detector.detect_conflicts(graph["entities"])
 
                 if detected_conflicts:
                     conflict_count = len(detected_conflicts)

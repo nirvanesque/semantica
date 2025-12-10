@@ -1,35 +1,54 @@
-# PR Title
-`fix(conflicts/deduplication): Fix critical bugs and add comprehensive verification for Conflict and Deduplication modules`
-
-# PR Description
+# PR: Dynamic Embedding Model Switching & Enhanced Testing
 
 ## Summary
-This PR addresses critical bugs in the Conflict Resolution and Deduplication modules that prevented correct execution of advanced features. It also introduces a comprehensive suite of verification scripts and unit tests to ensure stability and correctness for these components.
+This PR introduces dynamic model switching capabilities to the Semantica embeddings module, allowing users to switch between `sentence_transformers` and `fastembed` providers at runtime. It also includes comprehensive updates to documentation, cookbooks, and a robust new test suite to validate all core features.
 
 ## Key Changes
 
-### 1. Conflict Resolution Module (`semantica/conflicts`)
-*   **Bug Fix:** Resolved a metadata propagation issue in `ConflictDetector` (`semantica/conflicts/conflict_detector.py`).
-    *   *Fix:* Added `metadata` field to source tracking to ensure timestamps and other metadata are available for temporal resolution strategies (e.g., `resolve_most_recent`).
-*   **Verification:** Added `scripts/verify_conflict_resolution.py` and `scripts/verify_conflict_complete.py` to validate:
-    *   Resolution strategies (Voting, Credibility, Temporal, Confidence).
-    *   Advanced features: Conflict Analysis, Investigation Guides, and Custom Method Registration.
+### 1. Dynamic Model Switching
+- **Added** `set_model()` and `set_text_model()` methods to `EmbeddingGenerator` and `TextEmbedder`.
+- **Feature**: Users can now change the underlying embedding model and provider without re-instantiating the classes.
+- **Validation**: Added checks to ensure the requested provider (e.g., `fastembed`) is installed before switching.
 
-### 2. Deduplication Module (`semantica/deduplication`)
-*   **Bug Fix:** Resolved a `TypeError: unhashable type: 'dict'` in `SimilarityCalculator` (`semantica/deduplication/similarity_calculator.py`).
-    *   *Fix:* Implemented `_make_hashable` helper to handle dictionary and list inputs during similarity calculation.
-*   **Unit Tests:** Created `tests/deduplication/test_deduplication.py` covering core classes and functions.
-*   **Verification:** Added `scripts/verify_deduplication_notebook.py` to validate the logic from the `18_Deduplication.ipynb` cookbook.
+### 2. Documentation Updates
+- **`semantica/embeddings/embeddings_usage.md`**: Added a new section **"Dynamic Model Switching"** with code examples.
+- **`docs/reference/embeddings.md`**: Updated API reference tables to include the new model selection methods.
 
-## Verification
-*   **Unit Tests:** All new tests in `tests/deduplication/` passed.
-*   **Scripts:** 
-    *   `scripts/verify_conflict_complete.py`: **PASSED** (Verified advanced conflict features).
-    *   `scripts/verify_conflict_resolution.py`: **PASSED** (Verified resolution strategies).
-    *   `scripts/verify_deduplication_notebook.py`: **PASSED** (Verified deduplication logic).
+### 3. Cookbook Refactoring
+- **`12_Embedding_Generation.ipynb`**: Added **"Step 3: Model Selection & Dynamic Switching"** to demonstrate the new API.
+- **`13_Vector_Store.ipynb`**: Replaced random vector generation with **real embeddings** using `TextEmbedder`, ensuring the tutorial reflects real-world usage.
+- **`Advanced_Vector_Store_and_Search.ipynb`**: Added an embedding setup section and dynamically updated vector dimensions.
+
+### 4. Testing Framework
+- **New Test File**: `tests/test_all_features.py` - A comprehensive test suite covering 8 critical areas:
+    1.  Embedding Generation
+    2.  Provider Selection
+    3.  **Dynamic Model Switching** (New)
+    4.  Vector Store Operations
+    5.  Metadata Filtering
+    6.  Hybrid Search
+    7.  Convenience Functions
+    8.  Error Handling
+- **Existing Tests**: Verified compatibility with existing tests (`tests/test_model_selection.py`, etc.).
+- **CI/CD**: `pytest` passes all tests with Exit Code 0.
+
+## How to Test
+1.  Checkout the branch:
+    ```bash
+    git checkout embeddings
+    ```
+2.  Run the comprehensive test suite:
+    ```bash
+    python tests/test_all_features.py
+    ```
+3.  Run the full regression suite:
+    ```bash
+    pytest tests/
+    ```
 
 ## Checklist
-- [x] Code compiles and runs without errors.
-- [x] Unit tests created and passed.
-- [x] Critical bugs fixed (Conflict metadata, Deduplication hashing).
-- [x] Verification scripts added and validated.
+- [x] Code follows the style guidelines of this project
+- [x] Documentation has been updated
+- [x] Jupyter Notebooks (Cookbooks) have been tested and updated
+- [x] New unit tests have been added
+- [x] All existing tests pass

@@ -797,14 +797,21 @@ class RDFExporter:
             if format == "turtle":
                 result = self.serializer.serialize_to_turtle(data, **options)
             elif format == "rdfxml":
-                return self.serializer.serialize_to_rdfxml(data, **options)
+                result = self.serializer.serialize_to_rdfxml(data, **options)
             elif format == "jsonld":
-                return self.serializer.serialize_to_jsonld(data, **options)
+                result = self.serializer.serialize_to_jsonld(data, **options)
             else:
                 raise ValidationError(
                     f"Format '{format}' not yet implemented. "
                     f"Implemented formats: turtle, rdfxml, jsonld"
                 )
+
+            self.progress_tracker.stop_tracking(
+                tracking_id,
+                status="completed",
+                message=f"Exported to RDF format: {format}",
+            )
+            return result
 
         except Exception as e:
             self.progress_tracker.stop_tracking(
