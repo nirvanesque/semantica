@@ -1,41 +1,35 @@
 # PR Title
-`test(core/pipeline): Add comprehensive unit tests and fix pipeline validation logic`
+`fix(conflicts/deduplication): Fix critical bugs and add comprehensive verification for Conflict and Deduplication modules`
 
 # PR Description
 
 ## Summary
-This PR focuses on stabilizing the Core and Pipeline modules by adding comprehensive unit tests and fixing a critical bug in the pipeline builder. It ensures that the `Semantica` orchestrator, plugin system, and execution engine are robust and working as expected.
+This PR addresses critical bugs in the Conflict Resolution and Deduplication modules that prevented correct execution of advanced features. It also introduces a comprehensive suite of verification scripts and unit tests to ensure stability and correctness for these components.
 
 ## Key Changes
 
-### 1. Core Module (`semantica/core`)
-*   **Added Unit Tests:** Created `tests/core/test_core.py` with 14 test cases covering:
-    *   `ConfigManager`: Loading and saving configurations.
-    *   `LifecycleManager`: State transitions (initialization, starting, stopping).
-    *   `PluginRegistry`: Plugin registration and retrieval.
-    *   `MethodRegistry`: Method registration and execution.
-    *   `Semantica` (Main Class): End-to-end flow from initialization to shutdown.
-*   **Verification Script:** Added `scripts/verify_core_usage.py` to simulate real-world usage of the Core module.
+### 1. Conflict Resolution Module (`semantica/conflicts`)
+*   **Bug Fix:** Resolved a metadata propagation issue in `ConflictDetector` (`semantica/conflicts/conflict_detector.py`).
+    *   *Fix:* Added `metadata` field to source tracking to ensure timestamps and other metadata are available for temporal resolution strategies (e.g., `resolve_most_recent`).
+*   **Verification:** Added `scripts/verify_conflict_resolution.py` and `scripts/verify_conflict_complete.py` to validate:
+    *   Resolution strategies (Voting, Credibility, Temporal, Confidence).
+    *   Advanced features: Conflict Analysis, Investigation Guides, and Custom Method Registration.
 
-### 2. Pipeline Module (`semantica/pipeline`)
-*   **Bug Fix:** Resolved an `AttributeError` in `semantica/pipeline/pipeline_builder.py` (Lines 192-194).
-    *   *Fix:* Changed attribute access from dictionary-style `.get()` to direct attribute access (`.valid`, `.errors`) for the `ValidationResult` dataclass.
-*   **Added Unit Tests:** Created `tests/pipeline/test_pipeline.py` with 5 test cases covering:
-    *   Pipeline construction via `PipelineBuilder`.
-    *   Validation logic.
-    *   Step chaining and dependency resolution (Topological Sort).
-    *   Execution success and failure handling.
-
-### 3. Additional Coverage
-*   **KG Module:** Added/Verified tests in `tests/kg/test_kg.py`.
-*   **Conflicts Module:** Added/Verified tests in `tests/conflicts/test_conflicts.py`.
+### 2. Deduplication Module (`semantica/deduplication`)
+*   **Bug Fix:** Resolved a `TypeError: unhashable type: 'dict'` in `SimilarityCalculator` (`semantica/deduplication/similarity_calculator.py`).
+    *   *Fix:* Implemented `_make_hashable` helper to handle dictionary and list inputs during similarity calculation.
+*   **Unit Tests:** Created `tests/deduplication/test_deduplication.py` covering core classes and functions.
+*   **Verification:** Added `scripts/verify_deduplication_notebook.py` to validate the logic from the `18_Deduplication.ipynb` cookbook.
 
 ## Verification
-*   **Unit Tests:** All tests passed successfully using `python -m unittest discover tests`.
-*   **Manual Verification:** Validated the Core module flow using `scripts/verify_core_usage.py`.
+*   **Unit Tests:** All new tests in `tests/deduplication/` passed.
+*   **Scripts:** 
+    *   `scripts/verify_conflict_complete.py`: **PASSED** (Verified advanced conflict features).
+    *   `scripts/verify_conflict_resolution.py`: **PASSED** (Verified resolution strategies).
+    *   `scripts/verify_deduplication_notebook.py`: **PASSED** (Verified deduplication logic).
 
 ## Checklist
 - [x] Code compiles and runs without errors.
 - [x] Unit tests created and passed.
-- [x] Critical bugs fixed (Pipeline validation).
-- [x] Changes pushed to `core` branch.
+- [x] Critical bugs fixed (Conflict metadata, Deduplication hashing).
+- [x] Verification scripts added and validated.
