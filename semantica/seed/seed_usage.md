@@ -48,6 +48,17 @@ records = manager.load_from_csv(
     entity_type="Person"
 )
 
+# Load from CSV with custom delimiter
+records_pipe = manager.load_from_csv(
+    "data/entities_pipe.csv",
+    delimiter="|"
+)
+
+# Load from CSV with auto-detection (supported for common delimiters like ;, \t, etc.)
+records_auto = manager.load_from_csv(
+    "data/entities_semicolon.csv"
+)
+
 print(f"Loaded {len(records)} records from CSV")
 
 # CSV should have columns like: id, name, type, etc.
@@ -74,6 +85,10 @@ print(f"Loaded {len(records)} records from JSON")
 # - List: [{"id": "1", "name": "John"}, ...]
 # - Dict with 'entities': {"entities": [...]}
 # - Dict with 'data': {"data": [...]}
+# - Dict with 'records': {"records": [...]}
+#
+# Note: Ensure JSON seed files follow these supported top-level structures.
+# Unsupported structures will trigger a warning and may be loaded as a single record.
 ```
 
 ### Loading from Database
@@ -553,11 +568,15 @@ manager.export_seed_data("output/custom_seed.json", format="json")
 **Algorithm**: Row-by-row CSV processing with metadata injection
 
 1. **File Reading**: Open CSV file with UTF-8 encoding
-2. **Header Detection**: Use csv.DictReader() for automatic header detection
-3. **Row Processing**: Iterate through rows, convert to dictionaries
-4. **Data Cleaning**: Remove empty values, clean whitespace
-5. **Metadata Injection**: Add entity_type, relationship_type, source metadata
-6. **Type Conversion**: Convert string values to appropriate types
+2. **Delimiter Detection**: 
+   - Use provided delimiter if specified
+   - If not, attempt to auto-detect delimiter using `csv.Sniffer`
+   - Fallback to comma (`,`) if detection fails
+3. **Header Detection**: Use csv.DictReader() for automatic header detection
+4. **Row Processing**: Iterate through rows, convert to dictionaries
+5. **Data Cleaning**: Remove empty values, clean whitespace
+6. **Metadata Injection**: Add entity_type, relationship_type, source metadata
+7. **Type Conversion**: Convert string values to appropriate types
 
 **Time Complexity**: O(n) where n = number of rows
 **Space Complexity**: O(n) for records storage

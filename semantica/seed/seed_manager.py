@@ -194,18 +194,21 @@ class SeedDataManager:
         entity_type: Optional[str] = None,
         relationship_type: Optional[str] = None,
         source_name: Optional[str] = None,
+        delimiter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Load seed data from CSV file.
 
         Reads a CSV file and converts rows to dictionaries. Automatically
         adds entity_type, relationship_type, and source metadata if provided.
+        Supports automatic delimiter detection if not provided.
 
         Args:
             file_path: Path to CSV file
             entity_type: Optional entity type to add to all records
             relationship_type: Optional relationship type to add to all records
             source_name: Optional source name for tracking
+            delimiter: Optional CSV delimiter. If None, attempts to detect it.
 
         Returns:
             List of loaded data records as dictionaries
@@ -215,7 +218,7 @@ class SeedDataManager:
 
         Example:
             >>> records = manager.load_from_csv("data/entities.csv", entity_type="Person")
-            >>> print(f"Loaded {len(records)} records")
+            >>> records = manager.load_from_csv("data/data.csv", delimiter=";")
         """
         tracking_id = self.progress_tracker.start_tracking(
             module="seed",
@@ -239,7 +242,21 @@ class SeedDataManager:
                 tracking_id, message="Reading CSV file..."
             )
             with open(file_path, "r", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
+                # Detect delimiter if not provided
+                if delimiter is None:
+                    try:
+                        sample = f.read(1024)
+                        f.seek(0)
+                        dialect = csv.Sniffer().sniff(sample)
+                        delimiter = dialect.delimiter
+                        self.logger.debug(f"Detected CSV delimiter: '{delimiter}'")
+                    except csv.Error:
+                        # Fallback to comma if sniffing fails
+                        f.seek(0)
+                        delimiter = ","
+                        self.logger.debug("Could not detect delimiter, defaulting to ','")
+                
+                reader = csv.DictReader(f, delimiter=delimiter)
                 for row in reader:
                     # Clean up row data
                     record = {k: v for k, v in row.items() if v}
@@ -316,6 +333,11 @@ class SeedDataManager:
                 elif "records" in data:
                     records = data["records"]
                 else:
+                    self.logger.warning(
+                        f"JSON file {file_path} is a dictionary but contains none of the "
+                        "expected keys: 'entities', 'data', 'records'. "
+                        "Treating entire object as a single record."
+                    )
                     records = [data]
             else:
                 records = []
