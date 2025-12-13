@@ -481,6 +481,7 @@ class CommunityDetector:
         changed = True
         iterations = 0
         max_iter = options.get("max_iter", 10)
+        best_modularity = 0.0
 
         while changed and iterations < max_iter:
             changed = False

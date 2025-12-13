@@ -97,6 +97,40 @@ class DocumentParser:
         # Initialize progress tracker
         self.progress_tracker = get_progress_tracker()
 
+    def parse(
+        self,
+        source: Union[str, Path, List[Union[str, Path]], List[Any]],
+        **options,
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+        """
+        Alias for parse_document or parse_batch.
+        Handles FileObject lists as well.
+
+        Args:
+            source: Path(s) or FileObject(s)
+            **options: Parsing options
+
+        Returns:
+            Parsed document(s)
+        """
+        if isinstance(source, list):
+            # Extract paths if FileObjects
+            paths = []
+            for item in source:
+                if hasattr(item, "path"):
+                    paths.append(item.path)
+                elif isinstance(item, (str, Path)):
+                    paths.append(item)
+                else:
+                    raise ValueError(f"Unsupported item type in list: {type(item)}")
+
+            # Use parse_batch
+            batch_result = self.parse_batch(paths, **options)
+            # Return list of results (successful ones)
+            return [item["result"] for item in batch_result["successful"]]
+        else:
+            return self.parse_document(source, **options)
+
     def parse_document(
         self, file_path: Union[str, Path], file_type: Optional[str] = None, **options
     ) -> Dict[str, Any]:

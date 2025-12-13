@@ -131,7 +131,7 @@ class EmbeddingGenerator:
 
     def generate_embeddings(
         self,
-        data: Union[str, Path, List[Union[str, Path]]],
+        data: Union[str, Path, List[Union[str, Path, Any]]],
         data_type: Optional[str] = None,
         **options,
     ) -> np.ndarray:
@@ -144,7 +144,7 @@ class EmbeddingGenerator:
         Args:
             data: Input data to embed:
                 - str: Text string
-                - List: Batch of texts
+                - List: Batch of texts or FileObjects
             data_type: Explicit data type ("text")
                       If None, defaults to "text"
             **options: Additional generation options passed to embedder
@@ -167,6 +167,35 @@ class EmbeddingGenerator:
         if data_type is None:
             data_type = "text"
             self.logger.debug(f"Using data type: {data_type}")
+
+        # Pre-process list if it contains FileObjects or dicts
+        if isinstance(data, list):
+            processed_data = []
+            for item in data:
+                if isinstance(item, str):
+                    processed_data.append(item)
+                elif hasattr(item, "content") and item.content:
+                    # Handle FileObject or similar
+                    if isinstance(item.content, bytes):
+                        try:
+                            processed_data.append(item.content.decode("utf-8"))
+                        except Exception:
+                            # Fallback or skip
+                            processed_data.append("")
+                    else:
+                        processed_data.append(str(item.content))
+                elif isinstance(item, dict) and "content" in item:
+                    # Handle parsed/normalized doc
+                    processed_data.append(str(item["content"]))
+                else:
+                    # Try converting to string
+                    try:
+                        processed_data.append(str(item))
+                    except Exception:
+                        processed_data.append("")
+            
+            # Update data to be list of strings
+            data = processed_data
 
         # Route to appropriate embedder based on data type
         if data_type == "text":

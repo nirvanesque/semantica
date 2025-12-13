@@ -37,7 +37,7 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -88,6 +88,52 @@ class VectorStore:
             backend=backend, dimension=self.dimension, **indexer_config
         )
         self.retriever = VectorRetriever(backend=backend, **self.config)
+
+    def store(
+        self,
+        vectors: List[np.ndarray],
+        documents: Optional[List[Any]] = None,
+        metadata: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+        **options,
+    ) -> List[str]:
+        """
+        Convenience method to store vectors with documents/metadata.
+
+        Args:
+            vectors: List of embeddings
+            documents: Optional list of source documents
+            metadata: Optional metadata (dict for all, or list for each)
+            **options: Additional options
+
+        Returns:
+            List[str]: Vector IDs
+        """
+        # Prepare metadata list
+        num_vectors = len(vectors)
+        final_metadata = []
+
+        if isinstance(metadata, list):
+            if len(metadata) != num_vectors:
+                raise ValueError("Metadata list length must match vectors length")
+            final_metadata = metadata
+        elif isinstance(metadata, dict):
+            # Apply same metadata to all, copy to avoid shared reference issues
+            final_metadata = [metadata.copy() for _ in range(num_vectors)]
+        else:
+            final_metadata = [{} for _ in range(num_vectors)]
+
+        # Merge document metadata if available
+        if documents and len(documents) == num_vectors:
+            for i, doc in enumerate(documents):
+                doc_meta = {}
+                if hasattr(doc, "metadata"):
+                    doc_meta = doc.metadata
+                elif isinstance(doc, dict):
+                    doc_meta = doc.get("metadata", {})
+                
+                final_metadata[i].update(doc_meta)
+        
+        return self.store_vectors(vectors, metadata=final_metadata, **options)
 
     def store_vectors(
         self,

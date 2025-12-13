@@ -155,19 +155,53 @@ class RelationExtractor:
         }
 
 
-    def extract(self, text: str, entities: List[Entity], **kwargs) -> List[Relation]:
+    def extract(
+        self,
+        text: Union[str, List[Dict[str, Any]], List[str]],
+        entities: Union[List[Entity], List[List[Entity]]],
+        **kwargs
+    ) -> Union[List[Relation], List[List[Relation]]]:
         """
         Alias for extract_relations.
+        Handles both single string/entity-list and list of documents/entity-lists.
         
         Args:
-            text: Input text
-            entities: List of entities in the text
+            text: Input text or list of documents
+            entities: List of entities or list of list of entities
             **kwargs: Extraction options
             
         Returns:
-            list: List of extracted relations
+            Union[List[Relation], List[List[Relation]]]: Extracted relations
         """
-        return self.extract_relations(text, entities, **kwargs)
+        if isinstance(text, list) and isinstance(entities, list):
+            # Handle batch extraction
+            results = []
+            # Ensure lists are same length
+            min_len = min(len(text), len(entities))
+            for i in range(min_len):
+                doc_item = text[i]
+                ent_item = entities[i]
+                
+                doc_text = ""
+                if isinstance(doc_item, dict) and "content" in doc_item:
+                    doc_text = doc_item["content"]
+                elif isinstance(doc_item, str):
+                    doc_text = doc_item
+                else:
+                    doc_text = str(doc_item)
+                
+                # Ensure ent_item is a list of entities
+                if not isinstance(ent_item, list):
+                    ent_item = [] # Should not happen if entities is List[List[Entity]]
+                
+                results.append(self.extract_relations(doc_text, ent_item, **kwargs))
+            return results
+        elif isinstance(text, str) and isinstance(entities, list):
+             # Single text, single list of entities (standard case)
+            return self.extract_relations(text, entities, **kwargs)
+        else:
+            # Fallback or invalid input combination
+            return []
 
     def extract_relations(
         self, text: str, entities: List[Entity], **options

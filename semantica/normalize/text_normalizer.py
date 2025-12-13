@@ -31,7 +31,7 @@ License: MIT
 
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ..utils.exceptions import ProcessingError, ValidationError
 from ..utils.logging import get_logger
@@ -87,6 +87,32 @@ class TextNormalizer:
         self.progress_tracker = get_progress_tracker()
 
         self.logger.debug("Text normalizer initialized")
+
+    def normalize(
+        self,
+        source: Union[str, List[Dict[str, Any]]],
+        **options,
+    ) -> Union[str, List[Dict[str, Any]]]:
+        """
+        Normalize text content or a list of parsed documents.
+        """
+        if isinstance(source, list):
+            # Handle list of parsed documents
+            normalized_docs = []
+            for doc in source:
+                if isinstance(doc, dict) and "content" in doc:
+                    new_doc = doc.copy()
+                    new_doc["content"] = self.normalize_text(doc["content"], **options)
+                    normalized_docs.append(new_doc)
+                else:
+                    # If it's just a string or unknown, try to normalize it directly or skip
+                    try:
+                        normalized_docs.append(self.normalize_text(str(doc), **options))
+                    except Exception:
+                        normalized_docs.append(doc)
+            return normalized_docs
+        else:
+            return self.normalize_text(str(source), **options)
 
     def normalize_text(
         self,

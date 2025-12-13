@@ -96,6 +96,19 @@ class GraphAnalyzer:
 
         self.logger.info(f"Graph analyzer initialized (temporal: {enable_temporal})")
 
+    def analyze(self, graph: Dict[str, Any], **options) -> Dict[str, Any]:
+        """
+        Alias for analyze_graph.
+        
+        Args:
+            graph: Knowledge graph dictionary
+            **options: Analysis options
+            
+        Returns:
+            Dict[str, Any]: Analysis results
+        """
+        return self.analyze_graph(graph, **options)
+
     def analyze_graph(self, graph: Dict[str, Any], **options) -> Dict[str, Any]:
         """
         Perform comprehensive graph analysis.

@@ -420,6 +420,25 @@ class FileIngestor:
 
         self.logger.info("File ingestor initialized")
 
+    def ingest(self, source: Union[str, Path], **options) -> List[FileObject]:
+        """
+        Alias for ingest_directory (for backward compatibility or convenience).
+
+        Args:
+            source: Path to directory or file
+            **options: Additional options
+
+        Returns:
+            List[FileObject]: List of ingested file objects
+        """
+        path = Path(source)
+        if path.is_dir():
+            return self.ingest_directory(path, **options)
+        elif path.is_file():
+            return [self.ingest_file(path, **options)]
+        else:
+            raise ValidationError(f"Path not found: {path}")
+
     def ingest_directory(
         self, directory_path: Union[str, Path], recursive: bool = True, **filters
     ) -> List[FileObject]:

@@ -142,18 +142,35 @@ class NERExtractor:
                     f"spaCy model {self.model_name} not found. ML method will fallback."
                 )
 
-    def extract(self, text: str, **kwargs) -> List[Entity]:
+    def extract(self, text: Union[str, List[Dict[str, Any]], List[str]], **kwargs) -> Union[List[Entity], List[List[Entity]]]:
         """
         Alias for extract_entities.
+        Handles both single string and list of documents.
         
         Args:
-            text: Input text
+            text: Input text or list of documents
             **kwargs: Extraction options
             
         Returns:
-            list: List of extracted entities
+            Union[List[Entity], List[List[Entity]]]: Extracted entities
         """
-        return self.extract_entities(text, **kwargs)
+        if isinstance(text, list):
+            # Handle batch extraction
+            results = []
+            for item in text:
+                if isinstance(item, dict) and "content" in item:
+                    results.append(self.extract_entities(item["content"], **kwargs))
+                elif isinstance(item, str):
+                    results.append(self.extract_entities(item, **kwargs))
+                else:
+                    # Try converting to string
+                    try:
+                        results.append(self.extract_entities(str(item), **kwargs))
+                    except Exception:
+                        results.append([])
+            return results
+        else:
+            return self.extract_entities(text, **kwargs)
 
     def extract_entities(self, text: str, **options) -> List[Entity]:
         """

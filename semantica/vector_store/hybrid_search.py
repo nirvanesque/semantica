@@ -259,21 +259,23 @@ class HybridSearch:
     • Advanced search strategies
     """
 
-    def __init__(self, **config):
+    def __init__(self, vector_store=None, **config):
         """Initialize hybrid search."""
         self.logger = get_logger("hybrid_search")
         self.config = config
+        self.vector_store = vector_store
         self.progress_tracker = get_progress_tracker()
         self.ranker = SearchRanker(
             config.get("ranking_strategy", "reciprocal_rank_fusion")
         )
+        self.embedding_generator = None
 
     def search(
         self,
-        query_vector: np.ndarray,
-        vectors: List[np.ndarray],
-        metadata: List[Dict[str, Any]],
-        vector_ids: List[str],
+        query: Union[str, np.ndarray],
+        vectors: Optional[List[np.ndarray]] = None,
+        metadata: Optional[List[Dict[str, Any]]] = None,
+        vector_ids: Optional[List[str]] = None,
         k: int = 10,
         metadata_filter: Optional[MetadataFilter] = None,
         **options,
@@ -282,10 +284,10 @@ class HybridSearch:
         Perform hybrid search.
 
         Args:
-            query_vector: Query vector
-            vectors: List of vectors to search
-            metadata: List of metadata dictionaries
-            vector_ids: Vector IDs
+            query: Query vector or string
+            vectors: List of vectors to search (optional if vector_store provided)
+            metadata: List of metadata dictionaries (optional if vector_store provided)
+            vector_ids: Vector IDs (optional if vector_store provided)
             k: Number of results
             metadata_filter: Optional metadata filter
             **options: Additional options
@@ -293,6 +295,10 @@ class HybridSearch:
         Returns:
             List of search results
         """
+        # Handle legacy argument top_k
+        if "top_k" in options:
+            k = options["top_k"]
+
         tracking_id = self.progress_tracker.start_tracking(
             module="vector_store",
             submodule="HybridSearch",
@@ -300,6 +306,41 @@ class HybridSearch:
         )
 
         try:
+            # Resolve vector store data if not provided
+            if vectors is None and self.vector_store:
+                vector_ids = list(self.vector_store.vectors.keys())
+                vectors = [self.vector_store.vectors[vid] for vid in vector_ids]
+                metadata = [self.vector_store.metadata.get(vid, {}) for vid in vector_ids]
+
+            if vectors is None or metadata is None:
+                 # Check if vectors/metadata are falsy (empty list) but not None
+                 # If they are None, we can't proceed. If they are empty lists, we return empty results.
+                 if vectors is None:
+                     vectors = []
+                 if metadata is None:
+                     metadata = []
+                 if vector_ids is None:
+                     vector_ids = []
+
+            # Handle string query
+            if isinstance(query, str):
+                self.progress_tracker.update_tracking(
+                    tracking_id, message="Generating query embedding..."
+                )
+                if not self.embedding_generator:
+                    try:
+                        from ..embeddings import EmbeddingGenerator
+                        self.embedding_generator = EmbeddingGenerator()
+                    except ImportError:
+                        raise ImportError("EmbeddingGenerator not available for string queries")
+                
+                query_vector = self.embedding_generator.generate_embeddings(query, data_type="text")
+                # Handle if it returns batch (2D) or single (1D)
+                if len(query_vector.shape) == 2:
+                     query_vector = query_vector[0]
+            else:
+                query_vector = query
+
             if not vectors or not metadata:
                 self.progress_tracker.stop_tracking(
                     tracking_id,

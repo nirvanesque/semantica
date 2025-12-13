@@ -120,41 +120,84 @@ class GraphBuilder:
             self.conflict_detector = None
             self.logger.debug("Conflict resolution disabled")
 
+    def _process_item(self, item: Any, all_entities: List[Any], all_relationships: List[Any]):
+        """Helper to process a single item and add to entities or relationships list."""
+        if hasattr(item, "text") and hasattr(item, "label"):
+            # It's likely an Entity object
+            # Convert to dict format expected by graph builder
+            entity_dict = {
+                "id": getattr(item, "id", item.text), # Use text as ID if no ID
+                "name": item.text,
+                "type": item.label,
+                "confidence": getattr(item, "confidence", 1.0),
+                "metadata": getattr(item, "metadata", {})
+            }
+            all_entities.append(entity_dict)
+        elif hasattr(item, "subject") and hasattr(item, "predicate") and hasattr(item, "object"):
+            # It's likely a Relation object
+            # Convert to dict format
+            # Subject and Object in Relation might be Entity objects or strings
+            subj = item.subject
+            obj = item.object
+            
+            subj_id = getattr(subj, "text", subj) if not isinstance(subj, str) else subj
+            obj_id = getattr(obj, "text", obj) if not isinstance(obj, str) else obj
+            
+            rel_dict = {
+                "source": subj_id,
+                "target": obj_id,
+                "type": item.predicate,
+                "confidence": getattr(item, "confidence", 1.0),
+                "metadata": getattr(item, "metadata", {})
+            }
+            all_relationships.append(rel_dict)
+        elif isinstance(item, dict):
+            if "entities" in item:
+                all_entities.extend(item["entities"])
+            elif "relationships" in item:
+                all_relationships.extend(item["relationships"])
+            elif "source" in item and "target" in item:
+                all_relationships.append(item)
+            elif "id" in item or "entity_id" in item or "name" in item:
+                all_entities.append(item)
+        else:
+            # Unknown type, try to treat as entity if it has string representation
+            pass
+
     def build(
         self,
         sources: Union[List[Any], Any],
-        entity_resolver: Optional[Any] = None,
+        second_arg: Optional[Any] = None,
         **options,
     ) -> Dict[str, Any]:
         """
         Build knowledge graph from sources.
 
-        This method processes various source formats and extracts entities and
-        relationships to construct a knowledge graph. It handles entity resolution
-        and conflict detection if enabled.
-
         Args:
-            sources: List of sources in various formats:
-                - Dict with "entities" and/or "relationships" keys
-                - Dict with entity-like structure (has "id" or "entity_id")
-                - Dict with relationship structure (has "source" and "target")
-                - List of entity/relationship dicts
-            entity_resolver: Optional custom entity resolver (overrides default)
+            sources: Entities or sources list
+            second_arg: Optional relationships list or entity_resolver (for backward compatibility)
             **options: Additional build options
 
         Returns:
-            Dictionary containing:
-                - entities: List of resolved entities
-                - relationships: List of relationships
-                - metadata: Graph metadata including counts and timestamps
-
-        Example:
-            >>> sources = [
-            ...     {"entities": [{"id": "1", "name": "Alice"}],
-            ...      "relationships": [{"source": "1", "target": "2", "type": "knows"}]}
-            ... ]
-            >>> graph = builder.build(sources)
+            Dictionary containing entities and relationships
         """
+        # Handle arguments
+        entity_resolver = None
+        explicit_relationships = None
+
+        # Check if second_arg is entity_resolver or relationships
+        if second_arg is not None:
+            if hasattr(second_arg, "resolve"): # Duck typing for EntityResolver
+                entity_resolver = second_arg
+            elif isinstance(second_arg, list):
+                explicit_relationships = second_arg
+        
+        # Also check options for named arguments
+        if "entity_resolver" in options:
+            entity_resolver = options.pop("entity_resolver")
+        if "relationships" in options:
+            explicit_relationships = options.pop("relationships")
+
         # Normalize sources to list
         if not isinstance(sources, list):
             sources = [sources]
@@ -176,32 +219,23 @@ class GraphBuilder:
             all_entities = []
             all_relationships = []
 
+            # Process sources (which might be entities)
             for source in sources:
-                if isinstance(source, dict):
-                    # Source is a dictionary - extract entities and relationships
-                    if "entities" in source:
-                        # Explicit entities list
-                        all_entities.extend(source["entities"])
-                    elif "id" in source or "entity_id" in source:
-                        # Single entity object
-                        all_entities.append(source)
-
-                    if "relationships" in source:
-                        # Explicit relationships list
-                        all_relationships.extend(source["relationships"])
-                    elif "source" in source and "target" in source:
-                        # Single relationship object
-                        all_relationships.append(source)
-
-                elif isinstance(source, list):
-                    # Source is a list - process each item
+                if isinstance(source, list):
+                     # List of items (could be entities, relations, or mixed)
                     for item in source:
-                        if isinstance(item, dict):
-                            # Determine if item is a relationship or entity
-                            if "source" in item and "target" in item:
-                                all_relationships.append(item)
-                            else:
-                                all_entities.append(item)
+                        self._process_item(item, all_entities, all_relationships)
+                else:
+                    self._process_item(source, all_entities, all_relationships)
+
+            # Process explicit relationships if provided
+            if explicit_relationships:
+                for rel_item in explicit_relationships:
+                    if isinstance(rel_item, list):
+                        for item in rel_item:
+                             self._process_item(item, all_entities, all_relationships)
+                    else:
+                        self._process_item(rel_item, all_entities, all_relationships)
 
             self.logger.debug(
                 f"Extracted {len(all_entities)} entities and "
