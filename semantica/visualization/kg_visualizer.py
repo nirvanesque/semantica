@@ -364,13 +364,13 @@ class KGVisualizer:
             title="Entity Type Distribution",
         )
 
-        if output == "interactive":
-            return fig
-        elif file_path:
+        if file_path:
             export_plotly_figure(
                 fig, file_path, format=output if output != "interactive" else "html"
             )
-            return None
+
+        # Always return the figure to allow interactive preview in notebooks
+        return fig
 
     def visualize_relationship_matrix(
         self,
@@ -442,13 +442,13 @@ class KGVisualizer:
             yaxis_title="Source Entity Type",
         )
 
-        if output == "interactive":
-            return fig
-        elif file_path:
+        if file_path:
             export_plotly_figure(
                 fig, file_path, format=output if output != "interactive" else "html"
             )
-            return None
+
+        # Always return the figure to allow interactive preview in notebooks
+        return fig
 
     def _extract_nodes(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Extract nodes from entities."""
@@ -603,12 +603,46 @@ class KGVisualizer:
         # Prepare edge traces
         edge_x = []
         edge_y = []
+        
+        # Prepare edge label traces and annotations (for arrows)
+        edge_label_x = []
+        edge_label_y = []
+        edge_label_text = []
+        annotations = []
+        
+        # Limit detailed edge rendering for performance if graph is too large
+        show_detailed_edges = len(edges) < 500
+        
         for edge in edges:
             source_pos = pos.get(edge["source"])
             target_pos = pos.get(edge["target"])
             if source_pos and target_pos:
-                edge_x.extend([source_pos[0], target_pos[0], None])
-                edge_y.extend([source_pos[1], target_pos[1], None])
+                x0, y0 = source_pos
+                x1, y1 = target_pos
+                edge_x.extend([x0, x1, None])
+                edge_y.extend([y0, y1, None])
+                
+                if show_detailed_edges:
+                    # Calculate midpoint for label
+                    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+                    
+                    if edge.get("label"):
+                        edge_label_x.append(mx)
+                        edge_label_y.append(my)
+                        edge_label_text.append(edge["label"])
+                    
+                    # Add arrow annotation
+                    # Adjust arrow to point slightly before the node to avoid overlap with node marker
+                    # This is approximate; precise calculation requires node size
+                    annotations.append(
+                        dict(
+                            ax=x0, ay=y0, axref='x', ayref='y',
+                            x=x1, y=y1, xref='x', yref='y',
+                            arrowhead=2, arrowsize=1, arrowwidth=1,
+                            arrowcolor="#888", opacity=0.6,
+                            standoff=15 # Distance from target node
+                        )
+                    )
 
         edge_trace = go.Scatter(
             x=edge_x,
@@ -616,43 +650,71 @@ class KGVisualizer:
             line=dict(width=self.edge_width, color="#888"),
             hoverinfo="none",
             mode="lines",
+            showlegend=False,
+            opacity=0.5
         )
+        
+        traces = [edge_trace]
+        
+        if show_detailed_edges and edge_label_text:
+            edge_label_trace = go.Scatter(
+                x=edge_label_x,
+                y=edge_label_y,
+                mode="text",
+                text=edge_label_text,
+                textposition="middle center",
+                hoverinfo="none",
+                textfont=dict(size=8, color="#555"),
+                showlegend=False
+            )
+            traces.append(edge_label_trace)
 
         # Prepare node traces
         node_x = [pos[n["id"]][0] for n in nodes if n["id"] in pos]
         node_y = [pos[n["id"]][1] for n in nodes if n["id"] in pos]
+        node_labels = [n["label"] for n in nodes if n["id"] in pos]
 
         node_trace = go.Scatter(
             x=node_x,
             y=node_y,
             mode="markers+text",
             hoverinfo="text",
-            text=node_text,
+            text=node_labels, # Show labels directly on graph
+            hovertext=node_text, # Rich hover text
             textposition="top center",
+            textfont=dict(size=10, color="#333"),
             marker=dict(
                 size=node_sizes, 
                 color=node_colors, 
                 line=dict(width=2, color="white"),
-                opacity=0.9
+                opacity=1.0
             ),
+            showlegend=False
         )
+        traces.append(node_trace)
+
+        layout_args = dict(
+            title="Knowledge Graph Network",
+            showlegend=False,
+            hovermode="closest",
+            margin=dict(b=20, l=5, r=5, t=40),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            plot_bgcolor="white"
+        )
+        
+        if show_detailed_edges:
+            layout_args["annotations"] = annotations
 
         fig = go.Figure(
-            data=[edge_trace, node_trace],
-            layout=go.Layout(
-                title="Knowledge Graph Network",
-                showlegend=False,
-                hovermode="closest",
-                margin=dict(b=20, l=5, r=5, t=40),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            ),
+            data=traces,
+            layout=go.Layout(**layout_args),
         )
 
-        if output == "interactive":
-            return fig
-        elif file_path:
+        if file_path:
             export_plotly_figure(
                 fig, file_path, format=output if output != "interactive" else "html"
             )
-            return None
+
+        # Always return the figure to allow interactive preview in notebooks
+        return fig

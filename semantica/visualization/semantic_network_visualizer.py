@@ -60,11 +60,11 @@ class SemanticNetworkVisualizer:
         self.logger = get_logger("semantic_network_visualizer")
         self.config = config
         self.progress_tracker = get_progress_tracker()
-        color_scheme_name = config.get("color_scheme", "default")
+        color_scheme_name = config.get("color_scheme", "vibrant")
         try:
             self.color_scheme = ColorScheme[color_scheme_name.upper()]
         except (KeyError, AttributeError):
-            self.color_scheme = ColorScheme.DEFAULT
+            self.color_scheme = ColorScheme.VIBRANT
 
     def _check_dependencies(self):
         """Check if dependencies are available."""
@@ -254,6 +254,11 @@ class SemanticNetworkVisualizer:
 
             graph = {"entities": nodes, "relationships": edges}
             kg_viz = KGVisualizer(**self.config)
+            
+            # Default to Kamada-Kawai layout if not specified as it often produces better results for semantic networks
+            if "algorithm" not in options:
+                options["algorithm"] = "kamada_kawai"
+                
             result = kg_viz.visualize_network(graph, output, file_path, **options)
 
             self.progress_tracker.stop_tracking(
@@ -312,13 +317,13 @@ class SemanticNetworkVisualizer:
             title="Semantic Network Node Type Distribution",
         )
 
-        if output == "interactive":
-            return fig
-        elif file_path:
+        if file_path:
             export_plotly_figure(
                 fig, file_path, format=output if output != "interactive" else "html"
             )
-            return None
+
+        # Always return the figure to allow interactive preview in notebooks
+        return fig
 
     def visualize_edge_types(
         self,
@@ -364,10 +369,10 @@ class SemanticNetworkVisualizer:
             title="Semantic Network Edge Type Distribution",
         )
 
-        if output == "interactive":
-            return fig
-        elif file_path:
+        if file_path:
             export_plotly_figure(
                 fig, file_path, format=output if output != "interactive" else "html"
             )
-            return None
+
+        # Always return the figure to allow interactive preview in notebooks
+        return fig

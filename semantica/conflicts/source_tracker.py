@@ -128,6 +128,31 @@ class SourceTracker:
         # Source credibility scores
         self.source_credibility: Dict[str, float] = {}
 
+        # Source metadata
+        self.source_metadata: Dict[str, Dict[str, Any]] = {}
+
+    def register_source(
+        self,
+        source_id: str,
+        source_type: str,
+        credibility_score: float = 0.5,
+        **metadata,
+    ) -> bool:
+        """
+        Register a source with metadata and credibility score.
+
+        Args:
+            source_id: Source identifier
+            source_type: Type of source (e.g., "report", "news", "official")
+            credibility_score: Credibility score (0.0 to 1.0)
+            **metadata: Additional metadata
+
+        Returns:
+            True if registered successfully
+        """
+        self.source_metadata[source_id] = {"type": source_type, **metadata}
+        return self.set_source_credibility(source_id, credibility_score)
+
     def track_entity_source(
         self, entity_id: str, source: SourceReference, **metadata
     ) -> bool:

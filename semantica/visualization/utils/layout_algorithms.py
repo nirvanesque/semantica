@@ -92,10 +92,16 @@ class ForceDirectedLayout(LayoutAlgorithm):
                 G.add_nodes_from(nodes)
                 G.add_edges_from(edges)
 
-                # Use NetworkX spring layout
-                pos = nx.spring_layout(
-                    G, k=self.k, iterations=self.iterations, **options
-                )
+                # Use NetworkX layout
+                algorithm = options.get("algorithm", "spring")
+                
+                if algorithm == "kamada_kawai":
+                    pos = nx.kamada_kawai_layout(G, **{k: v for k, v in options.items() if k in ["weight", "scale", "center", "dim"]})
+                else:
+                    # Default to spring layout
+                    pos = nx.spring_layout(
+                        G, k=self.k, iterations=self.iterations, **{k: v for k, v in options.items() if k in ["weight", "scale", "center", "dim", "seed"]}
+                    )
 
                 return {
                     node: (float(pos[node][0]), float(pos[node][1])) for node in nodes
