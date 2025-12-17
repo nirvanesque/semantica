@@ -317,6 +317,7 @@ def track_sources(
     value: Optional[Any] = None,
     source: Optional[SourceReference] = None,
     method: str = "property",
+    tracker: Optional[SourceTracker] = None,
     **kwargs,
 ) -> bool:
     """
@@ -333,6 +334,7 @@ def track_sources(
             - "property": Track sources for property values
             - "entity": Track sources for entities
             - "relationship": Track sources for relationships
+        tracker: Optional SourceTracker instance to use (otherwise creates new one)
         **kwargs: Additional options passed to SourceTracker
 
     Returns:
@@ -348,11 +350,12 @@ def track_sources(
     custom_method = method_registry.get("tracking", method)
     if custom_method:
         return custom_method(
-            entity_id, property_name=property_name, value=value, source=source, **kwargs
+            entity_id, property_name=property_name, value=value, source=source, tracker=tracker, **kwargs
         )
 
-    # Use default SourceTracker
-    tracker = SourceTracker(**kwargs)
+    # Use provided tracker or create new one
+    # Also check kwargs for 'source_tracker' for compatibility
+    actual_tracker = tracker or kwargs.get("source_tracker") or SourceTracker(**kwargs)
 
     # Map method to tracker method
     if method == "property":
@@ -360,24 +363,24 @@ def track_sources(
             raise ValueError(
                 "property_name, value, and source are required for property tracking"
             )
-        return tracker.track_property_source(
+        return actual_tracker.track_property_source(
             entity_id, property_name, value, source, **kwargs
         )
     elif method == "entity":
         if not source:
             raise ValueError("source is required for entity tracking")
-        return tracker.track_entity_source(entity_id, source, **kwargs)
+        return actual_tracker.track_entity_source(entity_id, source, **kwargs)
     elif method == "relationship":
         relationship_id = kwargs.get("relationship_id")
         if not relationship_id or not source:
             raise ValueError(
                 "relationship_id and source are required for relationship tracking"
             )
-        return tracker.track_relationship_source(relationship_id, source, **kwargs)
+        return actual_tracker.track_relationship_source(relationship_id, source, **kwargs)
     else:
         # Default to property tracking
         if property_name and value and source:
-            return tracker.track_property_source(
+            return actual_tracker.track_property_source(
                 entity_id, property_name, value, source, **kwargs
             )
         else:

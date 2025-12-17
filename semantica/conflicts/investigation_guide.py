@@ -94,6 +94,11 @@ class InvestigationGuide:
     context: Dict[str, Any] = field(default_factory=dict)
     generated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
+    @property
+    def title(self) -> str:
+        """Get guide title."""
+        return f"Investigation: {self.conflict_id}"
+
 
 class InvestigationGuideGenerator:
     """

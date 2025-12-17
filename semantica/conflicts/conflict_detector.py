@@ -115,7 +115,7 @@ class ConflictDetector:
         self.config = config or {}
         self.config.update(kwargs)
 
-        self.source_tracker = SourceTracker()
+        self.source_tracker = self.config.get("source_tracker") or SourceTracker()
         self.track_provenance = self.config.get("track_provenance", True)
         self.conflict_fields = self.config.get("conflict_fields", {})
         self.confidence_threshold = self.config.get("confidence_threshold", 0.7)

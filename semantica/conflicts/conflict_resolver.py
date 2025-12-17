@@ -133,6 +133,15 @@ class ConflictResolver:
 
         self.resolution_history: List[ResolutionResult] = []
 
+    def set_source_tracker(self, source_tracker: SourceTracker) -> None:
+        """
+        Set the source tracker instance.
+
+        Args:
+            source_tracker: Source tracker instance
+        """
+        self.source_tracker = source_tracker
+
     def _normalize_strategy(
         self, strategy: Union[str, ResolutionStrategy, None]
     ) -> ResolutionStrategy:
