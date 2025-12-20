@@ -426,8 +426,7 @@ pipeline = PipelineBuilder() \
 
 result = ExecutionEngine().execute_pipeline(pipeline, parallel=True)
 ```
-
-[**Cookbook: Pipeline Orchestration**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/07_Pipeline_Orchestration.ipynb)
+
 
 ### Production-Ready Quality Assurance
 
