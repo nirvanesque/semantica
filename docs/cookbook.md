@@ -242,15 +242,6 @@ Deep dive into advanced features, customization, and complex workflows.
     
     [Open Notebook](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/advanced/06_Multi_Source_Data_Integration.ipynb)
 
--   :material-pipe: **Pipeline Orchestration**
-    ---
-    Building robust, automated data processing pipelines.
-    
-    **Topics**: Workflows, Automation, Error Handling
-    
-    **Difficulty**: Advanced
-    
-    [Open Notebook](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/advanced/07_Pipeline_Orchestration.ipynb)
 
 -   :material-brain: **Reasoning and Inference**
     ---

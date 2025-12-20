@@ -381,6 +381,3 @@ result = engine.execute_pipeline(pipeline, data={"path": "document.pdf"})
 - [Split Module](split.md) - Common processing step
 - [Vector Store Module](vector_store.md) - Common sink step
 
-## Cookbook
-
-- [Pipeline Orchestration](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/advanced/07_Pipeline_Orchestration.ipynb)
