@@ -62,6 +62,7 @@ class GraphBuilder:
         temporal_granularity="day",
         track_history=False,
         version_snapshots=False,
+        graph_store=None,
         **kwargs,
     ):
         """
@@ -75,6 +76,7 @@ class GraphBuilder:
             temporal_granularity: Time granularity ("second", "minute", "hour", "day", "week", "month", "year")
             track_history: Track historical changes to entities/relationships
             version_snapshots: Create version snapshots at intervals
+            graph_store: Optional GraphStore instance for persistence
             **kwargs: Additional configuration options
         """
         self.merge_entities = merge_entities
@@ -84,6 +86,7 @@ class GraphBuilder:
         self.temporal_granularity = temporal_granularity
         self.track_history = track_history
         self.version_snapshots = version_snapshots
+        self.graph_store = graph_store
 
         # Initialize logging
         from ..utils.logging import get_logger
@@ -320,6 +323,29 @@ class GraphBuilder:
                     "entity_resolution_applied": resolver_to_use is not None,
                 },
             }
+
+            # Persist to GraphStore if available
+            if self.graph_store:
+                self.logger.info("Persisting knowledge graph to GraphStore")
+                self.progress_tracker.update_tracking(
+                    tracking_id, message="Persisting to GraphStore..."
+                )
+                
+                # Add nodes
+                node_count = self.graph_store.add_nodes(resolved_entities)
+                
+                # Prepare edges for add_edges (expects source_id, target_id, type)
+                formatted_edges = []
+                for rel in all_relationships:
+                    formatted_edges.append({
+                        "source_id": rel.get("source"),
+                        "target_id": rel.get("target"),
+                        "type": rel.get("type", "RELATED_TO"),
+                        "properties": rel.get("metadata", {})
+                    })
+                
+                edge_count = self.graph_store.add_edges(formatted_edges)
+                self.logger.info(f"Persisted {node_count} nodes and {edge_count} edges")
 
             # Detect and resolve conflicts if conflict detector is available
             if self.conflict_detector:

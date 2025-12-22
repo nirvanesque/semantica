@@ -704,10 +704,36 @@ class GraphStore:
         depth: int = 1,
         **options,
     ) -> List[Dict[str, Any]]:
-        """Get neighboring nodes."""
+        """
+        Get neighboring nodes.
+
+        Args:
+            node_id: Node ID
+            rel_type: Relationship type filter
+            direction: Relationship direction
+            depth: Traversal depth (alias: hops)
+            **options: Additional options
+        """
+        # Support 'hops' as alias for 'depth' for ContextRetriever compatibility
+        actual_depth = options.get("hops", depth)
         return self._manager.analytics.get_neighbors(
-            node_id, rel_type, direction, depth, **options
+            node_id, rel_type, direction, actual_depth, **options
         )
+
+    def query(self, query: str, parameters: Optional[Dict[str, Any]] = None, **options) -> List[Dict[str, Any]]:
+        """
+        Execute a query and return results (Compatibility method for ContextRetriever).
+
+        Args:
+            query: Query string (Cypher)
+            parameters: Query parameters
+            **options: Additional options
+
+        Returns:
+            List of result records
+        """
+        result = self.execute_query(query, parameters, **options)
+        return result.get("records", [])
 
     # Management operations
     def get_stats(self) -> Dict[str, Any]:
