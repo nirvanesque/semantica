@@ -14,15 +14,15 @@ theme:
   palette:
     # Light mode
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -40,6 +40,7 @@ theme:
     - content.code.annotate
     - content.tooltips
   icon:
+    logo: material/brain
     repo: fontawesome/brands/github
 
 # Extensions
@@ -56,8 +57,8 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
@@ -69,6 +70,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      toc_depth: 6
 
 # Plugins
 plugins:
@@ -76,20 +78,71 @@ plugins:
       lang: en
   - minify:
       minify_html: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+  - mkdocs-jupyter:
+      include_source: true
 
 # Custom CSS
 extra_css:
   - css/custom.css
 
+# Custom JavaScript
+extra_javascript:
+  - js/version-selector.js
+
 # Navigation
 nav:
   - Home: index.md
-  - Quickstart: quickstart.md
-  - Installation: installation.md
-  - Cookbook Recipes: cookbook.md
-  - Learning More: learning-more.md
-  - Deep Dive: deep-dive.md
-  - API References: api.md
+  - Getting Started:
+    - Overview: getting-started.md
+    - installation.md
+    - quickstart.md
+  - Docs:
+    - Conflicts: reference/conflicts.md
+    - Context: reference/context.md
+    - Core: reference/core.md
+    - Deduplication: reference/deduplication.md
+    - Embeddings: reference/embeddings.md
+    - Evals: reference/evals.md
+    - Export: reference/export.md
+    - Graph Store: reference/graph_store.md
+    - Ingest: reference/ingest.md
+    - Knowledge Graph: reference/kg.md
+    - Normalize: reference/normalize.md
+    - Ontology: reference/ontology.md
+    - Parse: reference/parse.md
+    - Pipeline: reference/pipeline.md
+    - Reasoning: reference/reasoning.md
+    - Seed: reference/seed.md
+    - Semantic Extract: reference/semantic_extract.md
+    - Split: reference/split.md
+    - Triplet Store: reference/triplet_store.md
+    - Utils: reference/utils.md
+    - Vector Store: reference/vector_store.md
+    - Visualization: reference/visualization.md
+  - Guides:
+    - concepts.md
+    - modules.md
+    - use-cases.md
+    - examples.md
+    - learning-more.md
+  - Cookbook: cookbook.md
+  - Resources:
+    - community-projects.md
+    - community.md
+    - contributing.md
+    - architecture.md
+    - governance.md
+    - citation.md
+    - faq.md
+    - license.md
 
 # Extra
 extra:
@@ -100,4 +153,5 @@ extra:
       link: https://pypi.org/project/semantica/
   version:
     provider: mike
+  generator: true
 

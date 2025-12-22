@@ -2,6 +2,12 @@
 
 Get Semantica up and running in minutes.
 
+!!! success "Now Available on PyPI!"
+    Semantica is officially published on PyPI! Install it with a single command: `pip install semantica`
+
+!!! note "System Requirements"
+    Semantica requires Python 3.8 or higher. For best performance, we recommend Python 3.10+.
+
 ## Prerequisites
 
 Before installing Semantica, ensure you have:
@@ -21,6 +27,9 @@ pip install semantica
 ```
 
 This installs Semantica with all core dependencies.
+
+!!! tip "Virtual Environment"
+    We recommend installing Semantica in a virtual environment to avoid dependency conflicts. Use `python -m venv venv` to create one, then activate it before installing.
 
 ## Verify Installation
 
@@ -212,8 +221,8 @@ It's recommended to use a virtual environment:
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
 | Python | 3.8 | 3.11+ |
-| RAM | 4 GB | 8 GB+ |
-| Disk Space | 2 GB | 5 GB+ |
+| RAM | Moderate | Ample for your dataset |
+| Disk Space | Sufficient for data | Generous storage |
 | OS | Windows/Linux/Mac | Linux/Mac |
 
 ## Next Steps
@@ -222,7 +231,7 @@ Now that Semantica is installed:
 
 1. **[Quick Start Guide](quickstart.md)** - Build your first knowledge graph
 2. **[Examples](examples.md)** - See real-world use cases
-3. **[API Reference](api.md)** - Explore the full API
+3. **[API Reference](reference/core.md) - Explore the full API
 4. **[Cookbook](cookbook.md)** - Interactive tutorials
 
 ## Getting Help

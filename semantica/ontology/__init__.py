@@ -11,8 +11,8 @@ Ontology Generation (6-Stage Pipeline):
     - Stage 2 - YAML-to-Definition: Transform concepts into class definitions, YAML parsing, definition structure creation, class inference (ClassInferrer.infer_classes)
     - Stage 3 - Definition-to-Types: Map definitions to OWL types, type inference, OWL class/property mapping (@type assignment: owl:Class, owl:ObjectProperty, owl:DatatypeProperty), property inference (PropertyGenerator.infer_properties)
     - Stage 4 - Hierarchy Generation: Build taxonomic structures, parent-child relationship inference, hierarchy validation, circular dependency detection (DFS), transitive closure calculation
-    - Stage 5 - TTL Generation: Generate OWL/Turtle syntax using rdflib, namespace prefix handling, RDF serialization (rdflib.serialize format="turtle"), triple generation (subject-predicate-object)
-    - Stage 6 - Symbolic Validation: HermiT/Pellet reasoning (owlready2.sync_reasoner), consistency checking, satisfiability checking, constraint validation
+    - Stage 5 - TTL Generation: Generate OWL/Turtle syntax using rdflib, namespace prefix handling, RDF serialization (rdflib.serialize format="turtle"), triplet generation (subject-predicate-object)
+    - Stage 6 - Symbolic Validation: HermiT/Pellet reasoning, consistency checking, satisfiability checking, structural validation
 
 Class Inference:
     - Pattern-Based Inference: Entity type frequency analysis (Counter), minimum occurrence threshold filtering, similarity-based class merging (threshold matching), entity grouping by type
@@ -24,13 +24,8 @@ Property Inference:
     - Data Property Inference: Entity attribute analysis, XSD type detection (string, integer, float, boolean, date), property domain inference, attribute frequency analysis
     - Property Validation: Domain/range validation, property hierarchy management, naming convention enforcement (camelCase), property IRI generation
 
-Ontology Validation:
-    - Symbolic Reasoning: HermiT reasoner integration (owlready2.sync_reasoner), Pellet reasoner integration, consistency checking, satisfiability checking, reasoner selection (auto/hermit/pellet)
-    - Constraint Validation: Domain/range constraint checking, cardinality constraint validation, logical constraint validation, structure validation
-    - Hallucination Detection: LLM-generated ontology validation, fact verification, relationship validation, error/warning collection
-
 OWL/RDF Generation:
-    - RDF Graph Construction: rdflib.Graph creation, namespace binding, triple generation (subject-predicate-object), namespace prefix declaration
+    - RDF Graph Construction: rdflib.Graph creation, namespace binding, triplet generation (subject-predicate-object), namespace prefix declaration
     - Serialization: Turtle format (rdflib.serialize format="turtle"), RDF/XML format, JSON-LD format, N3 format, format selection and conversion
     - Namespace Management: Prefix declaration, IRI resolution, namespace prefix mapping, standard namespace registration (RDF, RDFS, OWL, XSD, SKOS, DC)
 
@@ -66,7 +61,6 @@ Associative Class Creation:
 Key Features:
     - Automatic ontology generation from data (6-stage pipeline)
     - Class and property inference from entities and relationships
-    - Ontology validation with symbolic reasoners (HermiT, Pellet)
     - OWL/RDF generation and serialization
     - Ontology quality evaluation and assessment
     - Requirements specification and competency questions
@@ -85,9 +79,8 @@ Main Classes:
     - OntologyGenerator: Main ontology generation class (6-stage pipeline)
     - ClassInferrer: Class discovery and hierarchy building
     - PropertyGenerator: Property inference and data types
-    - OntologyValidator: Validation with symbolic reasoners
-    - OWLGenerator: OWL/RDF generation using rdflib
     - OntologyEvaluator: Ontology quality evaluation
+    - OWLGenerator: OWL/RDF generation using rdflib
     - RequirementsSpecManager: Requirements specification and competency questions
     - CompetencyQuestionsManager: Competency question management
     - ReuseManager: Ontology reuse management
@@ -105,7 +98,6 @@ Convenience Functions:
     - generate_ontology: Ontology generation wrapper (6-stage pipeline)
     - infer_classes: Class inference wrapper
     - infer_properties: Property inference wrapper
-    - validate_ontology: Ontology validation wrapper
     - generate_owl: OWL/RDF generation wrapper
     - evaluate_ontology: Ontology evaluation wrapper
     - create_requirements_spec: Requirements specification wrapper
@@ -119,11 +111,10 @@ Convenience Functions:
     - list_available_methods: List registered methods
 
 Example Usage:
-    >>> from semantica.ontology import generate_ontology, infer_classes, validate_ontology, OntologyGenerator
+    >>> from semantica.ontology import generate_ontology, infer_classes, OntologyGenerator
     >>> # Using convenience functions
     >>> ontology = generate_ontology({"entities": [...], "relationships": [...]}, method="default")
     >>> classes = infer_classes(entities, method="default")
-    >>> result = validate_ontology(ontology, method="default")
     >>> # Using classes directly
     >>> from semantica.ontology import OntologyGenerator, ClassInferrer, PropertyGenerator
     >>> generator = OntologyGenerator(base_uri="https://example.org/ontology/")
@@ -139,41 +130,31 @@ License: MIT
 
 from typing import Any, Dict, List, Optional, Union
 
-from .ontology_generator import OntologyGenerator, ClassInferencer, PropertyInferencer, OntologyOptimizer
+from .associative_class import AssociativeClass, AssociativeClassBuilder
 from .class_inferrer import ClassInferrer
-from .property_generator import PropertyGenerator
-from .ontology_validator import OntologyValidator, ValidationResult
-from .owl_generator import OWLGenerator
-from .ontology_evaluator import OntologyEvaluator, EvaluationResult
-from .requirements_spec import RequirementsSpecManager, RequirementsSpec
-from .competency_questions import CompetencyQuestionsManager, CompetencyQuestion
-from .reuse_manager import ReuseManager, ReuseDecision
-from .version_manager import VersionManager, OntologyVersion
+from .competency_questions import CompetencyQuestion, CompetencyQuestionsManager
+from .config import OntologyConfig, ontology_config
+from .domain_ontologies import DomainOntologies
+from .llm_generator import LLMOntologyGenerator
+from .engine import OntologyEngine
+from .module_manager import ModuleManager, OntologyModule
 from .namespace_manager import NamespaceManager
 from .naming_conventions import NamingConventions
-from .module_manager import ModuleManager, OntologyModule
-from .domain_ontologies import DomainOntologies
-from .ontology_documentation import OntologyDocumentationManager, OntologyDocumentation
-from .associative_class import AssociativeClassBuilder, AssociativeClass
-from .registry import MethodRegistry, method_registry
-from .methods import (
-    generate_ontology,
-    infer_classes,
-    infer_properties,
-    validate_ontology,
-    generate_owl,
-    evaluate_ontology,
-    create_requirements_spec,
-    add_competency_question,
-    research_ontology,
-    import_external_ontology,
-    create_version,
-    manage_namespace,
-    create_associative_class,
-    get_ontology_method,
-    list_available_methods,
+from .ontology_documentation import OntologyDocumentation, OntologyDocumentationManager
+from .ontology_evaluator import EvaluationResult, OntologyEvaluator
+from .ontology_generator import (
+    ClassInferencer,
+    OntologyGenerator,
+    OntologyOptimizer,
+    PropertyInferencer,
 )
-from .config import OntologyConfig, ontology_config
+from .ontology_validator import OntologyValidator, ValidationResult, validate_ontology
+from .owl_generator import OWLGenerator
+from .property_generator import PropertyGenerator
+from .registry import MethodRegistry, method_registry
+from .requirements_spec import RequirementsSpec, RequirementsSpecManager
+from .reuse_manager import ReuseDecision, ReuseManager
+from .version_manager import OntologyVersion, VersionManager
 
 __all__ = [
     # Main generators
@@ -183,22 +164,19 @@ __all__ = [
     "PropertyGenerator",
     "PropertyInferencer",  # Legacy alias
     "OntologyOptimizer",
-    
     # Validation and evaluation
     "OntologyValidator",
     "ValidationResult",
+    "validate_ontology",
     "OntologyEvaluator",
     "EvaluationResult",
-    
     # OWL/RDF generation
     "OWLGenerator",
-    
     # Requirements and competency questions
     "RequirementsSpecManager",
     "RequirementsSpec",
     "CompetencyQuestionsManager",
     "CompetencyQuestion",
-    
     # Management
     "ReuseManager",
     "ReuseDecision",
@@ -211,30 +189,14 @@ __all__ = [
     "DomainOntologies",
     "OntologyDocumentationManager",
     "OntologyDocumentation",
-    
     # Special classes
     "AssociativeClassBuilder",
     "AssociativeClass",
-    
     # Registry and Methods
     "MethodRegistry",
     "method_registry",
-    "generate_ontology",
-    "infer_classes",
-    "infer_properties",
-    "validate_ontology",
-    "generate_owl",
-    "evaluate_ontology",
-    "create_requirements_spec",
-    "add_competency_question",
-    "research_ontology",
-    "import_external_ontology",
-    "create_version",
-    "manage_namespace",
-    "create_associative_class",
-    "get_ontology_method",
-    "list_available_methods",
-    
+    "LLMOntologyGenerator",
+    "OntologyEngine",
     # Configuration
     "OntologyConfig",
     "ontology_config",

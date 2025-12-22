@@ -1,6 +1,9 @@
 # Knowledge Graph Module Usage Guide
 
-This guide demonstrates how to use the knowledge graph module for building, analyzing, validating, and managing knowledge graphs, including temporal knowledge graphs, entity resolution, conflict detection, and graph analytics.
+This guide demonstrates how to use the knowledge graph module for building, analyzing, validating, and managing knowledge graphs, including temporal knowledge graphs, entity resolution, and graph analytics.
+
+Note: For conflict detection and resolution, use the `semantica.conflicts` module.
+For deduplication, use the `semantica.deduplication` module.
 
 ## Table of Contents
 
@@ -8,48 +11,17 @@ This guide demonstrates how to use the knowledge graph module for building, anal
 2. [Knowledge Graph Building](#knowledge-graph-building)
 3. [Graph Analysis](#graph-analysis)
 4. [Entity Resolution](#entity-resolution)
-5. [Graph Validation](#graph-validation)
-6. [Conflict Detection](#conflict-detection)
-7. [Centrality Calculation](#centrality-calculation)
-8. [Community Detection](#community-detection)
-9. [Connectivity Analysis](#connectivity-analysis)
-10. [Deduplication](#deduplication)
-11. [Temporal Queries](#temporal-queries)
-12. [Provenance Tracking](#provenance-tracking)
-13. [Using Methods](#using-methods)
-14. [Using Registry](#using-registry)
-15. [Configuration](#configuration)
-16. [Advanced Examples](#advanced-examples)
+5. [Centrality Calculation](#centrality-calculation)
+6. [Community Detection](#community-detection)
+7. [Connectivity Analysis](#connectivity-analysis)
+8. [Temporal Queries](#temporal-queries)
+9. [Provenance Tracking](#provenance-tracking)
+10. [Using Methods](#using-methods)
+11. [Using Registry](#using-registry)
+12. [Configuration](#configuration)
+13. [Advanced Examples](#advanced-examples)
 
 ## Basic Usage
-
-### Using the Convenience Function
-
-```python
-from semantica.kg import build
-
-# Build knowledge graph from sources
-sources = [
-    {
-        "entities": [
-            {"id": "1", "name": "Alice", "type": "Person"},
-            {"id": "2", "name": "Bob", "type": "Person"}
-        ],
-        "relationships": [
-            {"source": "1", "target": "2", "type": "knows"}
-        ]
-    }
-]
-
-kg = build(
-    sources=sources,
-    merge_entities=True,
-    resolve_conflicts=True
-)
-
-print(f"Built graph with {kg['metadata']['num_entities']} entities")
-print(f"Relationships: {kg['metadata']['num_relationships']}")
-```
 
 ### Using Main Classes
 
@@ -71,22 +43,17 @@ analyzer = GraphAnalyzer()
 analysis = analyzer.analyze_graph(kg)
 ```
 
+
 ## Knowledge Graph Building
 
 ### Basic Graph Building
 
 ```python
-from semantica.kg import build_kg, GraphBuilder
+from semantica.kg import GraphBuilder
 
-# Using convenience function
-kg = build_kg(
-    sources=sources,
-    method="default",
-    merge_entities=True,
-    resolve_conflicts=True
-)
-
-# Using class directly
+# Create graph builder
+# Note: resolve_conflicts=True uses the basic resolution capabilities of ConflictDetector.
+# For advanced conflict resolution, consider using the semantica.conflicts module directly.
 builder = GraphBuilder(
     merge_entities=True,
     entity_resolution_strategy="fuzzy",
@@ -94,23 +61,24 @@ builder = GraphBuilder(
     enable_temporal=False
 )
 
+# Build knowledge graph
 kg = builder.build(sources)
 ```
 
 ### Temporal Knowledge Graph Building
 
 ```python
-from semantica.kg import build_kg
+from semantica.kg import GraphBuilder
 
 # Build temporal knowledge graph
-temporal_kg = build_kg(
-    sources=sources,
-    method="temporal",
+builder = GraphBuilder(
     enable_temporal=True,
     temporal_granularity="day",
     track_history=True,
     version_snapshots=True
 )
+
+temporal_kg = builder.build(sources)
 
 # Access temporal information
 for rel in temporal_kg["relationships"]:
@@ -134,19 +102,23 @@ new_sources = [{"entities": [...], "relationships": [...]}]
 updated_kg = builder.build(new_sources)
 ```
 
-### Using Build Methods
+### Building with Different Configurations
 
 ```python
-from semantica.kg.methods import build_kg
+from semantica.kg import GraphBuilder
 
 # Default building
-kg = build_kg(sources, method="default")
+builder = GraphBuilder()
+kg = builder.build(sources)
 
 # Temporal building
-temporal_kg = build_kg(sources, method="temporal", enable_temporal=True)
+temporal_builder = GraphBuilder(enable_temporal=True)
+temporal_kg = temporal_builder.build(sources)
 
-# Incremental building
-kg = build_kg(sources, method="incremental")
+# Incremental building (same builder, multiple calls)
+builder = GraphBuilder(merge_entities=True)
+kg1 = builder.build(initial_sources)
+kg2 = builder.build(additional_sources)
 ```
 
 ## Graph Analysis
@@ -154,68 +126,74 @@ kg = build_kg(sources, method="incremental")
 ### Comprehensive Analysis
 
 ```python
-from semantica.kg import analyze_graph, GraphAnalyzer
+from semantica.kg import GraphAnalyzer
 
-# Using convenience function
-analysis = analyze_graph(kg, method="default")
+# Create analyzer and analyze graph
+analyzer = GraphAnalyzer()
+analysis = analyzer.analyze_graph(kg)
 
 print(f"Nodes: {analysis['num_nodes']}")
 print(f"Edges: {analysis['num_edges']}")
 print(f"Density: {analysis['density']}")
-
-# Using class directly
-analyzer = GraphAnalyzer()
-analysis = analyzer.analyze_graph(kg)
 ```
 
 ### Centrality-Focused Analysis
 
 ```python
-from semantica.kg import analyze_graph
+from semantica.kg import GraphAnalyzer, CentralityCalculator
 
-# Focus on centrality metrics
-analysis = analyze_graph(kg, method="centrality")
+# Analyze graph with centrality focus
+analyzer = GraphAnalyzer()
+analysis = analyzer.analyze_graph(kg)
+
+# Calculate centrality separately
+centrality_calc = CentralityCalculator()
+degree_centrality = centrality_calc.calculate_degree_centrality(kg)
 
 # Access centrality results
-if "centrality" in analysis:
-    degree_centrality = analysis["centrality"].get("degree", {})
+if "rankings" in degree_centrality:
     print("Top nodes by degree centrality:")
-    for node, score in sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:5]:
-        print(f"  {node}: {score}")
+    for ranking in degree_centrality["rankings"][:5]:
+        print(f"  {ranking['node']}: {ranking['score']}")
 ```
 
 ### Community-Focused Analysis
 
 ```python
-from semantica.kg import analyze_graph
+from semantica.kg import CommunityDetector
 
-# Focus on community detection
-analysis = analyze_graph(kg, method="community")
+# Detect communities
+detector = CommunityDetector()
+result = detector.detect_communities(kg, algorithm="louvain")
 
 # Access community results
-if "communities" in analysis:
-    communities = analysis["communities"]
+if "communities" in result:
+    communities = result["communities"]
     print(f"Found {len(communities)} communities")
     for i, community in enumerate(communities):
         print(f"Community {i}: {len(community)} nodes")
 ```
 
-### Using Analysis Methods
+### Different Types of Analysis
 
 ```python
-from semantica.kg.methods import analyze_graph
+from semantica.kg import GraphAnalyzer, CentralityCalculator, CommunityDetector, ConnectivityAnalyzer
 
-# Default analysis
-analysis = analyze_graph(kg, method="default")
+# Default comprehensive analysis
+analyzer = GraphAnalyzer()
+analysis = analyzer.analyze_graph(kg)
 
 # Centrality analysis
-analysis = analyze_graph(kg, method="centrality")
+centrality_calc = CentralityCalculator()
+centrality = centrality_calc.calculate_all_centrality(kg)
 
 # Community analysis
-analysis = analyze_graph(kg, method="community")
+community_detector = CommunityDetector()
+communities = community_detector.detect_communities(kg, algorithm="louvain")
 
 # Connectivity analysis
-analysis = analyze_graph(kg, method="connectivity")
+connectivity_analyzer = ConnectivityAnalyzer()
+connectivity = connectivity_analyzer.analyze_connectivity(kg)
 ```
 
 ## Entity Resolution
@@ -223,218 +201,90 @@ analysis = analyze_graph(kg, method="connectivity")
 ### Fuzzy Matching Resolution
 
 ```python
-from semantica.kg import resolve_entities, EntityResolver
+from semantica.kg import EntityResolver
 
-# Using convenience function
 entities = [
     {"id": "1", "name": "Apple Inc.", "type": "Company"},
     {"id": "2", "name": "Apple", "type": "Company"},
     {"id": "3", "name": "Microsoft", "type": "Company"}
 ]
 
-resolved = resolve_entities(entities, method="fuzzy", similarity_threshold=0.8)
+# Create resolver with fuzzy strategy
+resolver = EntityResolver(strategy="fuzzy", similarity_threshold=0.8)
+resolved = resolver.resolve_entities(entities)
 
 print(f"Original: {len(entities)} entities")
 print(f"Resolved: {len(resolved)} entities")
-
-# Using class directly
-resolver = EntityResolver(strategy="fuzzy", similarity_threshold=0.8)
-resolved = resolver.resolve_entities(entities)
 ```
 
 ### Exact Matching Resolution
 
 ```python
-from semantica.kg import resolve_entities
+from semantica.kg import EntityResolver
 
 # Exact string matching
-resolved = resolve_entities(entities, method="exact")
+resolver = EntityResolver(strategy="exact")
+resolved = resolver.resolve_entities(entities)
 ```
 
 ### Semantic Matching Resolution
 
 ```python
-from semantica.kg import resolve_entities
+from semantica.kg import EntityResolver
 
 # Semantic similarity matching
-resolved = resolve_entities(entities, method="semantic", similarity_threshold=0.9)
+resolver = EntityResolver(strategy="semantic", similarity_threshold=0.9)
+resolved = resolver.resolve_entities(entities)
 ```
 
-### Using Resolution Methods
+### Different Resolution Strategies
 
 ```python
-from semantica.kg.methods import resolve_entities
+from semantica.kg import EntityResolver
 
 # Fuzzy matching
-resolved = resolve_entities(entities, method="fuzzy")
+fuzzy_resolver = EntityResolver(strategy="fuzzy", similarity_threshold=0.8)
+fuzzy_resolved = fuzzy_resolver.resolve_entities(entities)
 
 # Exact matching
-resolved = resolve_entities(entities, method="exact")
+exact_resolver = EntityResolver(strategy="exact")
+exact_resolved = exact_resolver.resolve_entities(entities)
 
 # Semantic matching
-resolved = resolve_entities(entities, method="semantic")
+semantic_resolver = EntityResolver(strategy="semantic", similarity_threshold=0.9)
+semantic_resolved = semantic_resolver.resolve_entities(entities)
 ```
 
-## Graph Validation
 
-### Comprehensive Validation
 
-```python
-from semantica.kg import validate_graph, GraphValidator
-
-# Using convenience function
-result = validate_graph(kg, method="default")
-
-if result.valid:
-    print("Graph is valid!")
-else:
-    print(f"Found {len(result.errors)} errors:")
-    for error in result.errors:
-        print(f"  - {error}")
-    
-    print(f"Found {len(result.warnings)} warnings:")
-    for warning in result.warnings:
-        print(f"  - {warning}")
-
-# Using class directly
-validator = GraphValidator()
-result = validator.validate(kg)
-```
-
-### Structure-Only Validation
-
-```python
-from semantica.kg import validate_graph
-
-# Validate structure only
-result = validate_graph(kg, method="structure")
-```
-
-### Consistency Checking
-
-```python
-from semantica.kg import validate_graph, GraphValidator
-
-# Check consistency only
-is_consistent = validate_graph(kg, method="consistency")
-
-# Using class directly
-validator = GraphValidator()
-is_consistent = validator.check_consistency(kg)
-```
-
-### Using Validation Methods
-
-```python
-from semantica.kg.methods import validate_graph
-
-# Default validation
-result = validate_graph(kg, method="default")
-
-# Structure validation
-result = validate_graph(kg, method="structure")
-
-# Consistency check
-is_consistent = validate_graph(kg, method="consistency")
-```
-
-## Conflict Detection
-
-### Comprehensive Conflict Detection
-
-```python
-from semantica.kg import detect_conflicts, ConflictDetector
-
-# Using convenience function
-conflicts = detect_conflicts(kg, method="default")
-
-print(f"Found {len(conflicts)} conflicts")
-for conflict in conflicts:
-    print(f"Type: {conflict['type']}")
-    print(f"Property: {conflict['property']}")
-    print(f"Conflicting values: {conflict['conflicting_values']}")
-
-# Using class directly
-detector = ConflictDetector()
-conflicts = detector.detect_conflicts(kg)
-```
-
-### Value Conflict Detection
-
-```python
-from semantica.kg import detect_conflicts
-
-# Detect value conflicts only
-value_conflicts = detect_conflicts(kg, method="value")
-```
-
-### Relationship Conflict Detection
-
-```python
-from semantica.kg import detect_conflicts
-
-# Detect relationship conflicts only
-rel_conflicts = detect_conflicts(kg, method="relationship")
-```
-
-### Conflict Resolution
-
-```python
-from semantica.kg import ConflictDetector
-
-detector = ConflictDetector()
-
-# Detect conflicts
-conflicts = detector.detect_conflicts(kg)
-
-# Resolve conflicts
-resolution = detector.resolve_conflicts(conflicts, strategy="highest_confidence")
-
-print(f"Resolved: {resolution['resolved_count']}")
-print(f"Unresolved: {resolution['unresolved_count']}")
-```
-
-### Using Conflict Detection Methods
-
-```python
-from semantica.kg.methods import detect_conflicts
-
-# Default detection
-conflicts = detect_conflicts(kg, method="default")
-
-# Value conflicts
-conflicts = detect_conflicts(kg, method="value")
-
-# Relationship conflicts
-conflicts = detect_conflicts(kg, method="relationship")
-```
+!!! note "Conflict Detection and Resolution"
+    Conflict detection and resolution have been moved to the dedicated `semantica.conflicts` module.
+    Please use `semantica.conflicts.ConflictDetector` and `semantica.conflicts.ConflictResolver` for these tasks.
 
 ## Centrality Calculation
 
 ### Degree Centrality
 
 ```python
-from semantica.kg import calculate_centrality, CentralityCalculator
+from semantica.kg import CentralityCalculator
 
-# Using convenience function
-result = calculate_centrality(kg, method="degree")
+# Calculate degree centrality
+calculator = CentralityCalculator()
+result = calculator.calculate_degree_centrality(kg)
 
 print("Top nodes by degree centrality:")
 for ranking in result["rankings"][:5]:
     print(f"  {ranking['node']}: {ranking['score']}")
-
-# Using class directly
-calculator = CentralityCalculator()
-result = calculator.calculate_degree_centrality(kg)
 ```
 
 ### Betweenness Centrality
 
 ```python
-from semantica.kg import calculate_centrality
+from semantica.kg import CentralityCalculator
 
 # Calculate betweenness centrality
-result = calculate_centrality(kg, method="betweenness")
+calculator = CentralityCalculator()
+result = calculator.calculate_betweenness_centrality(kg)
 
 print("Top nodes by betweenness centrality:")
 for ranking in result["rankings"][:5]:
@@ -444,10 +294,11 @@ for ranking in result["rankings"][:5]:
 ### Closeness Centrality
 
 ```python
-from semantica.kg import calculate_centrality
+from semantica.kg import CentralityCalculator
 
 # Calculate closeness centrality
-result = calculate_centrality(kg, method="closeness")
+calculator = CentralityCalculator()
+result = calculator.calculate_closeness_centrality(kg)
 
 print("Top nodes by closeness centrality:")
 for ranking in result["rankings"][:5]:
@@ -457,10 +308,11 @@ for ranking in result["rankings"][:5]:
 ### Eigenvector Centrality
 
 ```python
-from semantica.kg import calculate_centrality
+from semantica.kg import CentralityCalculator
 
 # Calculate eigenvector centrality
-result = calculate_centrality(kg, method="eigenvector")
+calculator = CentralityCalculator()
+result = calculator.calculate_eigenvector_centrality(kg)
 
 print("Top nodes by eigenvector centrality:")
 for ranking in result["rankings"][:5]:
@@ -470,10 +322,11 @@ for ranking in result["rankings"][:5]:
 ### All Centrality Measures
 
 ```python
-from semantica.kg import calculate_centrality
+from semantica.kg import CentralityCalculator
 
 # Calculate all centrality measures
-result = calculate_centrality(kg, method="all")
+calculator = CentralityCalculator()
+result = calculator.calculate_all_centrality(kg)
 
 for measure_type, measure_result in result["centrality_measures"].items():
     print(f"\n{measure_type.upper()} Centrality:")
@@ -481,25 +334,27 @@ for measure_type, measure_result in result["centrality_measures"].items():
         print(f"  {ranking['node']}: {ranking['score']}")
 ```
 
-### Using Centrality Methods
+### Different Centrality Measures
 
 ```python
-from semantica.kg.methods import calculate_centrality
+from semantica.kg import CentralityCalculator
+
+calculator = CentralityCalculator()
 
 # Degree centrality
-degree = calculate_centrality(kg, method="degree")
+degree = calculator.calculate_degree_centrality(kg)
 
 # Betweenness centrality
-betweenness = calculate_centrality(kg, method="betweenness")
+betweenness = calculator.calculate_betweenness_centrality(kg)
 
 # Closeness centrality
-closeness = calculate_centrality(kg, method="closeness")
+closeness = calculator.calculate_closeness_centrality(kg)
 
 # Eigenvector centrality
-eigenvector = calculate_centrality(kg, method="eigenvector")
+eigenvector = calculator.calculate_eigenvector_centrality(kg)
 
-# All measures
-all_centrality = calculate_centrality(kg, method="all")
+# All measures at once
+all_centrality = calculator.calculate_all_centrality(kg)
 ```
 
 ## Community Detection
@@ -507,29 +362,27 @@ all_centrality = calculate_centrality(kg, method="all")
 ### Louvain Algorithm
 
 ```python
-from semantica.kg import detect_communities, CommunityDetector
+from semantica.kg import CommunityDetector
 
-# Using convenience function
-result = detect_communities(kg, method="louvain")
+# Detect communities using Louvain algorithm
+detector = CommunityDetector()
+result = detector.detect_communities(kg, algorithm="louvain")
 
 print(f"Found {len(result['communities'])} communities")
 print(f"Modularity: {result['modularity']}")
 
 for i, community in enumerate(result["communities"]):
     print(f"Community {i}: {len(community)} nodes")
-
-# Using class directly
-detector = CommunityDetector()
-result = detector.detect_communities(kg, algorithm="louvain")
 ```
 
 ### Leiden Algorithm
 
 ```python
-from semantica.kg import detect_communities
+from semantica.kg import CommunityDetector
 
 # Detect communities using Leiden algorithm
-result = detect_communities(kg, method="leiden", resolution=1.0)
+detector = CommunityDetector()
+result = detector.detect_communities(kg, algorithm="leiden", resolution=1.0)
 
 print(f"Found {len(result['communities'])} communities")
 ```
@@ -537,10 +390,11 @@ print(f"Found {len(result['communities'])} communities")
 ### Overlapping Communities
 
 ```python
-from semantica.kg import detect_communities
+from semantica.kg import CommunityDetector
 
 # Detect overlapping communities
-result = detect_communities(kg, method="overlapping", k=3)
+detector = CommunityDetector()
+result = detector.detect_communities(kg, algorithm="overlapping", k=3)
 
 print(f"Found {len(result['communities'])} overlapping communities")
 print(f"Nodes in multiple communities: {result.get('overlap_count', 0)}")
@@ -567,19 +421,21 @@ print(f"Intra-community edges: {structure['intra_community_edges']}")
 print(f"Inter-community edges: {structure['inter_community_edges']}")
 ```
 
-### Using Community Detection Methods
+### Different Community Detection Algorithms
 
 ```python
-from semantica.kg.methods import detect_communities
+from semantica.kg import CommunityDetector
+
+detector = CommunityDetector()
 
 # Louvain algorithm
-communities = detect_communities(kg, method="louvain")
+louvain_result = detector.detect_communities(kg, algorithm="louvain")
 
 # Leiden algorithm
-communities = detect_communities(kg, method="leiden")
+leiden_result = detector.detect_communities(kg, algorithm="leiden")
 
 # Overlapping communities
-communities = detect_communities(kg, method="overlapping", k=3)
+overlapping_result = detector.detect_communities(kg, algorithm="overlapping", k=3)
 ```
 
 ## Connectivity Analysis
@@ -652,117 +508,55 @@ for bridge in result["bridge_edges"]:
     print(f"Bridge: {bridge['source']} -> {bridge['target']}")
 ```
 
-### Using Connectivity Methods
+### Different Connectivity Analysis Types
 
 ```python
-from semantica.kg.methods import analyze_connectivity
+from semantica.kg import ConnectivityAnalyzer
 
-# Default analysis
-connectivity = analyze_connectivity(kg, method="default")
+analyzer = ConnectivityAnalyzer()
+
+# Default comprehensive analysis
+connectivity = analyzer.analyze_connectivity(kg)
 
 # Components only
-components = analyze_connectivity(kg, method="components")
+components = analyzer.find_connected_components(kg)
 
 # Path finding
-paths = analyze_connectivity(kg, method="paths", source="A", target="B")
+paths = analyzer.calculate_shortest_paths(kg, source="A", target="B")
 
 # Bridge detection
-bridges = analyze_connectivity(kg, method="bridges")
+bridges = analyzer.identify_bridges(kg)
 ```
 
-## Deduplication
-
-### Entity Deduplication
-
-```python
-from semantica.kg import deduplicate_graph, Deduplicator
-
-# Using convenience function
-deduplicated = deduplicate_graph(kg, method="entities")
-
-print(f"Original entities: {len(kg['entities'])}")
-print(f"Deduplicated entities: {len(deduplicated['entities'])}")
-
-# Using class directly
-deduplicator = Deduplicator()
-duplicate_groups = deduplicator.find_duplicates(kg["entities"])
-merged_entities = deduplicator.merge_duplicates(duplicate_groups)
-```
-
-### Finding Duplicates
-
-```python
-from semantica.kg import Deduplicator
-
-deduplicator = Deduplicator()
-
-# Find duplicate groups
-duplicate_groups = deduplicator.find_duplicates(kg["entities"])
-
-print(f"Found {len(duplicate_groups)} duplicate groups")
-for i, group in enumerate(duplicate_groups):
-    print(f"Group {i}: {len(group)} duplicate entities")
-```
-
-### Merging Duplicates
-
-```python
-from semantica.kg import Deduplicator
-
-deduplicator = Deduplicator()
-
-# Find and merge duplicates
-duplicate_groups = deduplicator.find_duplicates(kg["entities"])
-merged_entities = deduplicator.merge_duplicates(duplicate_groups)
-
-print(f"Merged {len(duplicate_groups)} groups into {len(merged_entities)} entities")
-```
-
-### Using Deduplication Methods
-
-```python
-from semantica.kg.methods import deduplicate_graph
-
-# Default deduplication
-deduplicated = deduplicate_graph(kg, method="default")
-
-# Entity deduplication only
-deduplicated = deduplicate_graph(kg, method="entities")
-```
+!!! note "Deduplication"
+    Deduplication has been moved to the dedicated `semantica.deduplication` module.
+    Please use `semantica.deduplication.DuplicateDetector` and `semantica.deduplication.EntityMerger` for these tasks.
 
 ## Temporal Queries
 
 ### Time-Point Queries
 
 ```python
-from semantica.kg import query_temporal, TemporalGraphQuery
+from semantica.kg import TemporalGraphQuery
 
-# Using convenience function
-result = query_temporal(
-    kg,
-    query="",
-    method="time_point",
-    at_time="2024-01-01"
-)
+# Create query engine and query at specific time
+query_engine = TemporalGraphQuery()
+result = query_engine.query_at_time(kg, query="", at_time="2024-01-01")
 
 print(f"Entities at time: {result['num_entities']}")
 print(f"Relationships at time: {result['num_relationships']}")
-
-# Using class directly
-query_engine = TemporalGraphQuery()
-result = query_engine.query_at_time(kg, "", at_time="2024-01-01")
 ```
 
 ### Time-Range Queries
 
 ```python
-from semantica.kg import query_temporal
+from semantica.kg import TemporalGraphQuery
 
 # Query within time range
-result = query_temporal(
+query_engine = TemporalGraphQuery()
+result = query_engine.query_time_range(
     kg,
     query="",
-    method="time_range",
     start_time="2024-01-01",
     end_time="2024-12-31",
     temporal_aggregation="union"
@@ -774,16 +568,11 @@ print(f"Relationships in range: {result['num_relationships']}")
 ### Temporal Pattern Detection
 
 ```python
-from semantica.kg import query_temporal
+from semantica.kg import TemporalGraphQuery
 
 # Detect temporal patterns
-result = query_temporal(
-    kg,
-    query="",
-    method="pattern",
-    pattern="sequence",
-    min_support=2
-)
+query_engine = TemporalGraphQuery()
+result = query_engine.query_temporal_pattern(kg, pattern="sequence", min_support=2)
 
 print(f"Found {result['num_patterns']} temporal patterns")
 ```
@@ -791,13 +580,12 @@ print(f"Found {result['num_patterns']} temporal patterns")
 ### Graph Evolution Analysis
 
 ```python
-from semantica.kg import query_temporal
+from semantica.kg import TemporalGraphQuery
 
 # Analyze graph evolution
-result = query_temporal(
+query_engine = TemporalGraphQuery()
+result = query_engine.analyze_evolution(
     kg,
-    query="",
-    method="evolution",
     start_time="2024-01-01",
     end_time="2024-12-31",
     metrics=["count", "diversity", "stability"]
@@ -830,22 +618,24 @@ for path in paths["paths"]:
     print(f"Length: {path['length']}")
 ```
 
-### Using Temporal Query Methods
+### Different Temporal Query Types
 
 ```python
-from semantica.kg.methods import query_temporal
+from semantica.kg import TemporalGraphQuery
+
+query_engine = TemporalGraphQuery()
 
 # Time-point query
-result = query_temporal(kg, at_time="2024-01-01", method="time_point")
+result = query_engine.query_at_time(kg, query="", at_time="2024-01-01")
 
 # Time-range query
-result = query_temporal(kg, start_time="2024-01-01", end_time="2024-12-31", method="time_range")
+result = query_engine.query_time_range(kg, query="", start_time="2024-01-01", end_time="2024-12-31")
 
 # Pattern detection
-result = query_temporal(kg, pattern="sequence", method="pattern")
+result = query_engine.query_temporal_pattern(kg, pattern="sequence")
 
 # Evolution analysis
-result = query_temporal(kg, method="evolution")
+result = query_engine.analyze_evolution(kg)
 ```
 
 ## Provenance Tracking
@@ -902,7 +692,6 @@ from semantica.kg.methods import (
     build_kg,
     analyze_graph,
     resolve_entities,
-    validate_graph,
     detect_conflicts,
     calculate_centrality,
     detect_communities,
@@ -919,9 +708,6 @@ analysis = analyze_graph(kg, method="default")
 
 # Resolve entities
 resolved = resolve_entities(entities, method="fuzzy")
-
-# Validate graph
-result = validate_graph(kg, method="default")
 
 # Detect conflicts
 conflicts = detect_conflicts(kg, method="default")
@@ -1078,88 +864,81 @@ kg_config = KGConfig(config_file="config.yaml")
 
 ```python
 from semantica.kg import (
-    build_kg,
-    resolve_entities,
-    validate_graph,
-    detect_conflicts,
-    analyze_graph,
-    calculate_centrality,
-    detect_communities
+    GraphBuilder,
+    EntityResolver,
+    GraphAnalyzer,
+    CentralityCalculator,
+    CommunityDetector
 )
 
 # 1. Build knowledge graph
-kg = build_kg(sources, method="default")
+builder = GraphBuilder(merge_entities=True)
+kg = builder.build(sources)
 
 # 2. Resolve entities
+resolver = EntityResolver(strategy="fuzzy", similarity_threshold=0.8)
 entities = kg["entities"]
-resolved_entities = resolve_entities(entities, method="fuzzy")
+resolved_entities = resolver.resolve_entities(entities)
 kg["entities"] = resolved_entities
 
 # 3. Validate graph
-validation = validate_graph(kg, method="default")
-if not validation.valid:
-    print("Validation errors:", validation.errors)
-    return
+# Validation logic temporarily removed
 
-# 4. Detect conflicts
-conflicts = detect_conflicts(kg, method="default")
-if conflicts:
-    print(f"Found {len(conflicts)} conflicts")
-    # Resolve conflicts...
-
-# 5. Analyze graph
-analysis = analyze_graph(kg, method="default")
+# 4. Analyze graph
+analyzer = GraphAnalyzer()
+analysis = analyzer.analyze_graph(kg)
 print(f"Graph density: {analysis['density']}")
 print(f"Average degree: {analysis['avg_degree']}")
 
-# 6. Calculate centrality
-centrality = calculate_centrality(kg, method="degree")
+# 5. Calculate centrality
+centrality_calc = CentralityCalculator()
+degree_centrality = centrality_calc.calculate_degree_centrality(kg)
 print("Top 5 nodes by degree:")
-for ranking in centrality["rankings"][:5]:
+for ranking in degree_centrality["rankings"][:5]:
     print(f"  {ranking['node']}: {ranking['score']}")
 
-# 7. Detect communities
-communities = detect_communities(kg, method="louvain")
-print(f"Found {len(communities['communities'])} communities")
+# 6. Detect communities
+community_detector = CommunityDetector()
+communities_result = community_detector.detect_communities(kg, algorithm="louvain")
+print(f"Found {len(communities_result['communities'])} communities")
 ```
 
 ### Temporal Knowledge Graph Workflow
 
 ```python
 from semantica.kg import (
-    build_kg,
-    query_temporal,
+    GraphBuilder,
+    TemporalGraphQuery,
     TemporalVersionManager
 )
 
 # Build temporal knowledge graph
-temporal_kg = build_kg(
-    sources,
-    method="temporal",
+builder = GraphBuilder(
     enable_temporal=True,
     temporal_granularity="day",
     track_history=True
 )
+temporal_kg = builder.build(sources)
 
 # Query at specific time point
-result = query_temporal(
+query_engine = TemporalGraphQuery()
+result = query_engine.query_at_time(
     temporal_kg,
-    method="time_point",
+    query="",
     at_time="2024-06-15"
 )
 
 # Query time range
-range_result = query_temporal(
+range_result = query_engine.query_time_range(
     temporal_kg,
-    method="time_range",
+    query="",
     start_time="2024-01-01",
     end_time="2024-12-31"
 )
 
 # Analyze evolution
-evolution = query_temporal(
+evolution = query_engine.analyze_evolution(
     temporal_kg,
-    method="evolution",
     start_time="2024-01-01",
     end_time="2024-12-31",
     metrics=["count", "diversity"]
@@ -1202,47 +981,19 @@ components = connectivity_analyzer.find_connected_components(kg)
 bridges = connectivity_analyzer.identify_bridges(kg)
 ```
 
-### Entity Resolution and Deduplication
+### Entity Resolution
 
 ```python
-from semantica.kg import (
-    EntityResolver,
-    Deduplicator,
-    deduplicate_graph
-)
+from semantica.kg import EntityResolver
 
 # Entity resolution
 resolver = EntityResolver(strategy="fuzzy", similarity_threshold=0.8)
 resolved = resolver.resolve_entities(kg["entities"])
-
-# Deduplication
-deduplicator = Deduplicator()
-duplicate_groups = deduplicator.find_duplicates(kg["entities"])
-merged_entities = deduplicator.merge_duplicates(duplicate_groups)
-
-# Or use convenience function
-deduplicated_kg = deduplicate_graph(kg, method="entities")
 ```
 
-### Conflict Detection and Resolution
-
-```python
-from semantica.kg import ConflictDetector
-
-detector = ConflictDetector()
-
-# Detect conflicts
-conflicts = detector.detect_conflicts(kg)
-
-# Resolve conflicts
-resolution = detector.resolve_conflicts(conflicts, strategy="highest_confidence")
-
-# Apply resolutions
-for resolved_conflict in resolution["resolved"]:
-    conflict = resolved_conflict["conflict"]
-    resolved_value = resolved_conflict["resolution"]
-    # Apply resolution to graph...
-```
+!!! note "Deduplication and Conflict Resolution"
+    For deduplication, use `semantica.deduplication.DuplicateDetector` and `semantica.deduplication.EntityMerger`.
+    For conflict detection and resolution, use `semantica.conflicts.ConflictDetector` and `semantica.conflicts.ConflictResolver`.
 
 This guide covers the main features and usage patterns of the knowledge graph module. For more detailed information, refer to the module documentation and API reference.
 

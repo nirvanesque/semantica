@@ -1,85 +1,124 @@
 # Getting Started
 
-Welcome to Semantica! This guide will help you get up and running quickly.
+## Welcome to Semantica
 
-## Choose Your Path
+**Semantica** is a comprehensive knowledge graph and semantic processing framework designed for building production-ready semantic AI applications.
 
-=== "🚀 Quick Start (5 min)"
-
-    Get Semantica running in 5 minutes:
-    
-    1. **[Install Semantica](installation.md#basic-installation)**
-    2. **[Run Your First Example](quickstart.md#step-2-your-first-knowledge-graph)**
-    3. **[Explore Examples](examples.md)**
-    
-    Perfect for: Trying Semantica quickly
-
-=== "📚 Complete Guide (30 min)"
-
-    Learn Semantica thoroughly:
-    
-    1. **[Installation](installation.md)** - Complete setup guide
-    2. **[Quick Start](quickstart.md)** - Step-by-step tutorial
-    3. **[Core Concepts](concepts.md)** - Understand the framework
-    4. **[Examples](examples.md)** - Real-world use cases
-    5. **[API Reference](api.md)** - Full API documentation
-    
-    Perfect for: Learning the framework properly
-
-=== "🎓 Interactive Learning"
-
-    Learn by doing with Jupyter notebooks:
-    
-    1. **[Cookbook Overview](cookbook.md)** - Browse all tutorials
-    2. **[Start with Introduction](cookbook.md#introduction)** - Beginner notebooks
-    3. **[Try Use Cases](cookbook.md#use-cases)** - Domain-specific examples
-    
-    Perfect for: Hands-on learners
-
-## What Can You Build?
-
-Semantica helps you transform unstructured data into intelligent knowledge:
-
-- **Knowledge Graphs** from documents, websites, databases
-- **Semantic Layers** for AI applications
-- **Entity & Relationship Extraction** from text
-- **Conflict Resolution** across multiple data sources
-- **GraphRAG Systems** for enhanced AI responses
-
-## Common Use Cases
-
-### Research & Analysis
-- Extract knowledge from research papers
-- Build domain-specific knowledge graphs
-- Analyze relationships in literature
-
-### Business Intelligence
-- Process company documents
-- Build organizational knowledge bases
-- Integrate multiple data sources
-
-### AI Applications
-- Power GraphRAG systems
-- Enhance AI agent memory
-- Build semantic search systems
-
-## Next Steps
-
-Once you're set up:
-
-1. **[Install Semantica](installation.md)** if you haven't already
-2. **[Follow Quick Start](quickstart.md)** to build your first KG
-3. **[Explore Examples](examples.md)** for inspiration
-4. **[Check Cookbook](cookbook.md)** for interactive tutorials
-
-## Need Help?
-
-- **Installation Issues?** → [Troubleshooting Guide](installation.md#troubleshooting)
-- **First Time User?** → [Quick Start Guide](quickstart.md)
-- **Looking for Examples?** → [Examples Page](examples.md)
-- **API Questions?** → [API Reference](api.md)
+### 🎯 What You'll Learn
+- What Semantica is and why it's useful
+- How to install and configure the framework
+- Understanding the framework architecture
+- Key concepts and terminology
+- Next steps for getting started
 
 ---
 
-Ready to start? Head to the [Installation Guide](installation.md)!
+## 🚀 What is Semantica?
 
+Semantica is a powerful, production-ready framework for:
+
+- **Building Knowledge Graphs**: Transform unstructured data into structured knowledge graphs.
+- **Semantic Processing**: Extract entities, relationships, and meaning from text, images, and audio.
+- **GraphRAG**: Next-generation retrieval augmented generation using knowledge graphs.
+- **Temporal Analysis**: Time-aware knowledge graphs for tracking changes over time.
+- **Multi-Modal Processing**: Handle text, images, audio, and structured data.
+- **Enterprise Features**: Quality assurance, conflict resolution, ontology generation, and more.
+
+---
+
+## 💡 Use Cases
+
+| Domain | Application |
+| :--- | :--- |
+| **Cybersecurity** | Threat intelligence and analysis |
+| **Healthcare** | Medical research and patient data analysis |
+| **Finance** | Fraud detection and financial analysis |
+| **Supply Chain** | Optimization and risk management |
+| **Research** | Knowledge management and literature review |
+| **AI Systems** | Multi-agent memory and reasoning |
+
+---
+
+## 📦 Installation & Setup
+
+### Prerequisites
+Before installing Semantica, ensure you have:
+- **Python 3.8** or higher
+- **pip** package manager
+- (Optional) Virtual environment for isolation
+
+### Installation Methods
+
+=== "PyPI (Stable)"
+    ```bash
+    pip install semantica
+    ```
+
+=== "Source (Dev)"
+    ```bash
+    git clone https://github.com/Hawksight-AI/semantica.git
+    cd semantica
+    pip install -e .
+    ```
+
+=== "Extras"
+    ```bash
+    pip install semantica[all]           # Install all optional dependencies
+    pip install semantica[gpu]           # Install GPU support
+    pip install semantica[visualization] # Install visualization tools
+    ```
+
+### Verify Installation
+
+```python
+import semantica
+print(semantica.__version__)
+```
+
+---
+
+## ⚙️ Configuration
+
+Semantica can be configured using environment variables or a configuration file.
+
+### Environment Variables
+
+```bash
+export SEMANTICA_API_KEY=your_openai_key
+export SEMANTICA_EMBEDDING_PROVIDER=openai
+export SEMANTICA_MODEL_NAME=gpt-4
+```
+
+### Config File (`config.yaml`)
+
+```yaml
+api_keys:
+  openai: your_key_here
+  anthropic: your_key_here
+
+embedding:
+  provider: openai
+  model: text-embedding-3-large
+  dimensions: 3072
+
+knowledge_graph:
+  backend: networkx # or neo4j, arangodb
+  temporal: true
+
+graph_store:
+  backend: neo4j # or falkordb
+  neo4j_uri: bolt://localhost:7687
+  neo4j_user: neo4j
+  neo4j_password: password
+```
+
+---
+
+## ⏭️ Next Steps
+
+Now that you understand the basics, here are recommended next steps:
+
+1. **[Your First Knowledge Graph](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/introduction/08_Your_First_Knowledge_Graph.ipynb)**: Build your first knowledge graph from a document.
+2. **[Welcome to Semantica](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/introduction/01_Welcome_to_Semantica.ipynb)**: Learn the framework basics and configuration.
+3. **[Core Workflows](cookbook.md#core-tutorials)**: Learn common patterns and workflows.
+4. **[Use Cases](cookbook.md#industry-use-cases)**: Explore domain-specific applications.

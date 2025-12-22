@@ -31,7 +31,6 @@ Conflict Analysis:
     - "severity": Severity-based analysis
     - "source": Source-based conflict analysis
     - "trend": Temporal trend identification
-    - "statistics": Statistical analysis
 
 Source Tracking:
     - "property": Track sources for property values
@@ -49,11 +48,14 @@ Algorithms Used:
 Conflict Detection:
     - Value Comparison: Property value comparison across sources with equality checking
     - Type Mismatch Detection: Entity type comparison and mismatch identification
-    - Relationship Consistency: Relationship property comparison and inconsistency detection
+    - Relationship Consistency: Relationship property comparison and inconsistency
+      detection
     - Temporal Analysis: Time-based conflict detection using timestamp comparison
     - Logical Consistency: Logical rule validation and inconsistency detection
-    - Severity Calculation: Multi-factor severity scoring (property importance, value difference, source count)
-    - Confidence Scoring: Confidence calculation based on source credibility and value diversity
+    - Severity Calculation: Multi-factor severity scoring (property importance,
+      value difference, source count)
+    - Confidence Scoring: Confidence calculation based on source credibility and
+      value diversity
 
 Conflict Resolution:
     - Voting Algorithm: Majority value selection using Counter-based frequency counting
@@ -63,12 +65,12 @@ Conflict Resolution:
     - Manual Flagging: Conflict flagging for human review workflow
 
 Conflict Analysis:
-    - Pattern Identification: Frequency-based pattern detection using Counter and defaultdict
+    - Pattern Identification: Frequency-based pattern detection using Counter and
+      defaultdict
     - Type Classification: Conflict type categorization and grouping
-    - Severity Analysis: Severity-based grouping and statistical analysis
+    - Severity Analysis: Severity-based grouping and analysis
     - Source Analysis: Source-based conflict aggregation and analysis
     - Trend Analysis: Temporal trend identification using time-series analysis
-    - Statistical Analysis: Conflict statistics calculation (mean, median, distribution)
 
 Source Tracking:
     - Property Source Tracking: Dictionary-based property-to-source mapping
@@ -112,16 +114,15 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from ..utils.logging import get_logger
-from ..utils.exceptions import ProcessingError
-from .conflict_detector import ConflictDetector, Conflict, ConflictType
+from .conflict_analyzer import ConflictAnalyzer
+from .conflict_detector import Conflict, ConflictDetector
 from .conflict_resolver import ConflictResolver, ResolutionResult, ResolutionStrategy
-from .conflict_analyzer import ConflictAnalyzer, ConflictPattern
-from .source_tracker import SourceTracker, SourceReference, PropertySource
-from .investigation_guide import InvestigationGuideGenerator, InvestigationGuide, InvestigationStep
+from .investigation_guide import InvestigationGuide, InvestigationGuideGenerator
 from .registry import method_registry
+from .source_tracker import SourceReference, SourceTracker
 
 logger = get_logger("conflicts_methods")
 
@@ -131,13 +132,13 @@ def detect_conflicts(
     method: str = "value",
     property_name: Optional[str] = None,
     entity_type: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> List[Conflict]:
     """
     Detect conflicts in entities (convenience function).
-    
+
     This is a user-friendly wrapper that detects conflicts using the specified method.
-    
+
     Args:
         entities: List of entity dictionaries to check for conflicts
         method: Detection method (default: "value")
@@ -150,10 +151,10 @@ def detect_conflicts(
         property_name: Property name to check (required for "value" method)
         entity_type: Optional entity type filter
         **kwargs: Additional options passed to ConflictDetector
-        
+
     Returns:
         List of Conflict objects
-        
+
     Examples:
         >>> from semantica.conflicts.methods import detect_conflicts
         >>> entities = [
@@ -166,11 +167,13 @@ def detect_conflicts(
     # Check for custom method in registry
     custom_method = method_registry.get("detection", method)
     if custom_method:
-        return custom_method(entities, property_name=property_name, entity_type=entity_type, **kwargs)
-    
+        return custom_method(
+            entities, property_name=property_name, entity_type=entity_type, **kwargs
+        )
+
     # Use default ConflictDetector
     detector = ConflictDetector(**kwargs)
-    
+
     # Map method to detector method
     if method == "value":
         if not property_name:
@@ -196,15 +199,13 @@ def detect_conflicts(
 
 
 def resolve_conflicts(
-    conflicts: Union[Conflict, List[Conflict]],
-    method: str = "voting",
-    **kwargs
+    conflicts: Union[Conflict, List[Conflict]], method: str = "voting", **kwargs
 ) -> Union[ResolutionResult, List[ResolutionResult]]:
     """
     Resolve conflicts (convenience function).
-    
+
     This is a user-friendly wrapper that resolves conflicts using the specified method.
-    
+
     Args:
         conflicts: Single conflict or list of conflicts to resolve
         method: Resolution strategy (default: "voting")
@@ -216,10 +217,10 @@ def resolve_conflicts(
             - "manual_review": Flag for human review
             - "expert_review": Flag for domain expert review
         **kwargs: Additional options passed to ConflictResolver
-        
+
     Returns:
         ResolutionResult or List[ResolutionResult]
-        
+
     Examples:
         >>> from semantica.conflicts.methods import resolve_conflicts
         >>> conflicts = detect_conflicts(entities, method="value", property_name="name")
@@ -231,10 +232,10 @@ def resolve_conflicts(
     custom_method = method_registry.get("resolution", method)
     if custom_method:
         return custom_method(conflicts, **kwargs)
-    
+
     # Use default ConflictResolver
     resolver = ConflictResolver(**kwargs)
-    
+
     # Map method to resolution strategy
     strategy_map = {
         "voting": ResolutionStrategy.VOTING,
@@ -245,9 +246,9 @@ def resolve_conflicts(
         "manual_review": ResolutionStrategy.MANUAL_REVIEW,
         "expert_review": ResolutionStrategy.EXPERT_REVIEW,
     }
-    
+
     strategy = strategy_map.get(method, ResolutionStrategy.VOTING)
-    
+
     # Handle single conflict or list
     if isinstance(conflicts, Conflict):
         return resolver.resolve_conflict(conflicts, strategy=strategy)
@@ -256,15 +257,13 @@ def resolve_conflicts(
 
 
 def analyze_conflicts(
-    conflicts: List[Conflict],
-    method: str = "pattern",
-    **kwargs
+    conflicts: List[Conflict], method: str = "pattern", **kwargs
 ) -> Dict[str, Any]:
     """
     Analyze conflicts (convenience function).
-    
+
     This is a user-friendly wrapper that analyzes conflicts using the specified method.
-    
+
     Args:
         conflicts: List of conflicts to analyze
         method: Analysis method (default: "pattern")
@@ -273,12 +272,11 @@ def analyze_conflicts(
             - "severity": Severity-based analysis
             - "source": Source-based conflict analysis
             - "trend": Temporal trend identification
-            - "statistics": Statistical analysis
         **kwargs: Additional options passed to ConflictAnalyzer
-        
+
     Returns:
         Dictionary containing analysis results
-        
+
     Examples:
         >>> from semantica.conflicts.methods import analyze_conflicts
         >>> conflicts = detect_conflicts(entities, method="value", property_name="name")
@@ -289,10 +287,10 @@ def analyze_conflicts(
     custom_method = method_registry.get("analysis", method)
     if custom_method:
         return custom_method(conflicts, **kwargs)
-    
+
     # Use default ConflictAnalyzer
     analyzer = ConflictAnalyzer(**kwargs)
-    
+
     # Map method to analyzer method
     if method == "pattern":
         return analyzer.analyze_conflicts(conflicts)
@@ -306,10 +304,7 @@ def analyze_conflicts(
         analysis = analyzer.analyze_conflicts(conflicts)
         return {"by_source": analysis.get("by_source", {})}
     elif method == "trend":
-        return analyzer.analyze_trends(conflicts)
-    elif method == "statistics":
-        analysis = analyzer.analyze_conflicts(conflicts)
-        return {"statistics": analysis.get("statistics", {})}
+        return {"trends": analyzer.analyze_trends(conflicts)}
     else:
         # Default to full analysis
         return analyzer.analyze_conflicts(conflicts)
@@ -321,13 +316,15 @@ def track_sources(
     value: Optional[Any] = None,
     source: Optional[SourceReference] = None,
     method: str = "property",
-    **kwargs
+    tracker: Optional[SourceTracker] = None,
+    **kwargs,
 ) -> bool:
     """
     Track source information (convenience function).
-    
-    This is a user-friendly wrapper that tracks source information using the specified method.
-    
+
+    This is a user-friendly wrapper that tracks source information using the
+    specified method.
+
     Args:
         entity_id: Entity identifier
         property_name: Property name (for property tracking)
@@ -337,57 +334,77 @@ def track_sources(
             - "property": Track sources for property values
             - "entity": Track sources for entities
             - "relationship": Track sources for relationships
+        tracker: Optional SourceTracker instance to use (otherwise creates new one)
         **kwargs: Additional options passed to SourceTracker
-        
+
     Returns:
         True if tracking successful
-        
+
     Examples:
         >>> from semantica.conflicts.methods import track_sources
         >>> from semantica.conflicts import SourceReference
         >>> source = SourceReference(document="doc1", page=1, confidence=0.9)
-        >>> track_sources("entity_1", property_name="name", value="Apple", source=source)
+        >>> track_sources(
+        ...     "entity_1", property_name="name", value="Apple", source=source
+        ... )
     """
     # Check for custom method in registry
     custom_method = method_registry.get("tracking", method)
     if custom_method:
-        return custom_method(entity_id, property_name=property_name, value=value, source=source, **kwargs)
-    
-    # Use default SourceTracker
-    tracker = SourceTracker(**kwargs)
-    
+        return custom_method(
+            entity_id,
+            property_name=property_name,
+            value=value,
+            source=source,
+            tracker=tracker,
+            **kwargs,
+        )
+
+    # Use provided tracker or create new one
+    # Also check kwargs for 'source_tracker' for compatibility
+    actual_tracker = tracker or kwargs.get("source_tracker") or SourceTracker(**kwargs)
+
     # Map method to tracker method
     if method == "property":
         if not property_name or not value or not source:
-            raise ValueError("property_name, value, and source are required for property tracking")
-        return tracker.track_property_source(entity_id, property_name, value, source, **kwargs)
+            raise ValueError(
+                "property_name, value, and source are required for property tracking"
+            )
+        return actual_tracker.track_property_source(
+            entity_id, property_name, value, source, **kwargs
+        )
     elif method == "entity":
         if not source:
             raise ValueError("source is required for entity tracking")
-        return tracker.track_entity_source(entity_id, source, **kwargs)
+        return actual_tracker.track_entity_source(entity_id, source, **kwargs)
     elif method == "relationship":
         relationship_id = kwargs.get("relationship_id")
         if not relationship_id or not source:
-            raise ValueError("relationship_id and source are required for relationship tracking")
-        return tracker.track_relationship_source(relationship_id, source, **kwargs)
+            raise ValueError(
+                "relationship_id and source are required for relationship tracking"
+            )
+        return actual_tracker.track_relationship_source(
+            relationship_id, source, **kwargs
+        )
     else:
         # Default to property tracking
         if property_name and value and source:
-            return tracker.track_property_source(entity_id, property_name, value, source, **kwargs)
+            return actual_tracker.track_property_source(
+                entity_id, property_name, value, source, **kwargs
+            )
         else:
             raise ValueError("Invalid parameters for tracking")
 
 
 def generate_investigation_guide(
-    conflict: Union[Conflict, List[Conflict]],
-    method: str = "guide",
-    **kwargs
+    conflict: Union[Conflict, List[Conflict]], method: str = "guide", **kwargs
 ) -> Union[InvestigationGuide, List[InvestigationGuide]]:
     """
     Generate investigation guide (convenience function).
-    
-    This is a user-friendly wrapper that generates investigation guides using the specified method.
-    
+
+    This is a user-friendly wrapper that generates investigation guides using the
+    specified method.
+
     Args:
         conflict: Single conflict or list of conflicts
         method: Guide generation method (default: "guide")
@@ -395,10 +412,10 @@ def generate_investigation_guide(
             - "checklist": Generate investigation checklists
             - "context": Extract conflict context
         **kwargs: Additional options passed to InvestigationGuideGenerator
-        
+
     Returns:
         InvestigationGuide or List[InvestigationGuide]
-        
+
     Examples:
         >>> from semantica.conflicts.methods import generate_investigation_guide
         >>> conflicts = detect_conflicts(entities, method="value", property_name="name")
@@ -409,10 +426,10 @@ def generate_investigation_guide(
     custom_method = method_registry.get("investigation", method)
     if custom_method:
         return custom_method(conflict, **kwargs)
-    
+
     # Use default InvestigationGuideGenerator
     generator = InvestigationGuideGenerator(**kwargs)
-    
+
     # Map method to generator method
     if method == "guide":
         if isinstance(conflict, Conflict):
@@ -422,12 +439,16 @@ def generate_investigation_guide(
     elif method == "checklist":
         if isinstance(conflict, Conflict):
             guide = generator.generate_guide(conflict, **kwargs)
-            return generator.export_investigation_checklist(guide, format="text", **kwargs)
+            return generator.export_investigation_checklist(
+                guide, format="text", **kwargs
+            )
         else:
             checklists = []
             for c in conflict:
                 guide = generator.generate_guide(c, **kwargs)
-                checklist = generator.export_investigation_checklist(guide, format="text", **kwargs)
+                checklist = generator.export_investigation_checklist(
+                    guide, format="text", **kwargs
+                )
                 checklists.append(checklist)
             return checklists
     elif method == "context":
@@ -451,17 +472,18 @@ def generate_investigation_guide(
 def get_conflict_method(task: str, name: str) -> Optional[Callable]:
     """
     Get conflict method by task and name.
-    
+
     This function retrieves a registered conflict method from the registry
     or returns a built-in method if available.
-    
+
     Args:
-        task: Task type ("detection", "resolution", "analysis", "tracking", "investigation")
+        task: Task type ("detection", "resolution", "analysis", "tracking",
+            "investigation")
         name: Method name
-        
+
     Returns:
         Method function or None if not found
-        
+
     Examples:
         >>> from semantica.conflicts.methods import get_conflict_method
         >>> method = get_conflict_method("resolution", "custom_method")
@@ -472,62 +494,112 @@ def get_conflict_method(task: str, name: str) -> Optional[Callable]:
     method = method_registry.get(task, name)
     if method:
         return method
-    
+
     # Check built-in methods
     builtin_methods = {
         "detection": {
-            "value": lambda entities, **kw: detect_conflicts(entities, method="value", **kw),
-            "type": lambda entities, **kw: detect_conflicts(entities, method="type", **kw),
-            "relationship": lambda entities, **kw: detect_conflicts(entities, method="relationship", **kw),
-            "temporal": lambda entities, **kw: detect_conflicts(entities, method="temporal", **kw),
-            "logical": lambda entities, **kw: detect_conflicts(entities, method="logical", **kw),
-            "entity": lambda entities, **kw: detect_conflicts(entities, method="entity", **kw),
+            "value": lambda entities, **kw: detect_conflicts(
+                entities, method="value", **kw
+            ),
+            "type": lambda entities, **kw: detect_conflicts(
+                entities, method="type", **kw
+            ),
+            "relationship": lambda entities, **kw: detect_conflicts(
+                entities, method="relationship", **kw
+            ),
+            "temporal": lambda entities, **kw: detect_conflicts(
+                entities, method="temporal", **kw
+            ),
+            "logical": lambda entities, **kw: detect_conflicts(
+                entities, method="logical", **kw
+            ),
+            "entity": lambda entities, **kw: detect_conflicts(
+                entities, method="entity", **kw
+            ),
         },
         "resolution": {
-            "voting": lambda conflicts, **kw: resolve_conflicts(conflicts, method="voting", **kw),
-            "credibility_weighted": lambda conflicts, **kw: resolve_conflicts(conflicts, method="credibility_weighted", **kw),
-            "most_recent": lambda conflicts, **kw: resolve_conflicts(conflicts, method="most_recent", **kw),
-            "first_seen": lambda conflicts, **kw: resolve_conflicts(conflicts, method="first_seen", **kw),
-            "highest_confidence": lambda conflicts, **kw: resolve_conflicts(conflicts, method="highest_confidence", **kw),
-            "manual_review": lambda conflicts, **kw: resolve_conflicts(conflicts, method="manual_review", **kw),
-            "expert_review": lambda conflicts, **kw: resolve_conflicts(conflicts, method="expert_review", **kw),
+            "voting": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="voting", **kw
+            ),
+            "credibility_weighted": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="credibility_weighted", **kw
+            ),
+            "most_recent": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="most_recent", **kw
+            ),
+            "first_seen": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="first_seen", **kw
+            ),
+            "highest_confidence": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="highest_confidence", **kw
+            ),
+            "manual_review": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="manual_review", **kw
+            ),
+            "expert_review": lambda conflicts, **kw: resolve_conflicts(
+                conflicts, method="expert_review", **kw
+            ),
         },
         "analysis": {
-            "pattern": lambda conflicts, **kw: analyze_conflicts(conflicts, method="pattern", **kw),
-            "type": lambda conflicts, **kw: analyze_conflicts(conflicts, method="type", **kw),
-            "severity": lambda conflicts, **kw: analyze_conflicts(conflicts, method="severity", **kw),
-            "source": lambda conflicts, **kw: analyze_conflicts(conflicts, method="source", **kw),
-            "trend": lambda conflicts, **kw: analyze_conflicts(conflicts, method="trend", **kw),
-            "statistics": lambda conflicts, **kw: analyze_conflicts(conflicts, method="statistics", **kw),
+            "pattern": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="pattern", **kw
+            ),
+            "type": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="type", **kw
+            ),
+            "severity": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="severity", **kw
+            ),
+            "source": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="source", **kw
+            ),
+            "trend": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="trend", **kw
+            ),
+            "statistics": lambda conflicts, **kw: analyze_conflicts(
+                conflicts, method="statistics", **kw
+            ),
         },
         "tracking": {
-            "property": lambda entity_id, **kw: track_sources(entity_id, method="property", **kw),
-            "entity": lambda entity_id, **kw: track_sources(entity_id, method="entity", **kw),
-            "relationship": lambda entity_id, **kw: track_sources(entity_id, method="relationship", **kw),
+            "property": lambda entity_id, **kw: track_sources(
+                entity_id, method="property", **kw
+            ),
+            "entity": lambda entity_id, **kw: track_sources(
+                entity_id, method="entity", **kw
+            ),
+            "relationship": lambda entity_id, **kw: track_sources(
+                entity_id, method="relationship", **kw
+            ),
         },
         "investigation": {
-            "guide": lambda conflict, **kw: generate_investigation_guide(conflict, method="guide", **kw),
-            "checklist": lambda conflict, **kw: generate_investigation_guide(conflict, method="checklist", **kw),
-            "context": lambda conflict, **kw: generate_investigation_guide(conflict, method="context", **kw),
+            "guide": lambda conflict, **kw: generate_investigation_guide(
+                conflict, method="guide", **kw
+            ),
+            "checklist": lambda conflict, **kw: generate_investigation_guide(
+                conflict, method="checklist", **kw
+            ),
+            "context": lambda conflict, **kw: generate_investigation_guide(
+                conflict, method="context", **kw
+            ),
         },
     }
-    
+
     if task in builtin_methods and name in builtin_methods[task]:
         return builtin_methods[task][name]
-    
+
     return None
 
 
 def list_available_methods(task: Optional[str] = None) -> Dict[str, List[str]]:
     """
     List all available conflict methods.
-    
+
     Args:
         task: Optional task type to filter by
-        
+
     Returns:
         Dictionary mapping task types to method names
-        
+
     Examples:
         >>> from semantica.conflicts.methods import list_available_methods
         >>> all_methods = list_available_methods()
@@ -535,39 +607,33 @@ def list_available_methods(task: Optional[str] = None) -> Dict[str, List[str]]:
     """
     # Get registered methods
     registered = method_registry.list_all(task=task)
-    
+
     # Add built-in methods
     builtin_methods = {
         "detection": ["value", "type", "relationship", "temporal", "logical", "entity"],
-        "resolution": ["voting", "credibility_weighted", "most_recent", "first_seen", "highest_confidence", "manual_review", "expert_review"],
-        "analysis": ["pattern", "type", "severity", "source", "trend", "statistics"],
+        "resolution": [
+            "voting",
+            "credibility_weighted",
+            "most_recent",
+            "first_seen",
+            "highest_confidence",
+            "manual_review",
+            "expert_review",
+        ],
+        "analysis": ["pattern", "type", "severity", "source", "trend"],
         "tracking": ["property", "entity", "relationship"],
         "investigation": ["guide", "checklist", "context"],
     }
-    
+
     if task:
         # Merge for specific task
-        result = {task: list(set(registered.get(task, []) + builtin_methods.get(task, [])))}
+        result = {
+            task: list(set(registered.get(task, []) + builtin_methods.get(task, [])))
+        }
     else:
         # Merge for all tasks
         result = {}
         for t in set(list(registered.keys()) + list(builtin_methods.keys())):
             result[t] = list(set(registered.get(t, []) + builtin_methods.get(t, [])))
-    
+
     return result
-
-
-# Register default methods with registry
-def _value_detection(entities, **kw):
-    return detect_conflicts(entities, method="value", **kw)
-
-def _voting_resolution(conflicts, **kw):
-    return resolve_conflicts(conflicts, method="voting", **kw)
-
-def _pattern_analysis(conflicts, **kw):
-    return analyze_conflicts(conflicts, method="pattern", **kw)
-
-method_registry.register("detection", "value", _value_detection)
-method_registry.register("resolution", "voting", _voting_resolution)
-method_registry.register("analysis", "pattern", _pattern_analysis)
-

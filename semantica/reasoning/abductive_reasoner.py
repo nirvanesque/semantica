@@ -31,18 +31,20 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
+import re
 
-from ..utils.exceptions import ValidationError, ProcessingError
+from ..utils.exceptions import ProcessingError, ValidationError
 from ..utils.logging import get_logger
 from ..utils.progress_tracker import get_progress_tracker
-from .rule_manager import RuleManager, Rule
+from .rule_manager import Rule, RuleManager
 
 
 class HypothesisRanking(Enum):
     """Hypothesis ranking strategies."""
+
     SIMPLICITY = "simplicity"
     PLAUSIBILITY = "plausibility"
     CONSISTENCY = "consistency"
@@ -52,6 +54,7 @@ class HypothesisRanking(Enum):
 @dataclass
 class Observation:
     """Observation to explain."""
+
     observation_id: str
     description: str
     facts: List[Any] = field(default_factory=list)
@@ -61,6 +64,7 @@ class Observation:
 @dataclass
 class Hypothesis:
     """Abductive hypothesis."""
+
     hypothesis_id: str
     explanation: str
     premises: List[Any] = field(default_factory=list)
@@ -73,6 +77,7 @@ class Hypothesis:
 @dataclass
 class Explanation:
     """Abductive explanation."""
+
     explanation_id: str
     observation: Observation
     hypotheses: List[Hypothesis] = field(default_factory=list)
@@ -84,7 +89,7 @@ class Explanation:
 class AbductiveReasoner:
     """
     Abductive reasoning engine.
-    
+
     • Abductive reasoning algorithms
     • Hypothesis generation and evaluation
     • Explanation generation
@@ -92,11 +97,11 @@ class AbductiveReasoner:
     • Error handling and recovery
     • Advanced abductive techniques
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
         """
         Initialize abductive reasoner.
-        
+
         Args:
             config: Configuration dictionary
             **kwargs: Additional configuration options:
@@ -106,71 +111,81 @@ class AbductiveReasoner:
         self.logger = get_logger("abductive_reasoner")
         self.config = config or {}
         self.config.update(kwargs)
-        
+
         # Initialize progress tracker
         self.progress_tracker = get_progress_tracker()
-        
+
         self.rule_manager = RuleManager(**self.config)
         self.max_hypotheses = self.config.get("max_hypotheses", 10)
-        self.ranking_strategy = HypothesisRanking(self.config.get("ranking_strategy", "plausibility"))
-        
+        self.ranking_strategy = HypothesisRanking(
+            self.config.get("ranking_strategy", "plausibility")
+        )
+
         self.knowledge_base: List[Any] = []
-    
+
     def generate_hypotheses(
-        self,
-        observations: List[Observation],
-        **options
+        self, observations: List[Observation], **options
     ) -> List[Hypothesis]:
         """
         Generate explanatory hypotheses for observations.
-        
+
         Args:
             observations: List of observations to explain
             **options: Additional options
-        
+
         Returns:
             List of generated hypotheses
         """
         tracking_id = self.progress_tracker.start_tracking(
             module="reasoning",
             submodule="AbductiveReasoner",
-            message=f"Generating hypotheses for {len(observations)} observations"
+            message=f"Generating hypotheses for {len(observations)} observations",
         )
-        
+
         try:
             hypotheses = []
-            
-            self.progress_tracker.update_tracking(tracking_id, message=f"Generating hypotheses for {len(observations)} observations...")
+
+            self.progress_tracker.update_tracking(
+                tracking_id,
+                message=f"Generating hypotheses for {len(observations)} observations...",
+            )
             for observation in observations:
                 # Generate hypotheses for this observation
-                obs_hypotheses = self._generate_hypotheses_for_observation(observation, **options)
+                obs_hypotheses = self._generate_hypotheses_for_observation(
+                    observation, **options
+                )
                 hypotheses.extend(obs_hypotheses)
-            
+
             # Rank hypotheses
-            self.progress_tracker.update_tracking(tracking_id, message=f"Ranking {len(hypotheses)} hypotheses...")
+            self.progress_tracker.update_tracking(
+                tracking_id, message=f"Ranking {len(hypotheses)} hypotheses..."
+            )
             ranked = self.rank_hypotheses(hypotheses)
-            
+
             # Return top hypotheses
-            result = ranked[:self.max_hypotheses]
-            self.progress_tracker.stop_tracking(tracking_id, status="completed",
-                                               message=f"Generated {len(result)} hypotheses from {len(observations)} observations")
+            result = ranked[: self.max_hypotheses]
+            self.progress_tracker.stop_tracking(
+                tracking_id,
+                status="completed",
+                message=f"Generated {len(result)} hypotheses from {len(observations)} observations",
+            )
             return result
-            
+
         except Exception as e:
-            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            self.progress_tracker.stop_tracking(
+                tracking_id, status="failed", message=str(e)
+            )
             raise
-    
+
     def _generate_hypotheses_for_observation(
-        self,
-        observation: Observation,
-        **options
+        self, observation: Observation, **options
     ) -> List[Hypothesis]:
         """Generate hypotheses for a single observation."""
         hypotheses = []
-        
+
         # Get rules that could explain the observation
         rules = self.rule_manager.get_all_rules()
-        
+
         # Find rules whose conclusions match observation
         for rule in rules:
             if self._rule_explains_observation(rule, observation):
@@ -181,105 +196,152 @@ class AbductiveReasoner:
                     confidence=rule.confidence,
                     coverage=self._calculate_coverage(rule, observation),
                     simplicity=self._calculate_simplicity(rule),
-                    metadata={"rule_id": rule.rule_id}
+                    metadata={"rule_id": rule.rule_id},
                 )
                 hypotheses.append(hypothesis)
-        
+
         return hypotheses
-    
-    def _rule_explains_observation(
-        self,
-        rule: Rule,
-        observation: Observation
-    ) -> bool:
+
+    def _rule_explains_observation(self, rule: Rule, observation: Observation) -> bool:
         """Check if rule can explain observation."""
-        # Simple check: rule conclusion matches observation
-        # Can be enhanced with more sophisticated matching
-        return True
-    
-    def _calculate_coverage(
-        self,
-        rule: Rule,
-        observation: Observation
-    ) -> float:
+        # Check if rule conclusion matches observation description
+        # Try exact match first
+        if rule.conclusion == observation.description:
+            return True
+            
+        # Try unification if variables are involved
+        if "?" in rule.conclusion:
+             bindings = self._unify(rule.conclusion, observation.description, {})
+             if bindings is not None:
+                 return True
+                 
+        return False
+
+    def _parse_predicate(self, text: str) -> tuple[str, List[str]]:
+        """Parse 'Predicate(arg1, arg2)' into ('Predicate', ['arg1', 'arg2'])."""
+        if not isinstance(text, str):
+            return text, []
+        match = re.match(r"(\w+)\((.+)\)", text)
+        if not match:
+            return text, []
+        predicate = match.group(1)
+        args = [arg.strip() for arg in match.group(2).split(",")]
+        return predicate, args
+
+    def _unify(self, condition: str, fact: str, bindings: Dict[str, str]) -> Optional[Dict[str, str]]:
+        """
+        Try to unify a condition (with vars) against a fact.
+        Returns new bindings if successful, None otherwise.
+        """
+        if condition == fact:
+            return bindings
+            
+        cond_pred, cond_args = self._parse_predicate(condition)
+        fact_pred, fact_args = self._parse_predicate(fact)
+        
+        if cond_pred != fact_pred:
+            return None
+        if len(cond_args) != len(fact_args):
+            return None
+            
+        new_bindings = bindings.copy()
+        for c_arg, f_arg in zip(cond_args, fact_args):
+            if c_arg.startswith("?"):
+                if c_arg in new_bindings:
+                    if new_bindings[c_arg] != f_arg:
+                        return None # Conflict
+                else:
+                    new_bindings[c_arg] = f_arg
+            else:
+                if c_arg != f_arg:
+                    return None # Constant mismatch
+        return new_bindings
+
+    def _calculate_coverage(self, rule: Rule, observation: Observation) -> float:
         """Calculate how well rule covers observation."""
         # Simple coverage calculation
         # Can be enhanced with more sophisticated metrics
         return 0.5
-    
+
     def _calculate_simplicity(self, rule: Rule) -> float:
         """Calculate hypothesis simplicity."""
         # Simpler hypotheses have fewer conditions
         if not rule.conditions:
             return 1.0
-        
+
         # Inverse of number of conditions
         return 1.0 / (1.0 + len(rule.conditions))
-    
+
     def find_explanations(
-        self,
-        observations: List[Observation],
-        **options
+        self, observations: List[Observation], **options
     ) -> List[Explanation]:
         """
         Find explanations for observations.
-        
+
         Args:
             observations: List of observations
             **options: Additional options
-        
+
         Returns:
             List of explanations
         """
         tracking_id = self.progress_tracker.start_tracking(
             module="reasoning",
             submodule="AbductiveReasoner",
-            message=f"Finding explanations for {len(observations)} observations"
+            message=f"Finding explanations for {len(observations)} observations",
         )
-        
+
         try:
             explanations = []
-            
-            self.progress_tracker.update_tracking(tracking_id, message=f"Processing {len(observations)} observations...")
+
+            self.progress_tracker.update_tracking(
+                tracking_id, message=f"Processing {len(observations)} observations..."
+            )
             for observation in observations:
                 # Generate hypotheses
-                self.progress_tracker.update_tracking(tracking_id, message=f"Generating hypotheses for observation: {observation.observation_id}...")
+                self.progress_tracker.update_tracking(
+                    tracking_id,
+                    message=f"Generating hypotheses for observation: {observation.observation_id}...",
+                )
                 hypotheses = self.generate_hypotheses([observation], **options)
-                
+
                 # Select best hypothesis
                 best_hypothesis = hypotheses[0] if hypotheses else None
-                
+
                 explanation = Explanation(
                     explanation_id=f"exp_{len(explanations)}",
                     observation=observation,
                     hypotheses=hypotheses,
                     best_hypothesis=best_hypothesis,
                     confidence=best_hypothesis.confidence if best_hypothesis else 0.0,
-                    metadata={}
+                    metadata={},
                 )
-                
+
                 explanations.append(explanation)
-            
-            self.progress_tracker.stop_tracking(tracking_id, status="completed",
-                                               message=f"Found {len(explanations)} explanations")
+
+            self.progress_tracker.stop_tracking(
+                tracking_id,
+                status="completed",
+                message=f"Found {len(explanations)} explanations",
+            )
             return explanations
-            
+
         except Exception as e:
-            self.progress_tracker.stop_tracking(tracking_id, status="failed", message=str(e))
+            self.progress_tracker.stop_tracking(
+                tracking_id, status="failed", message=str(e)
+            )
             raise
-    
+
     def rank_hypotheses(
-        self,
-        hypotheses: List[Hypothesis],
-        **options
+        self, hypotheses: List[Hypothesis], **options
     ) -> List[Hypothesis]:
         """
         Rank hypotheses by plausibility.
-        
+
         Args:
             hypotheses: List of hypotheses
             **options: Additional options
-        
+
         Returns:
             Ranked hypotheses
         """
@@ -296,43 +358,43 @@ class AbductiveReasoner:
             else:
                 # Combined score
                 hypothesis.metadata["score"] = (
-                    hypothesis.confidence * 0.4 +
-                    hypothesis.coverage * 0.3 +
-                    hypothesis.simplicity * 0.3
+                    hypothesis.confidence * 0.4
+                    + hypothesis.coverage * 0.3
+                    + hypothesis.simplicity * 0.3
                 )
-        
+
         # Sort by score
-        ranked = sorted(hypotheses, key=lambda h: h.metadata.get("score", 0.0), reverse=True)
-        
+        ranked = sorted(
+            hypotheses, key=lambda h: h.metadata.get("score", 0.0), reverse=True
+        )
+
         return ranked
-    
+
     def _calculate_consistency(self, hypothesis: Hypothesis) -> float:
         """Calculate hypothesis consistency with knowledge base."""
         # Check consistency with knowledge base
         # Simple implementation
         return 0.8
-    
+
     def add_knowledge(self, facts: List[Any]) -> None:
         """
         Add knowledge to knowledge base.
-        
+
         Args:
             facts: Facts to add
         """
         self.knowledge_base.extend(facts)
-    
+
     def get_best_explanation(
-        self,
-        observation: Observation,
-        **options
+        self, observation: Observation, **options
     ) -> Optional[Explanation]:
         """
         Get best explanation for observation.
-        
+
         Args:
             observation: Observation to explain
             **options: Additional options
-        
+
         Returns:
             Best explanation or None
         """

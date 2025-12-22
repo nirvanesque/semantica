@@ -45,11 +45,11 @@ print(f"Inferred {len(results)} new facts")
 from semantica.reasoning import SPARQLReasoner
 
 # Create SPARQL reasoner
-reasoner = SPARQLReasoner(triple_store=kg)
+reasoner = SPARQLReasoner(triplet_store=kg)
 
 # Execute query
 query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }"
-result = reasoner.query(query)
+result = reasoner.execute_query(query)
 
 print(f"Found {len(result.bindings)} results")
 ```
@@ -71,7 +71,7 @@ fact = Fact("f1", "Person", ["John"])
 rete.add_fact(fact)
 
 # Get matches
-matches = rete.get_matches()
+matches = rete.match_patterns()
 print(f"Found {len(matches)} matches")
 ```
 
@@ -190,7 +190,7 @@ results = engine.forward_chain()
 from semantica.reasoning import SPARQLReasoner
 
 # Create reasoner with knowledge graph
-reasoner = SPARQLReasoner(triple_store=kg)
+reasoner = SPARQLReasoner(triplet_store=kg)
 
 # Execute SPARQL query
 query = """
@@ -201,7 +201,7 @@ WHERE {
 }
 """
 
-result = reasoner.query(query)
+result = reasoner.execute_query(query)
 
 for binding in result.bindings:
     print(f"Person: {binding.get('person')}, Company: {binding.get('company')}")
@@ -212,7 +212,7 @@ for binding in result.bindings:
 ```python
 from semantica.reasoning import SPARQLReasoner
 
-reasoner = SPARQLReasoner(triple_store=kg, enable_inference=True)
+reasoner = SPARQLReasoner(triplet_store=kg, enable_inference=True)
 
 # Add inference rule
 reasoner.add_inference_rule("IF ?x :type :Company THEN ?x :type :Organization")
@@ -221,25 +221,12 @@ reasoner.add_inference_rule("IF ?x :type :Company THEN ?x :type :Organization")
 query = "SELECT ?x WHERE { ?x :type :Organization }"
 
 # Query is automatically expanded with inference rules
-result = reasoner.query(query)
+result = reasoner.execute_query(query)
 
 # Results include both explicit :Organization types and inferred from :Company
 ```
 
-### Query Optimization
 
-```python
-from semantica.reasoning import SPARQLReasoner
-
-reasoner = SPARQLReasoner(triple_store=kg)
-
-# Optimize query before execution
-query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o . ?s :type :Person }"
-optimized = reasoner.optimize_query(query)
-
-# Execute optimized query
-result = reasoner.query(optimized)
-```
 
 ### SPARQL with RDF Inference
 
@@ -247,7 +234,7 @@ result = reasoner.query(optimized)
 from semantica.reasoning import SPARQLReasoner
 
 reasoner = SPARQLReasoner(
-    triple_store=kg,
+    triplet_store=kg,
     enable_inference=True,
     inference_rules=["rdfs:subClassOf", "rdfs:subPropertyOf"]
 )
@@ -261,7 +248,7 @@ WHERE {
 """
 
 # Will also match :Person if :Employee rdfs:subClassOf :Person
-result = reasoner.query(query)
+result = reasoner.execute_query(query)
 ```
 
 ## Rete Algorithm
@@ -332,15 +319,16 @@ rete.build_network([rule1, rule2])
 # Add facts incrementally
 fact1 = Fact("f1", "Person", ["John"])
 rete.add_fact(fact1)
-matches1 = rete.get_matches()  # Matches for rule1
+# Get matches
+matches = rete.match_patterns()
 
 fact2 = Fact("f2", "WorksFor", ["John", "Acme"])
 rete.add_fact(fact2)
-matches2 = rete.get_matches()  # Now includes matches for rule2
+# Now includes matches for rule2
+matches2 = rete.match_patterns()
 
-# Remove fact
-rete.remove_fact(fact1)
-matches3 = rete.get_matches()  # Updated matches
+# Reset engine (clears facts and matches)
+rete.reset()
 ```
 
 ### Rete Network Optimization
@@ -510,7 +498,7 @@ premises = [
 
 # Generate proof for conclusion
 conclusion_statement = "Socrates is mortal"
-proof = reasoner.generate_proof(premises, conclusion_statement)
+proof = reasoner.prove_theorem(conclusion_statement)
 
 if proof:
     print(f"Theorem: {proof.theorem}")
@@ -710,7 +698,7 @@ from semantica.reasoning import ExplanationGenerator
 generator = ExplanationGenerator()
 
 # Generate reasoning path
-path = generator.generate_reasoning_path(inference_result)
+path = generator.show_reasoning_path(inference_result)
 
 print(f"Path ID: {path.path_id}")
 print(f"Steps: {len(path.steps)}")
@@ -734,7 +722,7 @@ from semantica.reasoning import ExplanationGenerator
 generator = ExplanationGenerator()
 
 # Create justification
-justification = generator.create_justification(conclusion, reasoning_path)
+justification = generator.justify_conclusion(conclusion, reasoning_path)
 
 print(f"Justification ID: {justification.justification_id}")
 print(f"Conclusion: {justification.conclusion}")
@@ -1017,7 +1005,7 @@ conclusions = reasoner.apply_logic(premises)
 
 ```python
 # Proof generation
-proof = reasoner.generate_proof(premises, conclusion)
+proof = reasoner.prove_theorem(conclusion)
 # Constructs step-by-step proof
 ```
 
@@ -1104,8 +1092,7 @@ path = generator.generate_reasoning_path(inference_result)
 - `build_network(rules)`: Build Rete network from rules
 - `add_rule(rule)`: Add rule to network
 - `add_fact(fact)`: Add fact and propagate through network
-- `remove_fact(fact)`: Remove fact from network
-- `get_matches()`: Get all rule matches
+- `match_patterns()`: Get all rule matches
 - `match_patterns(facts)`: Match patterns using Rete algorithm
 
 #### AbductiveReasoner Methods
@@ -1118,7 +1105,7 @@ path = generator.generate_reasoning_path(inference_result)
 #### DeductiveReasoner Methods
 
 - `apply_logic(premises, **options)`: Apply logical inference rules
-- `generate_proof(premises, conclusion)`: Generate proof for conclusion
+- `prove_theorem(theorem)`: Prove theorem
 - `prove_theorem(theorem, **options)`: Prove logical theorem
 - `validate_argument(argument)`: Validate logical argument
 
@@ -1178,7 +1165,7 @@ engine = InferenceEngine(
 
 # Configure SPARQL reasoner
 reasoner = SPARQLReasoner(
-    triple_store=kg,
+    triplet_store=kg,
     enable_inference=True,
     query_cache_size=1000
 )
@@ -1247,8 +1234,8 @@ for result in results:
     print(f"Explanation: {explanation.natural_language}")
 
 # 6. Query with SPARQL reasoning
-sparql_reasoner = SPARQLReasoner(triple_store=kg, enable_inference=True)
-query_result = sparql_reasoner.query("SELECT ?x WHERE { ?x :type :Employee }")
+sparql_reasoner = SPARQLReasoner(triplet_store=kg, enable_inference=True)
+query_result = sparql_reasoner.execute_query("SELECT ?x WHERE { ?x :type :Employee }")
 ```
 
 ### Abductive Explanation System
@@ -1305,7 +1292,7 @@ facts = [
 
 for fact in facts:
     rete.add_fact(fact)
-    matches = rete.get_matches()
+    matches = rete.match_patterns()
     print(f"After adding {fact.fact_id}: {len(matches)} matches")
 ```
 
@@ -1345,7 +1332,7 @@ from semantica.kg import build
 kg = build(sources=[...])
 
 # Create SPARQL reasoner with KG
-reasoner = SPARQLReasoner(triple_store=kg, enable_inference=True)
+reasoner = SPARQLReasoner(triplet_store=kg, enable_inference=True)
 
 # Add inference rules
 reasoner.add_inference_rule("IF ?x :type :Company THEN ?x :type :Organization")
@@ -1360,7 +1347,7 @@ WHERE {
 }
 """
 
-result = reasoner.query(query)
+result = reasoner.execute_query(query)
 # Results include both explicit and inferred relationships
 ```
 

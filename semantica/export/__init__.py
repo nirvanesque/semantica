@@ -10,9 +10,9 @@ Algorithms Used:
 RDF Export:
     - RDF Serialization: Multiple format serialization (Turtle, RDF/XML, JSON-LD, N-Triples, N3)
     - Namespace Management: Namespace registration, conflict resolution, declaration generation
-    - RDF Validation: RDF syntax validation, triple validation, namespace validation
+    - RDF Validation: RDF syntax validation, triplet validation, namespace validation
     - URI Generation: Hash-based and text-based URI assignment for RDF resources
-    - Triple Extraction: Entity and relationship to RDF triple conversion
+    - Triplet Extraction: Entity and relationship to RDF triplet conversion
     - Format Conversion: Cross-format RDF conversion algorithms
 
 LPG (Labeled Property Graph) Export:
@@ -62,7 +62,7 @@ OWL Export:
 
 Vector Export:
     - Vector Serialization: Multiple format support (JSON, NumPy, Binary, FAISS)
-    - Vector Store Integration: Format conversion for Pinecone, Weaviate, Qdrant, FAISS
+    - Vector Store Integration: Format conversion for Weaviate, Qdrant, FAISS
     - Metadata Association: Vector-to-metadata mapping and serialization
     - Batch Export: Efficient batch vector export processing
     - Multi-dimensional Support: Variable dimension vector handling
@@ -98,7 +98,6 @@ Main Classes:
     - ExportConfig: Configuration manager for export module
 
 Convenience Functions:
-    - export_knowledge_graph: Unified knowledge graph export with format dispatch
     - export_rdf: RDF export wrapper
     - export_json: JSON/JSON-LD export wrapper
     - export_csv: CSV export wrapper
@@ -110,9 +109,8 @@ Convenience Functions:
     - generate_report: Report generation wrapper
 
 Example Usage:
-    >>> from semantica.export import export_knowledge_graph, export_lpg, JSONExporter
+    >>> from semantica.export import export_lpg, JSONExporter
     >>> # Using convenience function
-    >>> export_knowledge_graph(kg, "output.json", format="json")
     >>> export_lpg(kg, "output.cypher", method="cypher")
     >>> # Using classes directly
     >>> json_exporter = JSONExporter()
@@ -122,39 +120,30 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from .rdf_exporter import (
-    RDFExporter,
-    RDFSerializer,
-    RDFValidator,
-    NamespaceManager,
-)
-from .json_exporter import JSONExporter
+from .config import ExportConfig, export_config
 from .csv_exporter import CSVExporter
 from .graph_exporter import GraphExporter
-from .yaml_exporter import (
-    SemanticNetworkYAMLExporter,
-    YAMLSchemaExporter,
-)
-from .report_generator import ReportGenerator
-from .owl_exporter import OWLExporter
-from .vector_exporter import VectorExporter
+from .json_exporter import JSONExporter
 from .lpg_exporter import LPGExporter
-from .registry import MethodRegistry, method_registry
 from .methods import (
-    export_rdf,
-    export_json,
     export_csv,
     export_graph,
-    export_yaml,
-    export_owl,
-    export_vector,
+    export_json,
     export_lpg,
+    export_owl,
+    export_rdf,
+    export_vector,
+    export_yaml,
     generate_report,
-    export_knowledge_graph,
     get_export_method,
     list_available_methods,
 )
-from .config import ExportConfig, export_config
+from .owl_exporter import OWLExporter
+from .rdf_exporter import NamespaceManager, RDFExporter, RDFSerializer, RDFValidator
+from .registry import MethodRegistry, method_registry
+from .report_generator import ReportGenerator
+from .vector_exporter import VectorExporter
+from .yaml_exporter import SemanticNetworkYAMLExporter, YAMLSchemaExporter
 
 __all__ = [
     # Core Exporters
@@ -183,7 +172,6 @@ __all__ = [
     "export_vector",
     "export_lpg",
     "generate_report",
-    "export_knowledge_graph",
     "get_export_method",
     "list_available_methods",
     # Configuration

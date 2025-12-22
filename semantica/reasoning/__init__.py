@@ -22,7 +22,7 @@ Rete Algorithm:
 SPARQL Reasoning:
     - Query Expansion: Inference rule integration (convert rules to SPARQL patterns), query rewriting (add inferred patterns to WHERE clause), transitive closure (compute transitive relationships), property chain inference (infer relationships through property chains)
     - Query Optimization: Query plan generation (logical plan construction), join ordering (selectivity-based ordering), filter pushdown (apply filters early), projection pushdown (select only needed variables)
-    - Inference Rule Integration: Rule-to-SPARQL translation (convert rule conditions/conclusions to SPARQL triple patterns), query augmentation (add inferred patterns), materialization (pre-compute inferred triples)
+    - Inference Rule Integration: Rule-to-SPARQL translation (convert rule conditions/conclusions to SPARQL triplet patterns), query augmentation (add inferred patterns), materialization (pre-compute inferred triplets)
     - Caching: Query result caching (cache query results by query pattern), cache invalidation (invalidate on data updates), cache hit optimization (fast lookup for repeated queries)
 
 Abductive Reasoning:
@@ -96,62 +96,38 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from .inference_engine import (
-    InferenceEngine,
-    InferenceResult,
-    InferenceStrategy
+from .abductive_reasoner import AbductiveReasoner
+from .abductive_reasoner import Explanation as AbductiveExplanation
+from .abductive_reasoner import Hypothesis, HypothesisRanking, Observation
+from .deductive_reasoner import Argument, Conclusion, DeductiveReasoner, Premise, Proof
+from .explanation_generator import (
+    Explanation,
+    ExplanationGenerator,
+    Justification,
+    ReasoningPath,
+    ReasoningStep,
 )
-from .sparql_reasoner import (
-    SPARQLReasoner,
-    SPARQLQueryResult
-)
+from .inference_engine import InferenceEngine, InferenceResult, InferenceStrategy
 from .rete_engine import (
-    ReteEngine,
-    Fact,
-    Match,
-    ReteNode,
     AlphaNode,
     BetaNode,
-    TerminalNode
+    Fact,
+    Match,
+    ReteEngine,
+    ReteNode,
+    TerminalNode,
 )
-from .abductive_reasoner import (
-    AbductiveReasoner,
-    Observation,
-    Hypothesis,
-    Explanation as AbductiveExplanation,
-    HypothesisRanking
-)
-from .deductive_reasoner import (
-    DeductiveReasoner,
-    Premise,
-    Conclusion,
-    Proof,
-    Argument
-)
-from .rule_manager import (
-    RuleManager,
-    Rule,
-    RuleExecution,
-    RuleType
-)
-from .explanation_generator import (
-    ExplanationGenerator,
-    Explanation,
-    ReasoningStep,
-    ReasoningPath,
-    Justification
-)
+from .rule_manager import Rule, RuleExecution, RuleManager, RuleType
+from .sparql_reasoner import SPARQLQueryResult, SPARQLReasoner
 
 __all__ = [
     # Inference
     "InferenceEngine",
     "InferenceResult",
     "InferenceStrategy",
-    
     # SPARQL reasoning
     "SPARQLReasoner",
     "SPARQLQueryResult",
-    
     # Rete algorithm
     "ReteEngine",
     "Fact",
@@ -160,27 +136,23 @@ __all__ = [
     "AlphaNode",
     "BetaNode",
     "TerminalNode",
-    
     # Abductive reasoning
     "AbductiveReasoner",
     "Observation",
     "Hypothesis",
     "AbductiveExplanation",
     "HypothesisRanking",
-    
     # Deductive reasoning
     "DeductiveReasoner",
     "Premise",
     "Conclusion",
     "Proof",
     "Argument",
-    
     # Rule management
     "RuleManager",
     "Rule",
     "RuleExecution",
     "RuleType",
-    
     # Explanation
     "ExplanationGenerator",
     "Explanation",

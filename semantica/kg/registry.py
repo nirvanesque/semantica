@@ -10,12 +10,13 @@ Supported Registration Types:
         * "analyze": Graph analysis methods
         * "resolve": Entity resolution methods
         * "validate": Graph validation methods
-        * "conflict": Conflict detection methods
         * "centrality": Centrality calculation methods
         * "community": Community detection methods
         * "connectivity": Connectivity analysis methods
-        * "deduplicate": Deduplication methods
         * "temporal": Temporal query methods
+
+Note: Conflict detection and deduplication have been moved to dedicated modules.
+    Use semantica.conflicts for conflict detection and semantica.deduplication for deduplication.
 
 Algorithms Used:
     - Registry Pattern: Dictionary-based registration and lookup
@@ -26,7 +27,7 @@ Algorithms Used:
 
 Key Features:
     - Method registry for custom KG methods
-    - Task-based method organization (build, analyze, resolve, validate, conflict, centrality, community, connectivity, deduplicate, temporal)
+    - Task-based method organization (build, analyze, resolve, validate, centrality, community, connectivity, temporal)
     - Dynamic registration and unregistration
     - Easy discovery of available methods
     - Support for community-contributed extensions
@@ -43,85 +44,83 @@ Example Usage:
     >>> available = method_registry.list_all("build")
 """
 
-from typing import Dict, Callable, Any, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 
 class MethodRegistry:
     """Registry for custom knowledge graph methods."""
-    
+
     _methods: Dict[str, Dict[str, Callable]] = {
         "build": {},
         "analyze": {},
         "resolve": {},
         "validate": {},
-        "conflict": {},
         "centrality": {},
         "community": {},
         "connectivity": {},
-        "deduplicate": {},
         "temporal": {},
     }
-    
+
     @classmethod
     def register(cls, task: str, name: str, method_func: Callable):
         """
         Register a custom KG method.
-        
+
         Args:
-            task: Task type ("build", "analyze", "resolve", "validate", "conflict", "centrality", "community", "connectivity", "deduplicate", "temporal")
+            task: Task type ("build", "analyze", "resolve", "validate", "centrality", "community", "connectivity", "temporal")
             name: Method name
             method_func: Method function
         """
         if task not in cls._methods:
             cls._methods[task] = {}
         cls._methods[task][name] = method_func
-    
+
     @classmethod
     def get(cls, task: str, name: str) -> Optional[Callable]:
         """
         Get method by task and name.
-        
+
         Args:
-            task: Task type ("build", "analyze", "resolve", "validate", "conflict", "centrality", "community", "connectivity", "deduplicate", "temporal")
+            task: Task type ("build", "analyze", "resolve", "validate", "centrality", "community", "connectivity", "temporal")
             name: Method name
-            
+
         Returns:
             Method function or None
         """
         return cls._methods.get(task, {}).get(name)
-    
+
     @classmethod
     def list_all(cls, task: Optional[str] = None) -> Dict[str, List[str]]:
         """
         List all registered methods.
-        
+
         Args:
             task: Optional task type to filter by
-            
+
         Returns:
             Dictionary mapping task types to method names
         """
         if task:
             return {task: list(cls._methods.get(task, {}).keys())}
         return {t: list(m.keys()) for t, m in cls._methods.items()}
-    
+
     @classmethod
     def unregister(cls, task: str, name: str):
         """
         Unregister a method.
-        
+
         Args:
             task: Task type ("build", "analyze", "resolve", "validate", "conflict", "centrality", "community", "connectivity", "deduplicate", "temporal")
             name: Method name
         """
         if task in cls._methods and name in cls._methods[task]:
             del cls._methods[task][name]
-    
+
     @classmethod
     def clear(cls, task: Optional[str] = None):
         """
         Clear all registered methods for a task or all tasks.
-        
+
         Args:
             task: Optional task type to clear (clears all if None)
         """
@@ -135,4 +134,3 @@ class MethodRegistry:
 
 # Global registry
 method_registry = MethodRegistry()
-

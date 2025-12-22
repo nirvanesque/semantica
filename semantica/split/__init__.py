@@ -16,7 +16,7 @@ Algorithms Used:
     - Semantic Boundary Detection: Sentence transformer embeddings and similarity
     - LLM-based Splitting: Prompt engineering for optimal split point detection
     - Entity Boundary Detection: NER-based entity extraction and boundary preservation
-    - Triple Preservation: Graph-based triple integrity checking
+    - Triplet Preservation: Graph-based triplet integrity checking
     - Graph Centrality Analysis: Degree, betweenness, closeness, eigenvector centrality
     - Community Detection: Louvain algorithm, Leiden algorithm, modularity optimization
 
@@ -33,7 +33,6 @@ Key Features:
     - Structure-aware chunking (headings, paragraphs, lists)
     - Sliding window chunking with overlap
     - Table-specific chunking
-    - Chunk validation and quality assessment
     - Provenance tracking for data lineage
 
 Main Classes:
@@ -43,11 +42,10 @@ Main Classes:
     - SlidingWindowChunker: Fixed-size sliding window chunking
     - TableChunker: Table-specific chunking
     - EntityAwareChunker: Entity boundary-preserving chunker
-    - RelationAwareChunker: Triple-preserving chunker
+    - RelationAwareChunker: Triplet-preserving chunker
     - GraphBasedChunker: Graph structure-based chunker
     - OntologyAwareChunker: Ontology concept-based chunker
     - HierarchicalChunker: Multi-level hierarchical chunker
-    - ChunkValidator: Chunk quality validation
     - ProvenanceTracker: Chunk provenance tracking
     - Chunk: Chunk representation dataclass
 
@@ -69,60 +67,60 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from .semantic_chunker import SemanticChunker, Chunk
-from .structural_chunker import StructuralChunker
-from .sliding_window_chunker import SlidingWindowChunker
-from .table_chunker import TableChunker
-from .chunk_validator import ChunkValidator
-from .provenance_tracker import ProvenanceTracker
-from .splitter import TextSplitter
+from .config import SplitConfig, split_config
 from .kg_chunkers import (
     EntityAwareChunker,
-    RelationAwareChunker,
     GraphBasedChunker,
+    HierarchicalChunker,
     OntologyAwareChunker,
-    HierarchicalChunker
+    RelationAwareChunker,
 )
 from .methods import (
     get_split_method,
     list_available_methods,
-    split_recursive,
-    split_by_tokens,
-    split_by_sentences,
-    split_by_paragraphs,
     split_by_characters,
+    split_by_paragraphs,
+    split_by_sentences,
+    split_by_tokens,
     split_by_words,
-    split_semantic_transformer,
-    split_llm,
     split_entity_aware,
-    split_relation_aware,
     split_graph_based,
+    split_hierarchical,
+    split_llm,
     split_ontology_aware,
-    split_hierarchical
+    split_recursive,
+    split_relation_aware,
+    split_semantic_transformer,
 )
-from .config import SplitConfig, split_config
+from .provenance_tracker import ProvenanceTracker
 from .registry import MethodRegistry, method_registry
+from .semantic_chunker import Chunk, SemanticChunker
+from .sliding_window_chunker import SlidingWindowChunker
+from .splitter import TextSplitter
+
+# Alias for backward compatibility
+Splitter = TextSplitter
+
+from .structural_chunker import StructuralChunker
+from .table_chunker import TableChunker
 
 __all__ = [
     # Unified splitter
     "TextSplitter",
-    
+    "Splitter",
     # Existing chunkers
     "SemanticChunker",
     "Chunk",
     "StructuralChunker",
     "SlidingWindowChunker",
     "TableChunker",
-    "ChunkValidator",
     "ProvenanceTracker",
-    
     # KG/Ontology chunkers
     "EntityAwareChunker",
     "RelationAwareChunker",
     "GraphBasedChunker",
     "OntologyAwareChunker",
     "HierarchicalChunker",
-    
     # Methods
     "get_split_method",
     "list_available_methods",
@@ -139,7 +137,6 @@ __all__ = [
     "split_graph_based",
     "split_ontology_aware",
     "split_hierarchical",
-    
     # Config and Registry
     "SplitConfig",
     "split_config",

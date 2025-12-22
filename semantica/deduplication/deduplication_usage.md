@@ -4,69 +4,14 @@ This guide demonstrates how to use the deduplication module for detecting and me
 
 ## Table of Contents
 
-1. [Basic Usage](#basic-usage)
-2. [Similarity Calculation](#similarity-calculation)
-3. [Duplicate Detection](#duplicate-detection)
-4. [Entity Merging](#entity-merging)
-5. [Clustering](#clustering)
-6. [Using Methods](#using-methods)
-7. [Using Registry](#using-registry)
-8. [Configuration](#configuration)
-9. [Advanced Examples](#advanced-examples)
-
-## Basic Usage
-
-### Using the Convenience Function
-
-```python
-from semantica.deduplication import deduplicate
-
-# Sample entities with potential duplicates
-entities = [
-    {"id": "1", "name": "Apple Inc.", "type": "Company", "founded": 1976},
-    {"id": "2", "name": "Apple", "type": "Company", "founded": 1976},
-    {"id": "3", "name": "Microsoft Corporation", "type": "Company", "founded": 1975},
-    {"id": "4", "name": "Microsoft", "type": "Company", "founded": 1975},
-]
-
-# Deduplicate entities
-result = deduplicate(
-    entities,
-    similarity_threshold=0.8,
-    confidence_threshold=0.7,
-    merge_strategy="keep_most_complete",
-    preserve_provenance=True
-)
-
-print(f"Merged {len(result['merged_entities'])} entities")
-print(f"Found {len(result['duplicate_groups'])} duplicate groups")
-print(f"Statistics: {result['statistics']}")
-```
-
-### Using Main Classes
-
-```python
-from semantica.deduplication import DuplicateDetector, EntityMerger, MergeStrategy
-
-# Step 1: Detect duplicates
-detector = DuplicateDetector(
-    similarity_threshold=0.8,
-    confidence_threshold=0.7
-)
-
-duplicate_groups = detector.detect_duplicate_groups(entities)
-print(f"Found {len(duplicate_groups)} duplicate groups")
-
-# Step 2: Merge duplicates
-merger = EntityMerger(preserve_provenance=True)
-merge_operations = merger.merge_duplicates(
-    entities,
-    strategy=MergeStrategy.KEEP_MOST_COMPLETE
-)
-
-for op in merge_operations:
-    print(f"Merged {len(op.source_entities)} entities into 1")
-```
+1. [Similarity Calculation](#similarity-calculation)
+2. [Duplicate Detection](#duplicate-detection)
+3. [Entity Merging](#entity-merging)
+4. [Clustering](#clustering)
+5. [Using Methods](#using-methods)
+6. [Using Registry](#using-registry)
+7. [Configuration](#configuration)
+8. [Advanced Examples](#advanced-examples)
 
 ## Similarity Calculation
 
@@ -75,10 +20,15 @@ for op in merge_operations:
 ```python
 from semantica.deduplication import SimilarityCalculator
 
-calculator = SimilarityCalculator(
-    string_weight=0.4,
-    property_weight=0.3,
-    embedding_weight=0.3
+# Initialize with default weights (optimized for entity resolution)
+# String: 0.6 (Jaro-Winkler), Property: 0.2, Relationship: 0.2
+calculator = SimilarityCalculator()
+
+# Or customize weights
+calculator_custom = SimilarityCalculator(
+    string_weight=0.6,
+    property_weight=0.2,
+    embedding_weight=0.2
 )
 
 entity1 = {"name": "Apple Inc.", "type": "Company"}
@@ -660,14 +610,14 @@ for op in history:
 ### Property-Specific Merge Rules
 
 ```python
-from semantica.deduplication import MergeStrategyManager, MergeStrategy
+from semantica.deduplication import MergeStrategyManager
 
 manager = MergeStrategyManager(default_strategy="keep_most_complete")
 
 # Different strategies for different properties
-manager.add_property_rule("name", MergeStrategy.KEEP_FIRST)
-manager.add_property_rule("description", MergeStrategy.MERGE_ALL)
-manager.add_property_rule("founded", MergeStrategy.KEEP_HIGHEST_CONFIDENCE)
+manager.add_property_rule("name", "keep_first")
+manager.add_property_rule("description", "merge_all")
+manager.add_property_rule("founded", "keep_highest_confidence")
 
 # Custom conflict resolution for dates
 def resolve_date_conflict(dates):
@@ -676,7 +626,7 @@ def resolve_date_conflict(dates):
 
 manager.add_property_rule(
     "last_updated",
-    MergeStrategy.CUSTOM,
+    "custom",
     conflict_resolution=resolve_date_conflict
 )
 

@@ -2,14 +2,53 @@
 
 Real-world examples and use cases for Semantica.
 
-## Basic Examples
+!!! tip "Interactive Learning"
+    For hands-on interactive tutorials, check out our [Cookbook](cookbook.md) with Jupyter notebooks covering everything from basics to advanced use cases.
+
+---
+
+## Example Gallery
+
+<div class="grid cards" markdown>
+
+-   :material-school: **Getting Started**
+    ---
+    Quick examples to get you up and running in 5 minutes.
+    
+    [View Examples](#getting-started-5-min-examples)
+
+-   :material-cogs: **Core Workflows**
+    ---
+    Common workflows for building production-ready graphs.
+    
+    [View Examples](#core-workflows-15-min-examples)
+
+-   :material-rocket: **Advanced Patterns**
+    ---
+    Complex use cases and production deployments.
+    
+    [View Examples](#advanced-patterns-30-min-examples)
+
+-   :material-factory: **Production Patterns**
+    ---
+    Scalable deployment patterns for enterprise use.
+    
+    [View Examples](#production-patterns)
+
+</div>
+
+---
+
+## Getting Started (5 min examples)
 
 ### Example 1: Basic Knowledge Graph
 
-Build a knowledge graph from a single document:
+**Difficulty**: Beginner
+
+Build a knowledge graph from a single document.
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
 
@@ -27,108 +66,74 @@ print(f"Relationships: {len(kg['relationships'])}")
 
 ### Example 2: Entity Extraction
 
-Extract entities from text:
+**Difficulty**: Beginner
+
+Extract entities from text using Named Entity Recognition.
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
-
-text = """
-Apple Inc. is a technology company founded by Steve Jobs.
-The company is headquartered in Cupertino, California.
-Tim Cook is the current CEO of Apple.
-"""
+text = "Apple Inc. is a technology company founded by Steve Jobs."
 
 entities = semantica.semantic_extract.extract_entities(text)
 for entity in entities["entities"]:
     print(f"{entity['text']}: {entity['type']}")
 ```
 
-**Output:**
-```
-Apple Inc.: ORGANIZATION
-Steve Jobs: PERSON
-Cupertino: LOCATION
-California: LOCATION
-Tim Cook: PERSON
-```
-
 ### Example 3: Multi-Source Integration
 
-Combine data from multiple sources:
+**Difficulty**: Beginner
+
+Combine data from multiple sources into a unified knowledge graph.
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
-
 sources = [
     "documents/finance_report.pdf",
-    "documents/market_analysis.docx",
     "https://example.com/news-article"
 ]
 
 result = semantica.build_knowledge_base(sources)
+print(f"Unified graph: {len(result['knowledge_graph']['entities'])} entities")
+```
+
+---
+
+## Core Workflows (15 min examples)
+
+### Example 4: Conflict Resolution
+
+**Difficulty**: Intermediate
+
+Resolve conflicts in data from multiple sources.
+
+```python
+from semantica.core import Semantica
+from semantica.conflicts import ConflictDetector, ConflictResolver
+
+semantica = Semantica()
+result = semantica.build_knowledge_base(["source1.pdf", "source2.pdf"])
+
+# Detect and resolve conflicts
 kg = result["knowledge_graph"]
-
-print(f"Unified knowledge graph with {len(kg['entities'])} entities")
-```
-
-### Example 4: Export Formats
-
-Export knowledge graph to multiple formats:
-
-```python
-from semantica import Semantica
-
-semantica = Semantica()
-kg = semantica.kg.build_graph(["data.pdf"])
-
-# Export to different formats
-semantica.export.to_rdf(kg, "output.rdf")
-semantica.export.to_json(kg, "output.json")
-semantica.export.to_csv(kg, "output.csv")
-semantica.export.to_owl(kg, "output.owl")
-```
-
-## Advanced Examples
-
-### Example 5: Conflict Resolution
-
-Resolve conflicts in data from multiple sources:
-
-```python
-from semantica import Semantica
-from semantica.conflicts import ConflictResolver
-
-semantica = Semantica()
-
-# Build graph from multiple sources
-result = semantica.build_knowledge_base([
-    "source1.pdf",
-    "source2.pdf",
-    "source3.pdf"
-])
-
-# Detect conflicts
-conflicts = semantica.kg.detect_conflicts(result["knowledge_graph"])
-
-# Resolve conflicts
+detector = ConflictDetector()
+conflicts = detector.detect_conflicts(kg["entities"])
 resolver = ConflictResolver(default_strategy="voting")
 resolved = resolver.resolve_conflicts(conflicts)
-
-print(f"Resolved {len(resolved)} conflicts")
 ```
 
-### Example 6: Custom Configuration
+### Example 5: Custom Configuration
 
-Use custom configuration for specific use cases:
+**Difficulty**: Intermediate
+
+Use custom configuration for specific use cases.
 
 ```python
-from semantica import Semantica, Config
+from semantica.core import Semantica, Config
 
-# Custom configuration
 config = Config(
     embeddings=True,
     graph=True,
@@ -140,49 +145,52 @@ semantica = Semantica(config=config)
 result = semantica.build_knowledge_base(["document.pdf"])
 ```
 
-### Example 7: Incremental Graph Building
+### Example 6: Incremental Graph Building
 
-Build knowledge graph incrementally:
+**Difficulty**: Intermediate
+
+Build knowledge graph incrementally.
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
 
 # Build graphs separately
 kg1 = semantica.kg.build_graph(["source1.pdf"])
 kg2 = semantica.kg.build_graph(["source2.pdf"])
-kg3 = semantica.kg.build_graph(["source3.pdf"])
 
 # Merge into unified graph
-merged_kg = semantica.kg.merge([kg1, kg2, kg3])
-
-print(f"Merged graph: {len(merged_kg['entities'])} entities")
+merged_kg = semantica.kg.merge([kg1, kg2])
 ```
 
-### Example 8: Visualization
+---
 
-Create interactive visualizations:
+## Advanced Patterns (30+ min examples)
+
+### Example 7: Graph Visualization
+
+**Difficulty**: Beginner
+
+Visualize your knowledge graph to understand entity relationships.
 
 ```python
-from semantica import Semantica
+import semantica
+from semantica.visualization import GraphVisualizer
 
-semantica = Semantica()
-
-# Build graph
-result = semantica.build_knowledge_base(["document.pdf"])
-kg = result["knowledge_graph"]
+# Build a small graph
+kg = semantica.kg.build_graph(["semantica_intro.pdf"])
 
 # Visualize
-semantica.kg.visualize(kg, output_path="graph.html")
-
-# Also analyze
-analysis = semantica.kg.analyze(kg)
-print(f"Graph density: {analysis['density']}")
-print(f"Connected components: {analysis['components']}")
+viz = GraphVisualizer()
+viz.plot(kg, title="Semantica Knowledge Map")
 ```
 
-### Example 9: Persistent Storage (Neo4j)
+---
+
+## Advanced Patterns (30+ min examples)
+
+### Example 8: Persistent Storage (Neo4j)
 
 **Difficulty**: Intermediate
 
@@ -218,7 +226,7 @@ store.create_relationship(
 store.close()
 ```
 
-### Example 10: FalkorDB for Real-Time Applications
+### Example 9: FalkorDB for Real-Time Applications
 
 **Difficulty**: Intermediate
 
@@ -240,7 +248,7 @@ results = store.execute_query("MATCH (n)-[r]->(m) WHERE n.name CONTAINS 'AI' RET
 store.close()
 ```
 
-### Example 11: GraphRAG (Knowledge-Powered Retrieval)
+### Example 10: GraphRAG (Knowledge-Powered Retrieval)
 
 **Difficulty**: Advanced
 
@@ -268,7 +276,7 @@ results = context.retrieve("What technologies are used in this project?")
 
 [**View Complete GraphRAG Tutorial**](https://github.com/Hawksight-AI/semantica/blob/main/cookbook/use_cases/advanced_rag/01_GraphRAG_Complete.ipynb)
 
-### Example 12: RAG vs. GraphRAG Comparison
+### Example 11: RAG vs. GraphRAG Comparison
 
 **Difficulty**: Intermediate
 
@@ -280,7 +288,7 @@ Benchmark standard Vector RAG against Graph-enhanced retrieval.
 
 ## Production Patterns
 
-### Example 13: Streaming Data Processing
+### Example 12: Streaming Data Processing
 
 **Difficulty**: Advanced
 
@@ -289,93 +297,50 @@ Process data streams in real-time.
 ```python
 from semantica.ingest import StreamIngestor
 from semantica.core import Semantica
-```
-
-## Use Case Examples
-
-### Research Paper Analysis
-
-Extract knowledge from research papers:
-
-```python
-from semantica import Semantica
 
 semantica = Semantica()
+stream_ingestor = StreamIngestor(stream_uri="kafka://localhost:9092/topic")
 
-# Process research paper
-result = semantica.build_knowledge_base([
-    "papers/ai_research.pdf",
-    "papers/ml_survey.pdf"
-])
-
-kg = result["knowledge_graph"]
-
-# Find key concepts
-concepts = [e for e in kg["entities"] if e["type"] == "CONCEPT"]
-print(f"Found {len(concepts)} key concepts")
+for batch in stream_ingestor.stream(batch_size=100):
+    result = semantica.build_knowledge_base(
+        sources=batch,
+        embeddings=True,
+        graph=True
+    )
+    # Process results
 ```
 
-### Company Intelligence
+### Example 13: Batch Processing Large Datasets
 
-Build knowledge graph from company documents:
+**Difficulty**: Intermediate
+
+Process large datasets efficiently with batching.
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
+sources = [f"data/doc_{i}.pdf" for i in range(1000)]
+batch_size = 50
 
-# Company documents
-sources = [
-    "company/annual_report.pdf",
-    "company/press_releases/",
-    "company/website_content.html"
-]
-
-result = semantica.build_knowledge_base(sources)
-kg = result["knowledge_graph"]
-
-# Export for analysis
-semantica.export.to_json(kg, "company_intelligence.json")
+for i in range(0, len(sources), batch_size):
+    batch = sources[i:i+batch_size]
+    result = semantica.build_knowledge_base(batch)
+    # Save intermediate results
 ```
 
-### News Article Processing
-
-Process and analyze news articles:
-
-```python
-from semantica import Semantica
-
-semantica = Semantica()
-
-# News articles
-articles = [
-    "https://example.com/article1",
-    "https://example.com/article2",
-    "https://example.com/article3"
-]
-
-result = semantica.build_knowledge_base(articles)
-kg = result["knowledge_graph"]
-
-# Extract key entities
-people = [e for e in kg["entities"] if e["type"] == "PERSON"]
-organizations = [e for e in kg["entities"] if e["type"] == "ORGANIZATION"]
-
-print(f"People mentioned: {len(people)}")
-print(f"Organizations: {len(organizations)}")
-```
-
-## Interactive Examples
-
-For more interactive examples and tutorials, check out our [Cookbook](cookbook.md) with Jupyter notebooks covering:
-
-- **Introduction**: Getting started tutorials
-- **Advanced**: Advanced techniques and patterns
-- **Use Cases**: Real-world applications in various domains
+---
 
 ## More Resources
 
 - **[Quick Start Guide](quickstart.md)** - Step-by-step tutorial
-- **[API Reference](api.md)** - Complete API documentation
+- **[API Reference](reference/core.md)** - Complete API documentation
 - **[Cookbook](cookbook.md)** - Interactive Jupyter notebooks
-- **[Code Examples](../CodeExamples.md)** - Additional code samples
+- **[Use Cases](use-cases.md)** - Real-world applications
+
+---
+
+!!! info "Contribute"
+    Have an example to share? [Contribute on GitHub](https://github.com/Hawksight-AI/semantica)
+
+**Last Updated**: 2024

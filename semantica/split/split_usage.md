@@ -209,7 +209,7 @@ chunks = split_entity_aware(
     text,
     chunk_size=1000,
     chunk_overlap=200,
-    ner_method="llm",  # or "spacy", "huggingface"
+    ner_method="ml",  # "ml" (spaCy), "llm", or "pattern"
     preserve_entities=True
 )
 
@@ -226,11 +226,11 @@ chunks = split_relation_aware(
     text,
     chunk_size=1000,
     chunk_overlap=200,
-    preserve_triples=True
+    preserve_triplets=True
 )
 
 for chunk in chunks:
-    print(f"Triples in chunk: {chunk.metadata.get('triples')}")
+    print(f"Triplets in chunk: {chunk.metadata.get('triplets')}")
 ```
 
 ### Graph-based Splitting
@@ -285,7 +285,12 @@ from semantica.split import (
     SemanticChunker,
     StructuralChunker,
     SlidingWindowChunker,
-    EntityAwareChunker
+    TableChunker,
+    EntityAwareChunker,
+    RelationAwareChunker,
+    GraphBasedChunker,
+    OntologyAwareChunker,
+    HierarchicalChunker
 )
 
 # Semantic chunking
@@ -301,17 +306,60 @@ chunks = structural_chunker.chunk(text)
 
 # Sliding window chunking
 sliding_chunker = SlidingWindowChunker(
-    chunk_size=1000,
-    chunk_overlap=200
+    window_size=1000,
+    step_size=800,  # 200 overlap
+    min_chunk_size=100
 )
 chunks = sliding_chunker.chunk(text)
+
+# Table-specific chunking
+table_chunker = TableChunker(
+    preserve_headers=True,
+    max_rows_per_chunk=50,
+    include_context=True
+)
+chunks = table_chunker.chunk(text_with_tables)
 
 # Entity-aware chunking
 entity_chunker = EntityAwareChunker(
     chunk_size=1000,
-    ner_method="llm"
+    chunk_overlap=200,
+    ner_method="ml",
+    preserve_entities=True
 )
 chunks = entity_chunker.chunk(text)
+
+# Relation-aware chunking
+relation_chunker = RelationAwareChunker(
+    chunk_size=1000,
+    preserve_triplets=True
+)
+chunks = relation_chunker.chunk(text)
+
+# Graph-based chunking
+graph_chunker = GraphBasedChunker(
+    chunk_size=1000,
+    centrality_method="betweenness",
+    community_algorithm="louvain"
+)
+chunks = graph_chunker.chunk(text, graph=knowledge_graph)
+
+# Ontology-aware chunking
+ontology_chunker = OntologyAwareChunker(
+    chunk_size=1000,
+    chunk_overlap=200,
+    ontology_path="domain_ontology.owl",
+    preserve_concepts=True
+)
+chunks = ontology_chunker.chunk(text)
+
+# Hierarchical chunking
+hierarchical_chunker = HierarchicalChunker(
+    chunk_sizes=[2000, 1000, 500],
+    chunk_overlaps=[400, 200, 100],
+    create_parent_chunks=True
+)
+chunks = hierarchical_chunker.chunk(text)
 ```
 
 ## Using Methods
@@ -360,7 +408,7 @@ chunks6 = split_by_words(text, chunk_size=500, chunk_overlap=50)
 # Advanced methods
 chunks7 = split_semantic_transformer(text, chunk_size=1000, chunk_overlap=200)
 chunks8 = split_llm(text, chunk_size=1000, provider="openai")
-chunks9 = split_entity_aware(text, chunk_size=1000, ner_method="llm")
+chunks9 = split_entity_aware(text, chunk_size=1000, ner_method="ml")
 chunks10 = split_relation_aware(text, chunk_size=1000)
 chunks11 = split_graph_based(text, chunk_size=1000)
 chunks12 = split_ontology_aware(text, chunk_size=1000)
@@ -564,20 +612,20 @@ for chunk in chunks:
 ```python
 from semantica.split import RelationAwareChunker
 
-# Relation-aware chunking preserves triple integrity
+# Relation-aware chunking preserves triplet integrity
 relation_chunker = RelationAwareChunker(
     chunk_size=1000,
-    preserve_triples=True
+    preserve_triplets=True
 )
 
 chunks = relation_chunker.chunk(text)
 
 for chunk in chunks:
-    triples = chunk.metadata.get("triples", [])
-    print(f"Chunk triples: {len(triples)}")
+    triplets = chunk.metadata.get("triplets", [])
+    print(f"Chunk triplets: {len(triplets)}")
     
     # Use for knowledge graph construction
-    # Triples are preserved within chunks
+    # Triplets are preserved within chunks
 ```
 
 ### Semantic Chunking with Custom Model

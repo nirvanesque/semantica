@@ -1,6 +1,6 @@
 # Vector Store Module Usage Guide
 
-This comprehensive guide demonstrates how to use the vector store module for vector storage and retrieval, supporting multiple vector store backends (FAISS, Pinecone, Weaviate, Qdrant, Milvus), hybrid search combining vector similarity and metadata filtering, metadata management, and namespace isolation.
+This comprehensive guide demonstrates how to use the vector store module for vector storage and retrieval, supporting multiple vector store backends (FAISS, Weaviate, Qdrant, Milvus), hybrid search combining vector similarity and metadata filtering, metadata management, and namespace isolation.
 
 ## Table of Contents
 
@@ -11,7 +11,7 @@ This comprehensive guide demonstrates how to use the vector store module for vec
 5. [Hybrid Search](#hybrid-search)
 6. [Metadata Management](#metadata-management)
 7. [Namespace Management](#namespace-management)
-8. [Store Adapters](#store-adapters)
+8. [Store Backends](#store-adapters)
 9. [Algorithms and Methods](#algorithms-and-methods)
 10. [Configuration](#configuration)
 11. [Advanced Examples](#advanced-examples)
@@ -213,6 +213,30 @@ results = retriever.search_similar(query_vector, vectors, vector_ids, k=10)
 print(f"Found {len(results)} results")
 ```
 
+### Using VectorManager
+
+```python
+from semantica.vector_store import VectorManager
+
+# Create manager
+manager = VectorManager()
+
+# Create and register stores
+faiss_store = manager.create_store("faiss", {"dimension": 768})
+manager.register_store("main_store", "faiss", {"dimension": 768})
+
+# List all stores
+stores = manager.list_stores()
+print(f"Active stores: {stores}")
+
+# Get store by ID
+store = manager.get_store("main_store")
+
+# Get store statistics
+stats = manager.get_store_stats("main_store")
+print(f"Store stats: {stats}")
+```
+
 ### Cosine Similarity Search
 
 ```python
@@ -276,10 +300,10 @@ print(f"Created index with {len(vector_ids)} vectors")
 ### FAISS Index Types
 
 ```python
-from semantica.vector_store import FAISSAdapter
+from semantica.vector_store import FAISSStore
 import numpy as np
 
-adapter = FAISSAdapter(dimension=768)
+adapter = FAISSStore(dimension=768)
 
 # Create Flat index (exact search)
 flat_index = adapter.create_index(index_type="flat", metric="L2")
@@ -310,10 +334,10 @@ pq_index = adapter.create_index(
 ### Index Training
 
 ```python
-from semantica.vector_store import FAISSAdapter
+from semantica.vector_store import FAISSStore
 import numpy as np
 
-adapter = FAISSAdapter(dimension=768)
+adapter = FAISSStore(dimension=768)
 
 # Training vectors
 training_vectors = np.random.rand(10000, 768).astype('float32')
@@ -336,10 +360,10 @@ adapter.add_vectors(index, vectors, ids=[f"vec_{i}" for i in range(1000)])
 ### Index Persistence
 
 ```python
-from semantica.vector_store import FAISSAdapter
+from semantica.vector_store import FAISSStore
 import numpy as np
 
-adapter = FAISSAdapter(dimension=768)
+adapter = FAISSStore(dimension=768)
 
 # Create and populate index
 index = adapter.create_index(index_type="flat", metric="L2")
@@ -637,74 +661,46 @@ print(f"Tenant1: {len(tenant1_vectors)} vectors")
 print(f"Tenant2: {len(tenant2_vectors)} vectors")
 ```
 
-## Store Adapters
+## Store Backends
 
-### FAISS Adapter
+### FAISS Store
 
 ```python
-from semantica.vector_store import FAISSAdapter
+from semantica.vector_store import FAISSStore
 import numpy as np
 
-# Create FAISS adapter
-adapter = FAISSAdapter(dimension=768)
+# Create FAISS store
+store = FAISSStore(dimension=768)
 
 # Create index
-index = adapter.create_index(index_type="flat", metric="L2")
+store.create_index(index_type="flat", metric="L2")
 
 # Add vectors
 vectors = np.random.rand(1000, 768).astype('float32')
 ids = [f"vec_{i}" for i in range(1000)]
-adapter.add_vectors(index, vectors, ids=ids)
+store.add_vectors(vectors, ids=ids)
 
 # Search
 query_vector = np.random.rand(768).astype('float32')
-distances, indices = adapter.search(index, query_vector, k=10)
+results = store.search_similar(query_vector, k=10)
 
-print(f"Found {len(indices)} similar vectors")
+print(f"Found {len(results)} similar vectors")
 ```
 
-### Pinecone Adapter
+### Weaviate Store
 
 ```python
-from semantica.vector_store import PineconeAdapter
+from semantica.vector_store import WeaviateStore
 import numpy as np
 
-# Create Pinecone adapter
-adapter = PineconeAdapter(api_key="your-api-key", environment="us-west1-gcp")
+# Create Weaviate store
+store = WeaviateStore(url="http://localhost:8080")
 
 # Connect
-adapter.connect()
-
-# Create index
-index = adapter.create_index("my-index", dimension=768, metric="cosine")
-
-# Upsert vectors
-vectors = [np.random.rand(768).tolist() for _ in range(100)]
-ids = [f"vec_{i}" for i in range(100)]
-metadata = [{"category": "science"} for _ in range(100)]
-adapter.upsert_vectors(vectors, ids, metadata)
-
-# Query
-query_vector = np.random.rand(768).tolist()
-results = adapter.query_vectors(query_vector, top_k=10, include_metadata=True)
-
-print(f"Found {len(results)} results")
-```
-
-### Weaviate Adapter
-
-```python
-from semantica.vector_store import WeaviateAdapter
-import numpy as np
-
-# Create Weaviate adapter
-adapter = WeaviateAdapter(url="http://localhost:8080")
-
-# Connect
-adapter.connect()
+store.connect()
 
 # Create schema
-adapter.create_schema(
+store.create_schema(
     "Document",
     properties=[{"name": "text", "dataType": "text"}]
 )
@@ -712,11 +708,11 @@ adapter.create_schema(
 # Add objects with vectors
 objects = [{"text": f"Document {i}"} for i in range(100)]
 vectors = [np.random.rand(768).tolist() for _ in range(100)]
-object_ids = adapter.add_objects(objects, vectors=vectors)
+object_ids = store.add_objects(objects, vectors=vectors)
 
 # Query
 query_vector = np.random.rand(768).tolist()
-results = adapter.query_vectors(
+results = store.query_vectors(
     query_vector,
     limit=10,
     where={"category": "science"}
@@ -725,30 +721,30 @@ results = adapter.query_vectors(
 print(f"Found {len(results)} results")
 ```
 
-### Qdrant Adapter
+### Qdrant Store
 
 ```python
-from semantica.vector_store import QdrantAdapter
+from semantica.vector_store import QdrantStore
 import numpy as np
 
-# Create Qdrant adapter
-adapter = QdrantAdapter(url="http://localhost:6333")
+# Create Qdrant store
+store = QdrantStore(url="http://localhost:6333")
 
 # Connect
-adapter.connect()
+store.connect()
 
 # Create collection
-collection = adapter.create_collection("my-collection", dimension=768)
+collection = store.create_collection("my-collection", dimension=768)
 
 # Upsert vectors
 vectors = [np.random.rand(768).tolist() for _ in range(100)]
 ids = [f"vec_{i}" for i in range(100)]
 payloads = [{"category": "science"} for _ in range(100)]
-adapter.upsert_vectors(collection, vectors, ids, payloads)
+store.upsert_vectors(collection, vectors, ids, payloads)
 
 # Search
 query_vector = np.random.rand(768).tolist()
-results = adapter.search(
+results = store.search(
     collection,
     query_vector,
     top=10,
@@ -758,20 +754,20 @@ results = adapter.search(
 print(f"Found {len(results)} results")
 ```
 
-### Milvus Adapter
+### Milvus Store
 
 ```python
-from semantica.vector_store import MilvusAdapter
+from semantica.vector_store import MilvusStore
 import numpy as np
 
-# Create Milvus adapter
-adapter = MilvusAdapter(host="localhost", port="19530")
+# Create Milvus store
+store = MilvusStore(host="localhost", port="19530")
 
 # Connect
-adapter.connect()
+store.connect()
 
 # Create collection
-collection = adapter.create_collection(
+collection = store.create_collection(
     "my-collection",
     dimension=768,
     metric_type="L2"
@@ -780,11 +776,11 @@ collection = adapter.create_collection(
 # Insert vectors
 vectors = np.random.rand(100, 768).astype('float32')
 ids = [f"vec_{i}" for i in range(100)]
-adapter.insert_vectors(collection, vectors, ids)
+store.insert_vectors(collection, vectors, ids)
 
 # Search
 query_vector = np.random.rand(768).astype('float32')
-results = adapter.search(collection, query_vector, top_k=10)
+results = store.search(collection, query_vector, top_k=10)
 
 print(f"Found {len(results)} results")
 ```
@@ -866,7 +862,7 @@ results = store.search_vectors(query_vector, k=10)
 
 ```python
 # ANN search with FAISS
-adapter = FAISSAdapter(dimension=768)
+adapter = FAISSStore(dimension=768)
 index = adapter.create_index(index_type="ivf", nlist=100)
 results = adapter.search(index, query_vector, k=10)
 ```
@@ -1080,10 +1076,6 @@ export VECTOR_STORE_NAMESPACE=default
 # FAISS configuration
 export VECTOR_STORE_FAISS_INDEX_TYPE=flat
 
-# Pinecone configuration
-export VECTOR_STORE_PINECONE_API_KEY=your-api-key
-export VECTOR_STORE_PINECONE_ENVIRONMENT=us-west1-gcp
-
 # Weaviate configuration
 export VECTOR_STORE_WEAVIATE_URL=http://localhost:8080
 
@@ -1129,8 +1121,6 @@ vector_store:
   enable_hybrid_search: true
   default_namespace: default
   faiss_index_type: flat
-  pinecone_api_key: your-api-key
-  pinecone_environment: us-west1-gcp
   weaviate_url: http://localhost:8080
   qdrant_url: http://localhost:6333
   milvus_host: localhost
@@ -1180,26 +1170,26 @@ print(f"Found {len(results)} hybrid search results")
 ### Multi-Backend Vector Store
 
 ```python
-from semantica.vector_store import FAISSAdapter, PineconeAdapter
+from semantica.vector_store import FAISSStore, WeaviateStore
 import numpy as np
 
 # Local FAISS store
-faiss_adapter = FAISSAdapter(dimension=768)
-faiss_index = faiss_adapter.create_index(index_type="flat", metric="L2")
+faiss_store = FAISSStore(dimension=768)
+faiss_index = faiss_store.create_index(index_type="flat", metric="L2")
 faiss_vectors = np.random.rand(1000, 768).astype('float32')
-faiss_adapter.add_vectors(faiss_index, faiss_vectors, ids=[f"faiss_{i}" for i in range(1000)])
+faiss_store.add_vectors(faiss_index, faiss_vectors, ids=[f"faiss_{i}" for i in range(1000)])
 
-# Cloud Pinecone store
-pinecone_adapter = PineconeAdapter(api_key="your-key")
-pinecone_adapter.connect()
-pinecone_index = pinecone_adapter.create_index("my-index", dimension=768)
-pinecone_vectors = [np.random.rand(768).tolist() for _ in range(1000)]
-pinecone_adapter.upsert_vectors(pinecone_vectors, [f"pinecone_{i}" for i in range(1000)])
+# Self-hosted Weaviate store
+weaviate_store = WeaviateStore(url="http://localhost:8080")
+weaviate_store.connect()
+weaviate_index = weaviate_store.create_index("my-index", dimension=768)
+weaviate_vectors = [np.random.rand(768).tolist() for _ in range(1000)]
+weaviate_store.upsert_vectors(weaviate_vectors, [f"weaviate_{i}" for i in range(1000)])
 
 # Search both
 query_vector = np.random.rand(768)
-faiss_results = faiss_adapter.search(faiss_index, query_vector, k=10)
-pinecone_results = pinecone_adapter.query_vectors(query_vector, top_k=10)
+faiss_results = faiss_store.search(faiss_index, query_vector, k=10)
+weaviate_results = weaviate_store.query_vectors(query_vector, top_k=10)
 ```
 
 ### Hybrid Search with Custom Ranking

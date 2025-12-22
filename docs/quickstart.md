@@ -2,6 +2,9 @@
 
 Get started with Semantica in 5 minutes. This guide will walk you through building your first knowledge graph.
 
+!!! tip "Before You Start"
+    Make sure you have Semantica installed. If not, follow the [Installation Guide](installation.md) first. This quickstart assumes basic Python knowledge.
+
 ## Overview
 
 ```mermaid
@@ -26,12 +29,15 @@ pip install semantica
 
 See the [Installation Guide](installation.md) for detailed instructions.
 
+!!! note "Installation Options"
+    For production use, consider installing with optional dependencies for better performance: `pip install semantica[all]`. See the [Installation Guide](installation.md) for all options.
+
 ## Step 2: Your First Knowledge Graph
 
 Let's build a knowledge graph from a document:
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 # Initialize Semantica
 semantica = Semantica()
@@ -65,9 +71,7 @@ Generated 45 embeddings
 Extract structured information from text:
 
 ```python
-from semantica import Semantica
-
-semantica = Semantica()
+from semantica.semantic_extract import NamedEntityRecognizer, RelationExtractor
 
 # Sample text
 text = """
@@ -77,20 +81,20 @@ Tim Cook is the current CEO of Apple.
 """
 
 # Extract entities
-entities_result = semantica.semantic_extract.extract_entities(text)
-entities = entities_result["entities"]
+ner = NamedEntityRecognizer()
+entities = ner.extract_entities(text)
 
 print("Extracted Entities:")
 for entity in entities:
-    print(f"  - {entity['text']} ({entity['type']})")
+    print(f"  - {entity.text} ({entity.label})")
 
 # Extract relationships
-relationships_result = semantica.semantic_extract.extract_relationships(text)
-relationships = relationships_result["relationships"]
+rel_extractor = RelationExtractor()
+relationships = rel_extractor.extract_relations(text, entities=entities)
 
 print("\nExtracted Relationships:")
 for rel in relationships:
-    print(f"  - {rel['subject']} --[{rel['predicate']}]--> {rel['object']}")
+    print(f"  - {rel.subject.text} --[{rel.predicate}]--> {rel.object.text}")
 ```
 
 **Expected Output:**
@@ -113,7 +117,7 @@ Extracted Relationships:
 Combine data from multiple sources:
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
 
@@ -145,7 +149,8 @@ print(f"Sources processed: {len(result['metadata']['sources'])}")
 Visualize the knowledge graph you created:
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
+from semantica.visualization import KGVisualizer
 
 semantica = Semantica()
 
@@ -154,7 +159,8 @@ result = semantica.build_knowledge_base(["document.pdf"])
 kg = result["knowledge_graph"]
 
 # Visualize
-semantica.kg.visualize(kg, output_path="graph.html")
+visualizer = KGVisualizer()
+visualizer.visualize_network(kg, output="html", file_path="graph.html")
 print("Graph visualization saved to graph.html")
 ```
 
@@ -165,7 +171,8 @@ Open `graph.html` in your browser to see an interactive visualization.
 Export your knowledge graph in various formats:
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
+from semantica.export import export_rdf, export_json, export_csv, export_owl
 
 semantica = Semantica()
 
@@ -174,10 +181,10 @@ result = semantica.build_knowledge_base(["data.pdf"])
 kg = result["knowledge_graph"]
 
 # Export to different formats
-semantica.export.to_rdf(kg, "output.rdf")      # RDF/XML format
-semantica.export.to_json(kg, "output.json")    # JSON format
-semantica.export.to_csv(kg, "output.csv")      # CSV format
-semantica.export.to_owl(kg, "output.owl")       # OWL ontology format
+export_rdf(kg, "output.rdf")      # RDF/XML format
+export_json(kg, "output.json")    # JSON format
+export_csv(kg, "output.csv")      # CSV format
+export_owl(kg, "output.owl")       # OWL ontology format
 
 print("Exported knowledge graph to multiple formats")
 ```
@@ -187,7 +194,7 @@ print("Exported knowledge graph to multiple formats")
 ### Pattern 1: Process Text Directly
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
 
@@ -198,7 +205,7 @@ result = semantica.process_document(text)
 ### Pattern 2: Custom Configuration
 
 ```python
-from semantica import Semantica, Config
+from semantica.core import Semantica, Config
 
 # Create custom configuration
 config = Config(
@@ -215,7 +222,7 @@ result = semantica.build_knowledge_base(["document.pdf"])
 ### Pattern 3: Incremental Building
 
 ```python
-from semantica import Semantica
+from semantica.core import Semantica
 
 semantica = Semantica()
 
@@ -232,9 +239,9 @@ merged_kg = semantica.kg.merge([kg1, kg2])
 Now that you've built your first knowledge graph:
 
 1. **[Explore Examples](examples.md)** - See more advanced use cases
-2. **[API Reference](api.md)** - Learn about all available methods
+2. **[API Reference](reference/core.md) - Learn about all available methods
 3. **[Cookbook](cookbook.md)** - Interactive Jupyter notebooks
-4. **[Full Documentation](../README.md)** - Comprehensive guide
+4. **[Full Documentation](https://github.com/Hawksight-AI/semantica/blob/main/README.md)** - Comprehensive guide
 
 ## Troubleshooting
 

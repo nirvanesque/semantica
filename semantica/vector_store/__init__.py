@@ -3,7 +3,7 @@ Vector Store Management Module
 
 This module provides comprehensive vector storage and retrieval capabilities for the
 Semantica framework, including support for multiple vector store backends (FAISS,
-Pinecone, Weaviate, Qdrant, Milvus), hybrid search combining vector similarity and
+Weaviate, Qdrant, Milvus), hybrid search combining vector similarity and
 metadata filtering, metadata management, and namespace isolation.
 
 Algorithms Used:
@@ -48,27 +48,32 @@ Namespace Management:
     - Access Control: Permission-based access (read, write, delete permissions), entity-to-permission mapping (user/role to permissions), permission checking, access control enforcement
     - Namespace Operations: Namespace creation, namespace deletion, vector addition/removal, namespace metadata management, namespace statistics collection
 
-Adapter Pattern:
-    - FAISS Adapter: Local vector storage, FAISS index management, index persistence (save/load), batch operations, multiple index types support
-    - Pinecone Adapter: Cloud vector database integration, HTTP API communication, index management, upsert operations, query operations, metadata filtering
-    - Weaviate Adapter: GraphQL-based queries, schema management, object-oriented storage, rich metadata support, batch operations
-    - Qdrant Adapter: REST API communication, collection management, vector operations, payload (metadata) filtering, batch operations
-    - Milvus Adapter: gRPC communication, collection management, vector operations, metadata filtering, batch operations
-    - Unified Interface: Common interface for all adapters, backend-specific operation delegation, adapter factory pattern, connection management
+Backend Pattern:
+    - FAISS Store: Local vector storage, FAISS index management, index persistence (save/load), batch operations, multiple index types support
+    - Weaviate Store: Schema-aware storage, GraphQL query support, object-oriented data model, batch operations, schema management
+    - Qdrant Store: Point-based storage, payload filtering, collection management, optimized search, batch operations
+    - Milvus Store: Scalable vector database, collection management, partitioning, complex querying, index building
 
-Batch Operations:
-    - Batch Vector Operations: Chunking algorithm (fixed-size batch creation), batch processing, progress tracking, error handling per batch, retry mechanism
-    - Batch Indexing: Batch vector addition to index, incremental index updates, batch index training, batch index optimization
-    - Batch Search: Batch query processing, parallel search execution (when supported), result aggregation, batch result formatting
+Supported Backends:
+    - FAISS: In-memory/local disk (Facebook AI Similarity Search)
+    - Weaviate: Cloud/Self-hosted (Schema-aware vector database)
+    - Qdrant: Cloud/Self-hosted (Vector database for the next generation of AI)
+    - Milvus: Cloud/Self-hosted (Highly scalable vector database)
+    - InMemory: Simple list-based storage for testing/small datasets
 
-Performance Optimization:
-    - Vector Normalization: L2 normalization for cosine similarity, normalization caching, batch normalization
-    - Index Optimization: Index parameter tuning, index rebuilding for better performance, memory optimization, search speed optimization
-    - Caching: Query result caching, vector caching, metadata caching, cache invalidation strategies
-    - Parallel Processing: Batch-level parallelization, multi-threaded search (when supported), concurrent index operations
+Configuration:
+    - Environment variables (SEMANTICA_VECTOR_STORE_*)
+    - Configuration files (yaml/json)
+    - Runtime configuration via VectorStoreConfig
+
+Dependencies:
+    - faiss-cpu (or faiss-gpu)
+    - weaviate-client
+    - qdrant-client
+    - pymilvus
 
 Key Features:
-    - Multi-backend vector store support (FAISS, Pinecone, Weaviate, Qdrant, Milvus)
+    - Multi-backend vector store support (FAISS, Weaviate, Qdrant, Milvus)
     - Vector indexing and similarity search
     - Metadata indexing and filtering
     - Hybrid search combining vector and metadata queries
@@ -83,11 +88,10 @@ Main Classes:
     - VectorIndexer: Vector indexing engine
     - VectorRetriever: Vector retrieval and similarity search
     - VectorManager: Vector store management and operations
-    - FAISSAdapter: FAISS integration for local vector storage
-    - PineconeAdapter: Pinecone cloud vector database integration
-    - WeaviateAdapter: Weaviate vector database integration
-    - QdrantAdapter: Qdrant vector database integration
-    - MilvusAdapter: Milvus vector database integration
+    - FAISSStore: FAISS integration for local vector storage
+    - WeaviateStore: Weaviate vector database integration
+    - QdrantStore: Qdrant vector database integration
+    - MilvusStore: Milvus vector database integration
     - HybridSearch: Hybrid vector and metadata search
     - MetadataStore: Metadata indexing and management
     - NamespaceManager: Namespace isolation and management
@@ -123,83 +127,32 @@ Author: Semantica Contributors
 License: MIT
 """
 
-from .vector_store import (
-    VectorStore,
-    VectorIndexer,
-    VectorRetriever,
-    VectorManager
-)
-
-from .faiss_adapter import (
-    FAISSAdapter,
-    FAISSIndex,
-    FAISSSearch,
-    FAISSIndexBuilder
-)
-
-from .pinecone_adapter import (
-    PineconeAdapter,
-    PineconeIndex,
-    PineconeQuery,
-    PineconeMetadata
-)
-
-from .weaviate_adapter import (
-    WeaviateAdapter,
-    WeaviateClient,
-    WeaviateSchema,
-    WeaviateQuery
-)
-
-from .qdrant_adapter import (
-    QdrantAdapter,
-    QdrantClient,
-    QdrantCollection,
-    QdrantSearch
-)
-
-from .milvus_adapter import (
-    MilvusAdapter,
-    MilvusClient,
-    MilvusCollection,
-    MilvusSearch
-)
-
-from .hybrid_search import (
-    HybridSearch,
-    MetadataFilter,
-    SearchRanker
-)
-
-from .metadata_store import (
-    MetadataStore,
-    MetadataIndex,
-    MetadataSchema
-)
-
-from .namespace_manager import (
-    NamespaceManager,
-    Namespace
-)
+from .config import VectorStoreConfig, vector_store_config
+from .faiss_store import FAISSStore, FAISSIndex, FAISSIndexBuilder, FAISSSearch
+from .hybrid_search import HybridSearch, MetadataFilter, SearchRanker
+from .metadata_store import MetadataIndex, MetadataSchema, MetadataStore
 from .methods import (
-    store_vectors,
-    search_vectors,
-    update_vectors,
-    delete_vectors,
     create_index,
-    hybrid_search,
+    delete_vectors,
     filter_metadata,
-    manage_namespace,
     get_vector_store_method,
+    hybrid_search,
     list_available_methods,
+    manage_namespace,
+    search_vectors,
+    store_vectors,
+    update_vectors,
 )
-from .config import (
-    VectorStoreConfig,
-    vector_store_config,
-)
-from .registry import (
-    MethodRegistry,
-    method_registry,
+from .milvus_store import MilvusStore, MilvusClient, MilvusCollection, MilvusSearch
+from .namespace_manager import Namespace, NamespaceManager
+from .qdrant_store import QdrantStore, QdrantClient, QdrantCollection, QdrantSearch
+from .registry import MethodRegistry, method_registry
+from .vector_store import VectorIndexer, VectorManager, VectorRetriever, VectorStore
+from .weaviate_store import (
+    WeaviateStore,
+    WeaviateClient,
+    WeaviateQuery,
+    WeaviateSchema,
 )
 
 __all__ = [
@@ -209,27 +162,22 @@ __all__ = [
     "VectorRetriever",
     "VectorManager",
     # FAISS
-    "FAISSAdapter",
+    "FAISSStore",
     "FAISSIndex",
     "FAISSSearch",
     "FAISSIndexBuilder",
-    # Pinecone
-    "PineconeAdapter",
-    "PineconeIndex",
-    "PineconeQuery",
-    "PineconeMetadata",
     # Weaviate
-    "WeaviateAdapter",
+    "WeaviateStore",
     "WeaviateClient",
     "WeaviateSchema",
     "WeaviateQuery",
     # Qdrant
-    "QdrantAdapter",
+    "QdrantStore",
     "QdrantClient",
     "QdrantCollection",
     "QdrantSearch",
     # Milvus
-    "MilvusAdapter",
+    "MilvusStore",
     "MilvusClient",
     "MilvusCollection",
     "MilvusSearch",
