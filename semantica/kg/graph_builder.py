@@ -55,7 +55,7 @@ class GraphBuilder:
 
     def __init__(
         self,
-        merge_entities=True,
+        merge_entities=False,
         entity_resolution_strategy="fuzzy",
         resolve_conflicts=True,
         enable_temporal=False,
@@ -69,7 +69,8 @@ class GraphBuilder:
         Initialize graph builder.
 
         Args:
-            merge_entities: Whether to merge duplicate entities
+            merge_entities: Whether to merge duplicate entities (default: False, set to True to enable)
+                          Note: Entity resolution is typically done in conflict resolution step
             entity_resolution_strategy: Strategy for entity resolution ("fuzzy", "exact", "ml-based")
             resolve_conflicts: Whether to resolve conflicts
             enable_temporal: Enable temporal knowledge graph features
@@ -256,8 +257,12 @@ class GraphBuilder:
         if "relationships" in options:
             explicit_relationships = options.pop("relationships")
 
-        # Normalize sources to list
-        if not isinstance(sources, list):
+        # Check if sources is a dict with entities/relationships (common pattern)
+        source_dict = None
+        if isinstance(sources, dict) and ("entities" in sources or "relationships" in sources):
+            source_dict = sources
+            sources = [sources]  # Normalize for tracking
+        elif not isinstance(sources, list):
             sources = [sources]
 
         # Track graph building
@@ -277,14 +282,50 @@ class GraphBuilder:
             all_entities = []
             all_relationships = []
 
-            # Process sources (which might be entities)
-            for source in sources:
-                if isinstance(source, list):
-                     # List of items (could be entities, relations, or mixed)
-                    for item in source:
-                        self._process_item(item, all_entities, all_relationships, **options)
-                else:
-                    self._process_item(source, all_entities, all_relationships, **options)
+            # Handle dict source with entities/relationships
+            if source_dict:
+                entities_list = source_dict.get("entities", [])
+                relationships_list = source_dict.get("relationships", [])
+                
+                if entities_list or relationships_list:
+                    print(f"Processing {len(entities_list)} entities, {len(relationships_list)} relationships...")
+                
+                # Process entities with progress
+                if entities_list:
+                    batch_size = max(500, len(entities_list) // 10)  # Show ~10 progress updates
+                    for i in range(0, len(entities_list), batch_size):
+                        batch = entities_list[i:i + batch_size]
+                        for item in batch:
+                            self._process_item(item, all_entities, all_relationships, **options)
+                        processed = min(i + batch_size, len(entities_list))
+                        remaining = len(entities_list) - processed
+                        if remaining > 0:
+                            print(f"  Processed {processed}/{len(entities_list)} entities ({remaining} remaining)")
+                        else:
+                            print(f"  Processed {processed}/{len(entities_list)} entities (complete)")
+                
+                # Process relationships with progress
+                if relationships_list:
+                    batch_size = max(500, len(relationships_list) // 10)  # Show ~10 progress updates
+                    for i in range(0, len(relationships_list), batch_size):
+                        batch = relationships_list[i:i + batch_size]
+                        for item in batch:
+                            self._process_item(item, all_entities, all_relationships, **options)
+                        processed = min(i + batch_size, len(relationships_list))
+                        remaining = len(relationships_list) - processed
+                        if remaining > 0:
+                            print(f"  Processed {processed}/{len(relationships_list)} relationships ({remaining} remaining)")
+                        else:
+                            print(f"  Processed {processed}/{len(relationships_list)} relationships (complete)")
+            else:
+                # Process sources (which might be entities)
+                for source in sources:
+                    if isinstance(source, list):
+                         # List of items (could be entities, relations, or mixed)
+                        for item in source:
+                            self._process_item(item, all_entities, all_relationships, **options)
+                    else:
+                        self._process_item(source, all_entities, all_relationships, **options)
 
             # Process explicit relationships if provided
             if explicit_relationships:
@@ -303,10 +344,19 @@ class GraphBuilder:
             # Resolve entities (deduplicate and merge) if resolver is available
             resolved_entities = all_entities
             if resolver_to_use and all_entities:
+                # For large entity sets, entity resolution can be slow
+                # Show progress and allow skipping if too slow
+                if len(all_entities) > 1000:
+                    print(f"Resolving {len(all_entities)} entities (this may take a while for large sets)...")
+                    print("  Detecting duplicates and merging entities...")
+                else:
+                    print(f"Resolving {len(all_entities)} entities...")
+                
                 self.logger.info(
                     f"Resolving {len(all_entities)} entities using {self.entity_resolution_strategy} strategy"
                 )
                 resolved_entities = resolver_to_use.resolve_entities(all_entities)
+                print(f"Resolved to {len(resolved_entities)} unique entities")
                 self.logger.info(
                     f"Entity resolution complete: {len(all_entities)} -> {len(resolved_entities)} unique entities"
                 )

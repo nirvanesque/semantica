@@ -346,6 +346,12 @@ class VectorStore:
                 **options,
             )
 
+            # Add metadata to results if available
+            for result in results:
+                vector_id = result.get("id")
+                if vector_id and vector_id in self.metadata:
+                    result["metadata"] = self.metadata[vector_id]
+
             self.progress_tracker.stop_tracking(
                 tracking_id,
                 status="completed",

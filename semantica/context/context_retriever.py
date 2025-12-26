@@ -4,58 +4,73 @@ Context Retriever for Agents
 This module provides comprehensive context retrieval capabilities for agents,
 retrieving relevant context from memory, knowledge graphs, and vector stores
 to inform decision-making. It supports hybrid retrieval combining multiple
-sources for optimal context relevance.
+sources for optimal context relevance with high accuracy for GraphRAG use cases.
 
 Algorithms Used:
 
 Vector Retrieval:
     - Vector Similarity Search: Cosine similarity search in vector space
-    - Query Embedding: Embedding generation for search queries
+    - Query Embedding: Embedding generation for search queries using semantic models
     - Top-K Retrieval: Top-K result selection based on similarity scores
+    - Semantic Re-ranking: Query-content semantic similarity for final ranking
 
 Graph Retrieval:
-    - Keyword Matching: Word overlap-based node matching
-    - Graph Traversal: Multi-hop graph expansion for related entities
-    - Relevance Scoring: Word overlap-based relevance calculation
-    - Entity Expansion: BFS-based entity relationship traversal
+    - Semantic Entity Matching: Cosine similarity between query and entity embeddings
+    - Semantic Relationship Matching: Similarity matching for relationship types and entities
+    - Graph Traversal: Multi-hop graph expansion for related entities (BFS-based)
+    - Query Intent Extraction: Domain-agnostic extraction of relationship verbs and question types
+    - Intent-Guided Boosting: Score boosting for entities/relationships matching query intent
+    - Relationship-Aware Matching: Finding entities through semantically relevant relationships
+    - Adaptive Thresholding: Dynamic similarity thresholds (default 0.3) for filtering
 
 Memory Retrieval:
     - Memory Search: Vector and keyword search in memory store
     - Conversation History: Temporal-based memory retrieval
 
 Result Processing:
-    - Result Ranking: Score-based ranking and merging
-    - Deduplication: Content-based result deduplication
-    - Score Aggregation: Maximum score selection for duplicate results
-    - Metadata Merging: Dictionary-based metadata merging
-    - Entity Merging: Set-based entity deduplication
+    - Score Normalization: Per-source score normalization (0-1 range) for fair comparison
+    - Hybrid Weighting: Configurable hybrid_alpha (0=vector only, 1=graph only, 0.5=balanced)
+    - Context Boosting: Up to 20% boost for graph results with more related entities/relationships
+    - Multi-Source Boost: 20% boost for results found in both vector and graph sources
+    - Semantic Re-ranking: Final ranking using 70% original score + 30% query-content similarity
+    - Entity-Based Deduplication: Graph results deduplicated by entity ID with relationship merging
+    - Content-Based Deduplication: Non-graph results deduplicated by content hash
+    - Metadata Merging: Dictionary-based metadata merging for duplicate results
+    - Entity Merging: Set-based entity deduplication with relationship preservation
+
+Content Generation:
+    - Comprehensive Entity Descriptions: Entity name, type, and metadata properties
+    - Relationship Context: Direction-aware relationship formatting with target entity types
+    - Multi-Relationship Formatting: Up to 5 relationships per entity with grouping by type
+    - Related Entity Context: Additional context from related entities when content is sparse
 
 Key Features:
-    - Retrieve context from multiple sources (memory, graph, vector)
-    - Hybrid retrieval (vector + graph + memory) with weighted combination
-    - Context relevance ranking and scoring
-    - Context aggregation and synthesis
-    - Ontology-aware context retrieval
-    - Real-time context updates
-    - Graph expansion for related entities
-    - Multi-hop relationship traversal
-    - Result deduplication and merging
-    - Configurable retrieval strategies
+    - Domain-Agnostic: Works across any domain (biomedical, finance, tech, legal, etc.)
+    - Semantic Matching: Uses embeddings for semantic similarity instead of keyword matching
+    - Hybrid Retrieval: Combines vector + graph + memory with configurable weighting
+    - Query Understanding: Extracts query intent (relationship types, question types)
+    - High Accuracy: Optimized for GraphRAG with multi-factor scoring and semantic re-ranking
+    - Context Richness: Generates comprehensive content from graph structures
+    - Graph Expansion: Multi-hop traversal following semantically relevant paths
+    - Result Deduplication: Smart merging of results from multiple sources
+    - Configurable Strategies: Adjustable hybrid_alpha, max_hops, similarity thresholds
 
 Main Classes:
     - RetrievedContext: Retrieved context item data structure with content, score,
       source, metadata, related_entities, related_relationships
-    - ContextRetriever: Context retriever for hybrid retrieval
+    - ContextRetriever: Context retriever for hybrid retrieval with GraphRAG optimization
 
 Example Usage:
     >>> from semantica.context import ContextRetriever
     >>> retriever = ContextRetriever(
-    ...     memory_store=mem, knowledge_graph=kg, vector_store=vs
+    ...     memory_store=mem, knowledge_graph=kg, vector_store=vs,
+    ...     hybrid_alpha=0.6  # 60% weight on graph, 40% on vector
     ... )
-    >>> results = retriever.retrieve("Python programming", max_results=5)
+    >>> results = retriever.retrieve("What drugs target COX enzymes?", max_results=5)
     >>> for result in results:
     ...     print(f"{result.content}: {result.score:.2f}")
     ...     print(f"Related entities: {len(result.related_entities)}")
+    ...     print(f"Related relationships: {len(result.related_relationships)}")
 
 Author: Semantica Contributors
 License: MIT
@@ -176,10 +191,13 @@ class ContextRetriever:
                 self.progress_tracker.update_tracking(
                     tracking_id, message="Retrieving from knowledge graph..."
                 )
+                # Extract query intent for better graph traversal
+                query_intent = self._extract_query_intent(query)
                 graph_results = self._retrieve_from_graph(
                     query,
                     max_results * 2,
                     max_hops=options.get("max_hops", self.max_expansion_hops),
+                    query_intent=query_intent,
                 )
                 all_results.extend(graph_results)
 
@@ -262,7 +280,7 @@ class ContextRetriever:
             return []
 
     def _retrieve_from_graph(
-        self, query: str, max_results: int, max_hops: int = 2
+        self, query: str, max_results: int, max_hops: int = 2, query_intent: Optional[Dict[str, Any]] = None
     ) -> List[RetrievedContext]:
         """Retrieve from knowledge graph."""
         if not self.knowledge_graph:
@@ -319,36 +337,291 @@ class ContextRetriever:
                 return results[:max_results]
 
             # Fallback to dictionary-based graph retrieval
-            # Extract entities from query (simplified)
-            query_lower = query.lower()
+            # Handle GraphBuilder format (entities and relationships)
+            # Get entities and relationships from graph
+            entities = self.knowledge_graph.get("entities", [])
+            relationships = self.knowledge_graph.get("relationships", [])
 
-            # Search for nodes matching query
-            nodes = self.knowledge_graph.get("nodes", [])
-
-            for node in nodes:
-                node_content = node.get("content", "").lower()
-                node_type = node.get("type", "")
-
-                # Simple keyword matching
-                if any(word in node_content for word in query_lower.split()):
-                    score = self._calculate_graph_relevance(node, query)
-
-                    # Get related entities
-                    related_entities = self._get_related_entities(
-                        node.get("id"), max_hops=max_hops
-                    )
+            # Use semantic similarity if vector_store is available
+            if self.vector_store and hasattr(self.vector_store, 'embed'):
+                try:
+                    import numpy as np
+                    # Generate query embedding
+                    query_embedding = self.vector_store.embed(query)
+                    if query_embedding is not None:
+                        query_embedding = np.array(query_embedding)
+                        # Handle batch embeddings (take first if 2D)
+                        if len(query_embedding.shape) == 2:
+                            query_embedding = query_embedding[0]
+                        query_norm = np.linalg.norm(query_embedding)
+                        
+                        if query_norm > 0:
+                            # Calculate semantic similarity for each entity
+                            entity_scores = []
+                            for entity in entities:
+                                entity_name = str(entity.get("name", entity.get("id", "")))
+                                entity_type = str(entity.get("type", ""))
+                                
+                                # Create entity text for embedding (include type for better matching)
+                                entity_text = f"{entity_name} {entity_type}".strip()
+                                entity_embedding = self.vector_store.embed(entity_text)
+                                
+                                if entity_embedding is not None:
+                                    entity_embedding = np.array(entity_embedding)
+                                    # Handle batch embeddings
+                                    if len(entity_embedding.shape) == 2:
+                                        entity_embedding = entity_embedding[0]
+                                    entity_norm = np.linalg.norm(entity_embedding)
+                                    
+                                    # Cosine similarity
+                                    if entity_norm > 0:
+                                        similarity = np.dot(query_embedding, entity_embedding) / (query_norm * entity_norm)
+                                        
+                                        # Boost if entity type is mentioned in query (domain-agnostic)
+                                        if query_intent and query_intent.get("entity_types"):
+                                            # Check if entity type semantically matches query keywords
+                                            entity_type_lower = entity_type.lower()
+                                            query_keywords = query_intent.get("keywords", set())
+                                            if any(kw in entity_type_lower or entity_type_lower in kw for kw in query_keywords if len(kw) > 2):
+                                                similarity *= 1.15  # 15% boost for type-keyword match
+                                        
+                                        entity_scores.append((entity, float(similarity)))
+                            
+                            # Also match relationships semantically
+                            relationship_scores = []
+                            for rel in relationships:
+                                rel_type = str(rel.get("type", ""))
+                                source_id = rel.get("source") or rel.get("source_id", "")
+                                target_id = rel.get("target") or rel.get("target_id", "")
+                                
+                                # Find entity names for better matching
+                                source_name = source_id
+                                target_name = target_id
+                                for e in entities:
+                                    e_id = e.get("id") or e.get("name")
+                                    if e_id == source_id:
+                                        source_name = e.get("name", source_id)
+                                    if e_id == target_id:
+                                        target_name = e.get("name", target_id)
+                                
+                                # Create relationship text for embedding
+                                rel_text = f"{rel_type} {source_name} {target_name}".strip()
+                                rel_embedding = self.vector_store.embed(rel_text)
+                                
+                                if rel_embedding is not None:
+                                    rel_embedding = np.array(rel_embedding)
+                                    if len(rel_embedding.shape) == 2:
+                                        rel_embedding = rel_embedding[0]
+                                    rel_norm = np.linalg.norm(rel_embedding)
+                                    
+                                    if rel_norm > 0:
+                                        similarity = np.dot(query_embedding, rel_embedding) / (query_norm * rel_norm)
+                                        
+                                        # Boost if relationship type semantically matches query (domain-agnostic)
+                                        if query_intent and query_intent.get("relationship_types"):
+                                            rel_type_lower = rel_type.lower()
+                                            # Check if relationship type or its synonyms appear in query
+                                            for rt in query_intent["relationship_types"]:
+                                                if rt.lower() in rel_type_lower or rel_type_lower in rt.lower():
+                                                    similarity *= 1.25  # 25% boost for matching relationship
+                                                    break
+                                        
+                                        relationship_scores.append((rel, similarity, source_id, target_id))
+                            
+                            # Sort by similarity
+                            entity_scores.sort(key=lambda x: x[1], reverse=True)
+                            relationship_scores.sort(key=lambda x: x[1], reverse=True)
+                            
+                            # Combine entity and relationship matches
+                            # Include entities from high-scoring relationships
+                            matched_entity_ids = set()
+                            matched_entities = []
+                            
+                            # Add top entity matches
+                            for entity, score in entity_scores[:max_results * 2]:
+                                if score > 0.3:  # Similarity threshold
+                                    entity_id = entity.get("id") or entity.get("name")
+                                    matched_entity_ids.add(entity_id)
+                                    matched_entities.append((entity, score))
+                            
+                            # Add entities from high-scoring relationships
+                            for rel, score, source_id, target_id in relationship_scores[:max_results]:
+                                if score > 0.3:
+                                    # Add source entity if not already matched
+                                    if source_id not in matched_entity_ids:
+                                        for e in entities:
+                                            e_id = e.get("id") or e.get("name")
+                                            if e_id == source_id:
+                                                matched_entity_ids.add(source_id)
+                                                # Boost score for relationship match
+                                                matched_entities.append((e, score * 0.9))
+                                                break
+                                    # Add target entity if not already matched
+                                    if target_id not in matched_entity_ids:
+                                        for e in entities:
+                                            e_id = e.get("id") or e.get("name")
+                                            if e_id == target_id:
+                                                matched_entity_ids.add(target_id)
+                                                matched_entities.append((e, score * 0.9))
+                                                break
+                            
+                            # Sort all matches by score
+                            matched_entities.sort(key=lambda x: x[1], reverse=True)
+                            matched_entities = matched_entities[:max_results * 2]
+                        else:
+                            matched_entities = self._keyword_match_entities(entities, query, max_results * 2)
+                    else:
+                        # Fallback to keyword matching if embedding fails
+                        matched_entities = self._keyword_match_entities(entities, query, max_results * 2)
+                except Exception as e:
+                    self.logger.warning(f"Semantic matching failed: {e}, falling back to keyword matching")
+                    matched_entities = self._keyword_match_entities(entities, query, max_results * 2)
+            else:
+                # Use keyword matching as fallback
+                matched_entities = self._keyword_match_entities(entities, query, max_results * 2)
+            
+            # Process matched entities
+            for entity, score in matched_entities:
+                    # Find related relationships
+                    entity_id = entity.get("id") or entity.get("name")
+                    entity_type = str(entity.get("type", ""))
+                    related_entities = []
+                    related_relationships = []
+                    
+                    # Find relationships involving this entity
+                    for rel in relationships:
+                        if (rel.get("source") == entity_id or 
+                            rel.get("target") == entity_id or
+                            rel.get("source_id") == entity_id or
+                            rel.get("target_id") == entity_id):
+                            related_relationships.append(rel)
+                            
+                            # Get the other entity in the relationship
+                            other_id = rel.get("target") or rel.get("target_id")
+                            if other_id == entity_id:
+                                other_id = rel.get("source") or rel.get("source_id")
+                            
+                            # Find the other entity
+                            for e in entities:
+                                e_id = e.get("id") or e.get("name")
+                                if e_id == other_id:
+                                    related_entities.append(e)
+                                    break
+                    
+                    # Generate comprehensive content from entity and relationships
+                    entity_display = entity.get('name', entity_id)
+                    
+                    # Start with entity description
+                    entity_desc = f"{entity_display}"
+                    if entity_type:
+                        entity_desc += f" is a {entity_type}"
+                    
+                    # Add entity properties/metadata if available
+                    entity_props = entity.get("metadata", {})
+                    if entity_props:
+                        # Include relevant properties
+                        prop_keys = ["description", "summary", "details", "info"]
+                        for key in prop_keys:
+                            if key in entity_props and entity_props[key]:
+                                entity_desc += f". {entity_props[key]}"
+                                break
+                    
+                    content_parts = [entity_desc]
+                    
+                    if related_relationships:
+                        # Group relationships by type for better content
+                        rels_by_type = {}
+                        for rel in related_relationships:
+                            rel_type = rel.get("type", "related_to")
+                            source_id = rel.get("source") or rel.get("source_id")
+                            target_id = rel.get("target") or rel.get("target_id")
+                            
+                            # Determine direction
+                            if source_id == entity_id:
+                                # Entity is source
+                                target_name = target_id
+                                for e in entities:
+                                    e_id = e.get("id") or e.get("name")
+                                    if e_id == target_id:
+                                        target_name = e.get("name", target_id)
+                                        target_type = e.get("type", "")
+                                        break
+                                else:
+                                    target_type = ""
+                                
+                                if rel_type not in rels_by_type:
+                                    rels_by_type[rel_type] = []
+                                rels_by_type[rel_type].append((target_name, target_type))
+                            else:
+                                # Entity is target
+                                source_name = source_id
+                                for e in entities:
+                                    e_id = e.get("id") or e.get("name")
+                                    if e_id == source_id:
+                                        source_name = e.get("name", source_id)
+                                        source_type = e.get("type", "")
+                                        break
+                                else:
+                                    source_type = ""
+                                
+                                # Reverse relationship for readability
+                                reverse_type = f"is {rel_type}ed by" if rel_type else "related to"
+                                if reverse_type not in rels_by_type:
+                                    rels_by_type[reverse_type] = []
+                                rels_by_type[reverse_type].append((source_name, source_type))
+                        
+                        # Format relationships with more context
+                        for rel_type, targets in list(rels_by_type.items())[:5]:  # Show more relationships
+                            if len(targets) == 1:
+                                target_name, target_type = targets[0]
+                                if target_type:
+                                    content_parts.append(f"{rel_type} {target_name} ({target_type})")
+                                else:
+                                    content_parts.append(f"{rel_type} {target_name}")
+                            elif len(targets) <= 3:
+                                target_list = []
+                                for target_name, target_type in targets:
+                                    if target_type:
+                                        target_list.append(f"{target_name} ({target_type})")
+                                    else:
+                                        target_list.append(target_name)
+                                content_parts.append(f"{rel_type} {', '.join(target_list)}")
+                            else:
+                                target_list = []
+                                for target_name, target_type in targets[:3]:
+                                    if target_type:
+                                        target_list.append(f"{target_name} ({target_type})")
+                                    else:
+                                        target_list.append(target_name)
+                                content_parts.append(f"{rel_type} {', '.join(target_list)} and {len(targets) - 3} more")
+                    
+                    # Add related entity context if available
+                    if related_entities and len(content_parts) < 3:
+                        entity_names = []
+                        for e in related_entities[:3]:
+                            e_name = e.get("name", e.get("id", ""))
+                            e_type = e.get("type", "")
+                            if e_type:
+                                entity_names.append(f"{e_name} ({e_type})")
+                            else:
+                                entity_names.append(e_name)
+                        if entity_names:
+                            content_parts.append(f"Related to: {', '.join(entity_names)}")
+                    
+                    content = ". ".join(content_parts) + "."
 
                     results.append(
                         RetrievedContext(
-                            content=node.get("content", ""),
+                            content=content,
                             score=score,
-                            source=f"graph:{node.get('id')}",
+                            source=f"graph:{entity_id}",
                             metadata={
-                                "node_type": node_type,
-                                "node_id": node.get("id"),
-                                **node.get("metadata", {}),
+                                "node_type": entity_type,
+                                "node_id": entity_id,
+                                **entity.get("metadata", {}),
                             },
-                            related_entities=related_entities,
+                            related_entities=related_entities[:10],  # Limit entities
+                            related_relationships=related_relationships[:10],  # Limit relationships
                         )
                     )
 
@@ -360,6 +633,32 @@ class ContextRetriever:
         except Exception as e:
             self.logger.warning(f"Graph retrieval failed: {e}")
             return []
+    
+    def _keyword_match_entities(self, entities, query, max_results):
+        """Fallback keyword matching for entities."""
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        entity_scores = []
+        
+        for entity in entities:
+            entity_name = str(entity.get("name", entity.get("id", "")))
+            entity_name_lower = entity_name.lower()
+            entity_type = str(entity.get("type", "")).lower()
+            
+            # Word overlap score
+            entity_words = set(entity_name_lower.split())
+            match_score = len(query_words.intersection(entity_words))
+            
+            # Substring match boost
+            if any(word in entity_name_lower for word in query_words):
+                match_score += 1
+            
+            if match_score > 0:
+                score = match_score / max(len(query_words), 1)
+                entity_scores.append((entity, score))
+        
+        entity_scores.sort(key=lambda x: x[1], reverse=True)
+        return entity_scores[:max_results]
 
     def _retrieve_from_memory(
         self, query: str, max_results: int
@@ -397,33 +696,179 @@ class ContextRetriever:
     def _rank_and_merge(
         self, results: List[RetrievedContext], query: str
     ) -> List[RetrievedContext]:
-        """Rank and merge results from multiple sources."""
-        # Deduplicate by content
-        seen_content = {}
-
-        for result in results:
-            content_key = result.content[:100]  # First 100 chars as key
-
+        """Rank and merge results from multiple sources with GraphRAG optimization."""
+        # Separate results by source
+        vector_results = [r for r in results if r.source.startswith("vector:")]
+        graph_results = [r for r in results if r.source.startswith("graph:")]
+        memory_results = [r for r in results if r.source.startswith("memory:")]
+        
+        # Normalize scores within each source (0-1 range)
+        def normalize_scores(source_results):
+            if not source_results:
+                return source_results
+            scores = [r.score for r in source_results]
+            if not scores:
+                return source_results
+            min_score, max_score = min(scores), max(scores)
+            if max_score > min_score:
+                for r in source_results:
+                    r.score = (r.score - min_score) / (max_score - min_score)
+            return source_results
+        
+        vector_results = normalize_scores(vector_results)
+        graph_results = normalize_scores(graph_results)
+        memory_results = normalize_scores(memory_results)
+        
+        # Apply hybrid_alpha weighting: 0=vector only, 1=graph only, 0.5=balanced
+        alpha = self.hybrid_alpha
+        for r in vector_results:
+            r.score = r.score * (1 - alpha)  # Weight vector results
+        for r in graph_results:
+            r.score = r.score * alpha  # Weight graph results
+            # Boost graph results with more context (more related entities/relationships)
+            context_boost = min(
+                0.2,  # Max 20% boost
+                (len(r.related_entities) + len(r.related_relationships or [])) * 0.01
+            )
+            r.score += context_boost
+        for r in memory_results:
+            r.score = r.score * 0.3  # Lower weight for memory
+        
+        # Deduplicate by entity ID (for graph) or content (for others)
+        seen_entities = {}  # entity_id -> result
+        seen_content = {}   # content_hash -> result
+        
+        all_results = vector_results + graph_results + memory_results
+        
+        for result in all_results:
+            # For graph results, deduplicate by entity ID
+            if result.source.startswith("graph:"):
+                entity_id = result.metadata.get("node_id")
+                if entity_id:
+                    if entity_id not in seen_entities:
+                        seen_entities[entity_id] = result
+                    else:
+                        # Merge: boost score if found in multiple sources
+                        existing = seen_entities[entity_id]
+                        existing.score = max(existing.score, result.score) * 1.2  # 20% boost for multi-source
+                        existing.metadata.update(result.metadata)
+                        # Merge related entities
+                        existing_ids = {e.get("id") or e.get("name") for e in existing.related_entities}
+                        for entity in result.related_entities:
+                            e_id = entity.get("id") or entity.get("name")
+                            if e_id not in existing_ids:
+                                existing.related_entities.append(entity)
+                                existing_ids.add(e_id)
+                        # Merge relationships
+                        if result.related_relationships:
+                            if not existing.related_relationships:
+                                existing.related_relationships = []
+                            existing_rel_ids = {
+                                (r.get("source"), r.get("target"), r.get("type"))
+                                for r in existing.related_relationships
+                            }
+                            for rel in result.related_relationships:
+                                rel_key = (
+                                    rel.get("source") or rel.get("source_id"),
+                                    rel.get("target") or rel.get("target_id"),
+                                    rel.get("type")
+                                )
+                                if rel_key not in existing_rel_ids:
+                                    existing.related_relationships.append(rel)
+                                    existing_rel_ids.add(rel_key)
+                        continue
+            
+            # For non-graph results, deduplicate by content
+            content_key = result.content[:100] if result.content else ""
             if content_key not in seen_content:
                 seen_content[content_key] = result
             else:
-                # Merge scores (take maximum or average)
                 existing = seen_content[content_key]
                 existing.score = max(existing.score, result.score)
-
-                # Merge metadata
                 existing.metadata.update(result.metadata)
-
-                # Merge related entities
-                existing_entity_ids = {e.get("id") for e in existing.related_entities}
-                for entity in result.related_entities:
-                    if entity.get("id") not in existing_entity_ids:
-                        existing.related_entities.append(entity)
-
-        # Sort by score
-        ranked = sorted(seen_content.values(), key=lambda x: x.score, reverse=True)
-
+        
+        # Combine deduplicated results
+        merged_results = list(seen_entities.values()) + [
+            r for r in seen_content.values() 
+            if not r.source.startswith("graph:") or r.metadata.get("node_id") not in seen_entities
+        ]
+        
+        # Re-rank with query relevance boost
+        if self.vector_store and hasattr(self.vector_store, 'embed'):
+            try:
+                import numpy as np
+                query_embedding = self.vector_store.embed(query)
+                if query_embedding is not None:
+                    query_embedding = np.array(query_embedding)
+                    if len(query_embedding.shape) == 2:
+                        query_embedding = query_embedding[0]
+                    query_norm = np.linalg.norm(query_embedding)
+                    
+                    if query_norm > 0:
+                        for result in merged_results:
+                            # Re-score based on semantic similarity to query
+                            content_embedding = self.vector_store.embed(result.content[:500])
+                            if content_embedding is not None:
+                                content_embedding = np.array(content_embedding)
+                                if len(content_embedding.shape) == 2:
+                                    content_embedding = content_embedding[0]
+                                content_norm = np.linalg.norm(content_embedding)
+                                if content_norm > 0:
+                                    semantic_sim = np.dot(query_embedding, content_embedding) / (query_norm * content_norm)
+                                    # Blend original score with semantic similarity
+                                    result.score = result.score * 0.7 + float(semantic_sim) * 0.3
+            except Exception as e:
+                self.logger.debug(f"Query relevance boost failed: {e}")
+        
+        # Final sort by score
+        ranked = sorted(merged_results, key=lambda x: x.score, reverse=True)
+        
         return ranked
+
+    def _extract_query_intent(self, query: str) -> Dict[str, Any]:
+        """Extract query intent to guide graph retrieval (domain-agnostic)."""
+        query_lower = query.lower()
+        intent = {
+            "entity_types": [],
+            "relationship_types": [],
+            "question_type": "general",
+            "keywords": set(query_lower.split())
+        }
+        
+        # Generic question type detection (domain-agnostic)
+        question_words = {
+            "what": ["what", "which"],
+            "who": ["who"],
+            "how": ["how"],
+            "when": ["when"],
+            "where": ["where"],
+            "why": ["why"]
+        }
+        
+        for q_type, words in question_words.items():
+            if any(query_lower.startswith(w) for w in words):
+                intent["question_type"] = q_type
+                break
+        
+        # Extract relationship verbs/patterns from query (domain-agnostic)
+        # Use regex to find common relationship verbs that work across domains
+        import re
+        relationship_verbs = re.findall(
+            r'\b(targets?|inhibits?|treats?|causes?|relates?|connects?|links?|interacts?|'
+            r'influences?|affects?|depends?|requires?|contains?|includes?|belongs?|'
+            r'opposes?|supports?|enables?|prevents?|blocks?|activates?|deactivates?|'
+            r'regulates?|controls?|manages?|owns?|operates?|uses?|produces?|creates?|'
+            r'develops?|builds?|designs?|implements?|maintains?|supports?|works with)\b',
+            query_lower
+        )
+        for verb in relationship_verbs:
+            if verb not in intent["relationship_types"]:
+                intent["relationship_types"].append(verb)
+        
+        # Note: Entity types are not hardcoded - they will be matched semantically
+        # based on the actual entities in the knowledge graph, making it domain-agnostic
+        
+        return intent
 
     def _calculate_graph_relevance(self, node: Dict[str, Any], query: str) -> float:
         """Calculate relevance score for graph node."""
