@@ -320,13 +320,24 @@ def extract_entities_llm(
     if not llm.is_available():
         raise ProcessingError(f"{provider} provider not available")
 
+    # Use custom entity types if provided, otherwise use defaults
+    entity_types = kwargs.get("entity_types")
+    if entity_types:
+        entity_types_str = ", ".join(entity_types)
+        entity_types_instruction = f"""Preferred entity types: {entity_types_str}.
+You may also use related or similar entity types if they better match the context (e.g., variations, synonyms, or domain-specific types).
+If an entity doesn't fit any of the preferred types, use the most appropriate type from the preferred list or a closely related type."""
+    else:
+        entity_types_instruction = """Entity types should be one of: PERSON, ORG, GPE, DATE, EVENT, PRODUCT, CONCEPT, or related types.
+Use the most appropriate type for each entity, including variations or synonyms if they better match the context."""
+
     prompt = f"""Extract named entities from the following text. 
 Return ONLY a valid JSON list of objects with the following structure:
 [
   {{"text": "entity name", "label": "ENTITY_TYPE", "start": 0, "end": 10, "confidence": 0.9}}
 ]
 
-Entity types should be one of: PERSON, ORG, GPE, DATE, EVENT, PRODUCT, CONCEPT.
+{entity_types_instruction}
 Do not include any conversational filler, explanations, or markdown formatting outside the JSON block.
 
 Text: {text}"""
@@ -733,18 +744,37 @@ def extract_relations_llm(
     **kwargs,
 ) -> List[Relation]:
     """LLM-based relation extraction."""
+    # Support llm_model parameter to disambiguate from ML model
+    if "llm_model" in kwargs:
+        model = kwargs.pop("llm_model")
+    
     llm = create_provider(provider, model=model, **kwargs)
 
     if not llm.is_available():
         raise ProcessingError(f"{provider} provider not available")
 
     entities_str = ", ".join([f"{e.text} ({e.label})" for e in entities])
+    
+    # Use custom relation types if provided
+    relation_types = kwargs.get("relation_types")
+    if relation_types:
+        relation_types_str = ", ".join(relation_types)
+        relation_types_instruction = f"""
+Preferred relation types: {relation_types_str}.
+You may also use related or similar relation types if they better capture the relationship (e.g., variations, synonyms, or domain-specific relations).
+If a relation doesn't fit any of the preferred types, use the most appropriate type from the preferred list or a closely related type that accurately describes the relationship."""
+    else:
+        relation_types_instruction = """
+Extract meaningful relationships between entities. Use appropriate relation types that accurately describe how entities are connected.
+Common relation types include: related_to, part_of, located_in, created_by, uses, depends_on, interacts_with, and similar variations."""
+    
     prompt = f"""Extract relations between entities from the following text.
 
 Text: {text}
-Entities: {entities_str}
+Entities: {entities_str}{relation_types_instruction}
 
-Return JSON format: [{{"subject": "...", "predicate": "...", "object": "...", "confidence": 0.9}}]"""
+Return JSON format: [{{"subject": "...", "predicate": "...", "object": "...", "confidence": 0.9}}]
+Extract all meaningful relationships between the entities, using the most appropriate relation type for each relationship."""
 
     try:
         result = llm.generate_structured(prompt)

@@ -235,13 +235,23 @@ class NERExtractor:
                         method_options["model"] = all_options.get(
                             "llm_model", all_options.get("model")
                         )
+                        # Pass entity_types to LLM method so it can use them in the prompt
+                        if entity_types:
+                            method_options["entity_types"] = entity_types
 
                     entities = method_func(text, **method_options)
 
                     # Filter by confidence and entity types
                     filtered = [e for e in entities if e.confidence >= min_confidence]
                     if entity_types:
-                        filtered = [e for e in filtered if e.label in entity_types]
+                        # Case-insensitive and flexible matching for entity types
+                        entity_types_lower = {et.lower() for et in entity_types}
+                        filtered = [
+                            e for e in filtered 
+                            if e.label.lower() in entity_types_lower 
+                            or any(et.lower() in e.label.lower() or e.label.lower() in et.lower() 
+                                   for et in entity_types)
+                        ]
 
                     if filtered:
                         all_entities.append((method_name, filtered))

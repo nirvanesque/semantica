@@ -128,6 +128,7 @@ class RelationExtractor:
         self.bidirectional = bidirectional
         self.confidence_threshold = confidence_threshold
         self.max_distance = max_distance
+        self.verbose = config.get("verbose", False)
 
         # Method configuration
         self.method = method if isinstance(method, list) else [method]
@@ -249,6 +250,7 @@ class RelationExtractor:
 
             min_confidence = options.get("min_confidence", self.min_confidence)
             validate = options.get("validate", self.validate)
+            relation_types = options.get("relation_types", self.relation_types)
 
             # Merge config with options
             all_options = {**self.config, **options}
@@ -277,12 +279,26 @@ class RelationExtractor:
                         method_options["model"] = all_options.get(
                             "llm_model", all_options.get("model")
                         )
+                        # Pass relation_types to LLM method so it can use them in the prompt
+                        if relation_types:
+                            method_options["relation_types"] = relation_types
                     elif method_name == "dependency":
                         method_options["model"] = all_options.get(
                             "model", "en_core_web_sm"
                         )
 
+                    # Print progress if verbose mode is enabled (only for LLM method to avoid spam)
+                    verbose_mode = self.verbose or options.get("verbose", False)
+                    if verbose_mode and method_name == "llm":
+                        import sys
+                        print(f"    [RelationExtractor] Processing with {method_name}...", flush=True, file=sys.stdout)
+                    
                     relations = method_func(text, entities, **method_options)
+                    
+                    # Print result count if verbose (only for LLM method)
+                    if verbose_mode and method_name == "llm" and len(relations) > 0:
+                        import sys
+                        print(f"    [RelationExtractor] Extracted {len(relations)} relations", flush=True, file=sys.stdout)
 
                     # Filter by confidence
                     filtered = [r for r in relations if r.confidence >= min_confidence]
