@@ -256,12 +256,12 @@ class ContextRetriever:
                     if hasattr(result, "content"):
                         content = result.content
                         score = result.score
-                        source = f"vector:{result.id}"
+                        source = f"vector:{result.id}" if hasattr(result, 'id') else "vector:unknown"
                         metadata = result.metadata or {}
                     else:
                         content = result.get("content", "")
                         score = result.get("score", 0.0)
-                        source = result.get("source")
+                        source = result.get("source") or f"vector:{result.get('id', 'unknown')}"
                         metadata = result.get("metadata", {})
 
                     results.append(
@@ -680,7 +680,7 @@ class ContextRetriever:
                         RetrievedContext(
                             content=result.get("content", ""),
                             score=result.get("score", 0.0),
-                            source=result.get("source"),
+                            source=result.get("source") or f"memory:{result.get('id', 'unknown')}",
                             metadata=result.get("metadata", {}),
                         )
                     )
@@ -697,10 +697,10 @@ class ContextRetriever:
         self, results: List[RetrievedContext], query: str
     ) -> List[RetrievedContext]:
         """Rank and merge results from multiple sources with GraphRAG optimization."""
-        # Separate results by source
-        vector_results = [r for r in results if r.source.startswith("vector:")]
-        graph_results = [r for r in results if r.source.startswith("graph:")]
-        memory_results = [r for r in results if r.source.startswith("memory:")]
+        # Separate results by source (handle None source gracefully)
+        vector_results = [r for r in results if r.source and r.source.startswith("vector:")]
+        graph_results = [r for r in results if r.source and r.source.startswith("graph:")]
+        memory_results = [r for r in results if r.source and r.source.startswith("memory:")]
         
         # Normalize scores within each source (0-1 range)
         def normalize_scores(source_results):
@@ -742,7 +742,7 @@ class ContextRetriever:
         
         for result in all_results:
             # For graph results, deduplicate by entity ID
-            if result.source.startswith("graph:"):
+            if result.source and result.source.startswith("graph:"):
                 entity_id = result.metadata.get("node_id")
                 if entity_id:
                     if entity_id not in seen_entities:
@@ -790,7 +790,7 @@ class ContextRetriever:
         # Combine deduplicated results
         merged_results = list(seen_entities.values()) + [
             r for r in seen_content.values() 
-            if not r.source.startswith("graph:") or r.metadata.get("node_id") not in seen_entities
+            if not (r.source and r.source.startswith("graph:")) or r.metadata.get("node_id") not in seen_entities
         ]
         
         # Re-rank with query relevance boost

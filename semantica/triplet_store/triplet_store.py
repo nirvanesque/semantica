@@ -334,9 +334,9 @@ class TripletStore:
         )
 
         return {
-            "success": progress.failed_batches == 0,
+            "success": progress.metadata.get("success", progress.failed_triplets == 0),
             "total": progress.total_triplets,
-            "processed": progress.processed_triplets,
+            "processed": progress.loaded_triplets,
             "failed": progress.failed_triplets,
             "batches": progress.total_batches
         }
