@@ -339,21 +339,50 @@ sources.extend(db_ingestor.ingest(query="SELECT * FROM articles"))
 print(f" Ingested {len(sources)} sources")
 ```
 
-[**Cookbook: Data Ingestion**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/02_Data_Ingestion.ipynb) • [**Document Parsing**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/03_Document_Parsing.ipynb) • [**Data Normalization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/04_Data_Normalization.ipynb) • [**Chunking & Splitting**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/11_Chunking_and_Splitting.ipynb)
+[**Cookbook: Data Ingestion**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/02_Data_Ingestion.ipynb)
+
+### Document Parsing & Processing
+
+> **Multi-format parsing** • **Text normalization** • **Intelligent chunking**
+
+```python
+from semantica.parse import DocumentParser
+from semantica.normalize import TextNormalizer
+from semantica.split import TextSplitter
+
+# Parse documents
+parser = DocumentParser()
+parsed = parser.parse("document.pdf", format="auto")
+
+# Normalize text
+normalizer = TextNormalizer()
+normalized = normalizer.normalize(parsed, clean_html=True, normalize_entities=True)
+
+# Split into chunks
+splitter = TextSplitter(method="token", chunk_size=1000, chunk_overlap=200)
+chunks = splitter.split(normalized)
+```
+
+[**Cookbook: Document Parsing**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/03_Document_Parsing.ipynb) • [**Data Normalization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/04_Data_Normalization.ipynb) • [**Chunking & Splitting**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/11_Chunking_and_Splitting.ipynb)
 
 ### Semantic Intelligence Engine
 
 > **Entity & Relation Extraction** • NER, Relationships, Events, Triplets with LLM Enhancement
 
 ```python
-from semantica.core import Semantica
+from semantica.semantic_extract import NERExtractor, RelationExtractor
 
 text = "Apple Inc., founded by Steve Jobs in 1976, acquired Beats Electronics for $3 billion."
 
-core = Semantica(ner_model="transformer", relation_strategy="hybrid")
-results = core.extract_semantics(text)
+# Extract entities
+ner_extractor = NERExtractor(method="ml", model="en_core_web_sm")
+entities = ner_extractor.extract(text)
 
-print(f"Entities: {len(results.entities)}, Relationships: {len(results.relationships)}")
+# Extract relationships
+relation_extractor = RelationExtractor(method="dependency", model="en_core_web_sm")
+relationships = relation_extractor.extract(text, entities=entities)
+
+print(f"Entities: {len(entities)}, Relationships: {len(relationships)}")
 ```
 
 [**Cookbook: Entity Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/05_Entity_Extraction.ipynb) • [**Relation Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/06_Relation_Extraction.ipynb) • [**Advanced Extraction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/01_Advanced_Extraction.ipynb)
@@ -363,46 +392,66 @@ print(f"Entities: {len(results.entities)}, Relationships: {len(results.relations
 > **Production-Ready KGs** • Entity Resolution • Temporal Support • Graph Analytics
 
 ```python
-from semantica.core import Semantica
-from semantica.kg import GraphAnalyzer
+from semantica.semantic_extract import NERExtractor, RelationExtractor
+from semantica.kg import GraphBuilder
 
-documents = ["doc1.txt", "doc2.txt", "doc3.txt"]
-core = Semantica(graph_db="neo4j", merge_entities=True)
-kg = core.build_knowledge_graph(documents, generate_embeddings=True)
+# Extract entities and relationships
+ner_extractor = NERExtractor(method="ml", model="en_core_web_sm")
+relation_extractor = RelationExtractor(method="dependency", model="en_core_web_sm")
 
-analyzer = GraphAnalyzer()
-pagerank = analyzer.compute_centrality(kg, method="pagerank")
-communities = analyzer.detect_communities(kg, method="louvain")
+entities = ner_extractor.extract(text)
+relationships = relation_extractor.extract(text, entities=entities)
 
-result = kg.query("Who founded the company?", return_format="structured")
-print(f"Nodes: {kg.node_count}, Answer: {result.answer}")
+# Build knowledge graph
+builder = GraphBuilder()
+kg = builder.build({"entities": entities, "relationships": relationships})
+
+print(f"Nodes: {len(kg.get('entities', []))}, Edges: {len(kg.get('relationships', []))}")
 ```
 
-[**Cookbook: Building Knowledge Graphs**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/07_Building_Knowledge_Graphs.ipynb) • [**Graph Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/09_Graph_Store.ipynb) • [**Triplet Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/20_Triplet_Store.ipynb) • [**Visualization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/16_Visualization.ipynb)
+[**Cookbook: Building Knowledge Graphs**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/07_Building_Knowledge_Graphs.ipynb) • [**Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/10_Graph_Analytics.ipynb)
 
-[**Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/10_Graph_Analytics.ipynb) • [**Advanced Graph Analytics**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/02_Advanced_Graph_Analytics.ipynb)
+### Embeddings & Vector Store
 
-### Triplet Store Integration
-
-> **SPARQL Support** • **Blazegraph, Jena, RDF4J** • **Reasoning & Inference**
+> **FastEmbed by default** • **Multiple backends** • **Semantic search**
 
 ```python
-from semantica.triplet_store import TripletStore
+from semantica.embeddings import EmbeddingGenerator
+from semantica.vector_store import VectorStore
 
-# Initialize store (Blazegraph, Jena, or RDF4J)
-store = TripletStore(backend="blazegraph", endpoint="http://localhost:9999/blazegraph")
+# Generate embeddings
+embedding_gen = EmbeddingGenerator(model_name="sentence-transformers/all-MiniLM-L6-v2", dimension=384)
+embeddings = embedding_gen.generate_embeddings(chunks, data_type="text")
 
-# Add triplets and execute SPARQL queries
-store.add_triplet({
-    "subject": "http://example.org/Alice",
-    "predicate": "http://example.org/knows",
-    "object": "http://example.org/Bob"
-})
+# Store in vector database
+vector_store = VectorStore(backend="faiss", dimension=384)
+vector_store.store_vectors(vectors=embeddings, metadata=[{"text": chunk} for chunk in chunks])
 
-results = store.execute_query("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
+# Search
+results = vector_store.search(query="supply chain", top_k=5)
 ```
 
-[**Cookbook: Triplet Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/20_Triplet_Store.ipynb)
+[**Cookbook: Embedding Generation**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/12_Embedding_Generation.ipynb) • [**Vector Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/13_Vector_Store.ipynb)
+
+### Graph Store & Triplet Store
+
+> **Neo4j, FalkorDB support** • **SPARQL queries** • **RDF triplets**
+
+```python
+from semantica.graph_store import GraphStore
+from semantica.triplet_store import TripletStore
+
+# Graph Store (Neo4j, FalkorDB)
+graph_store = GraphStore(backend="neo4j", uri="bolt://localhost:7687", user="neo4j", password="password")
+graph_store.add_nodes([{"id": "n1", "labels": ["Person"], "properties": {"name": "Alice"}}])
+
+# Triplet Store (Blazegraph, Jena, RDF4J)
+triplet_store = TripletStore(backend="blazegraph", endpoint="http://localhost:9999/blazegraph")
+triplet_store.add_triplet({"subject": "Alice", "predicate": "knows", "object": "Bob"})
+results = triplet_store.execute_query("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
+```
+
+[**Cookbook: Graph Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/09_Graph_Store.ipynb) • [**Triplet Store**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/20_Triplet_Store.ipynb)
 
 ### Ontology Generation & Management
 
@@ -629,35 +678,78 @@ print(f"Conflicts: {len(conflicts)} | Duplicates: {len(duplicates)}")
 
 [**Cookbook: Conflict Detection & Resolution**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/17_Conflict_Detection_and_Resolution.ipynb) • [**Deduplication**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/18_Deduplication.ipynb)
 
-### Export & Integration
+### Visualization & Export
 
-> **Multi-Format Export** • JSON, CSV, RDF, GraphML
+> **Interactive graphs** • **Multi-format export** • **Graph analytics**
 
 ```python
+from semantica.visualization import KGVisualizer
 from semantica.export import GraphExporter
 
-exporter = GraphExporter(kg)
-exporter.export("graph.json", format="json")
-exporter.export("graph.ttl", format="turtle")
+# Visualize knowledge graph
+viz = KGVisualizer(layout="force")
+fig = viz.visualize_network(kg, output="interactive")
+fig.show()
+
+# Export to multiple formats
+exporter = GraphExporter()
+exporter.export(kg, format="json", output_path="graph.json")
+exporter.export(kg, format="graphml", output_path="graph.graphml")
 ```
 
-[**Cookbook: Export**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/15_Export.ipynb) • [**Multi-Format Export**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/05_Multi_Format_Export.ipynb) • [**Multi-Source Integration**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/06_Multi_Source_Data_Integration.ipynb)
+[**Cookbook: Visualization**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/16_Visualization.ipynb) • [**Export**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/15_Export.ipynb)
+
+### Seed Data Integration
+
+> **Foundation data** • **Entity resolution** • **Domain knowledge**
+
+```python
+from semantica.seed import SeedDataManager
+
+seed_manager = SeedDataManager()
+seed_manager.seed_data.entities = [
+    {"id": "s1", "text": "Supplier A", "type": "Supplier", "source": "foundation", "verified": True}
+]
+
+# Use seed data for entity resolution
+resolved = seed_manager.resolve_entities(extracted_entities)
+```
+
+[**Cookbook: Seed Data**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/07_Seed_Data_Integration.ipynb)
 
 ## 🚀 Quick Start
 
 > **For comprehensive examples, see the [**Cookbook**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook) with interactive notebooks!**
 
 ```python
-from semantica.core import Semantica
+from semantica.semantic_extract import NERExtractor, RelationExtractor
+from semantica.kg import GraphBuilder
+from semantica.context import AgentContext, ContextGraph
+from semantica.vector_store import VectorStore
 
-# Initialize and build knowledge graph
-core = Semantica(ner_model="transformer", relation_strategy="hybrid")
-documents = ["doc1.txt", "doc2.txt", "doc3.txt"]
-kg = core.build_knowledge_graph(documents, merge_entities=True)
+# Extract entities and relationships
+ner_extractor = NERExtractor(method="ml", model="en_core_web_sm")
+relation_extractor = RelationExtractor(method="dependency", model="en_core_web_sm")
 
-# Query the graph
-result = kg.query("Who founded the company?", return_format="structured")
-print(f"Answer: {result.answer} | Nodes: {kg.node_count}, Edges: {kg.edge_count}")
+text = "Apple Inc. was founded by Steve Jobs in 1976."
+entities = ner_extractor.extract(text)
+relationships = relation_extractor.extract(text, entities=entities)
+
+# Build knowledge graph
+builder = GraphBuilder()
+kg = builder.build({"entities": entities, "relationships": relationships})
+
+# Query using GraphRAG
+vector_store = VectorStore(backend="faiss", dimension=384)
+context_graph = ContextGraph()
+context_graph.build_from_entities_and_relationships(
+    entities=kg.get('entities', []),
+    relationships=kg.get('relationships', [])
+)
+context = AgentContext(vector_store=vector_store, knowledge_graph=context_graph)
+
+results = context.retrieve("Who founded Apple?", max_results=5)
+print(f"Found {len(results)} results")
 ```
 
 [**Cookbook: Your First Knowledge Graph**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/08_Your_First_Knowledge_Graph.ipynb)
