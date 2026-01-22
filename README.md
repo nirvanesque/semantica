@@ -15,7 +15,7 @@
 
 ### ⭐ Give us a Star • 🍴 Fork us • 💬 Join our Discord
 
-> ** Transform Choas into Intelligence. Build AI systems that are explainable, traceable, and trustworthy — not black boxes.**
+> **Transform Choas into Intelligence. Build AI systems that are explainable, traceable, and trustworthy — not black boxes.**
 
 </div>
 
@@ -158,6 +158,7 @@ Semantica is designed for domains where **mistakes have real consequences**:
 pip install semantica
 # or
 pip install semantica[all]
+```
 
 ### Install from Source (Development)
 
