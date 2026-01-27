@@ -24,8 +24,6 @@
 
 ## 🚀 Why Semantica?
 
-### Transform Black-Box AI into Trustworthy, Explainable Systems
-
 **Semantica** bridges the **semantic gap** between text similarity and true meaning. It's the **semantic intelligence layer** that makes your AI agents auditable, explainable, and compliant.
 
 Perfect for **high-stakes domains** where mistakes have real consequences.
