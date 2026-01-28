@@ -193,7 +193,7 @@ class PandasIngestor:
             raise ProcessingError(f"Failed to ingest DataFrame: {e}") from e
 
     
-    def from_csv(
+   def from_csv(
         self,
         file_path: Union[str, Path],
         chunksize: Optional[int] = None,
@@ -212,6 +212,9 @@ class PandasIngestor:
         )
 
         try:
+            import csv
+            import chardet
+
             # ---------- Encoding Detection ----------
             with open(file_path, "rb") as f:
                 raw = f.read(100_000)
@@ -219,11 +222,21 @@ class PandasIngestor:
             encoding = encoding_info.get("encoding") or "utf-8"
 
             # ---------- Delimiter & Header Detection ----------
+            # ---------- Delimiter & Header Detection ----------
             with open(file_path, "r", encoding=encoding, errors="replace") as f:
-                sample = f.read(5000)
+                sample = f.read(10000)
                 sniffer = csv.Sniffer()
-                dialect = sniffer.sniff(sample, delimiters=[",", ";", "\t", "|"])
-                has_header = sniffer.has_header(sample)
+
+                try:
+                    dialect = sniffer.sniff(sample, delimiters=[",", ";", "\t", "|"])
+                    delimiter = dialect.delimiter
+                    quotechar = dialect.quotechar
+                except Exception:
+                    delimiter = ","
+                    quotechar = '"'
+
+            has_header = True   # Always treat first row as header
+
 
             skipped_rows = 0
             dataframes = []
@@ -231,12 +244,12 @@ class PandasIngestor:
             # ---------- CSV Reading (Chunked if needed) ----------
             reader = pd.read_csv(
                 file_path,
-                sep=dialect.delimiter,
+                sep=delimiter,
                 encoding=encoding,
                 encoding_errors="replace",
                 quoting=csv.QUOTE_MINIMAL,
                 header=0 if has_header else None,
-                quotechar=dialect.quotechar,
+                quotechar=quotechar,
                 escapechar="\\",
                 engine="python",
                 on_bad_lines="warn",
@@ -267,7 +280,7 @@ class PandasIngestor:
                     "file": str(file_path),
                     "detected_encoding": encoding,
                     "encoding_confidence": encoding_info.get("confidence"),
-                    "detected_delimiter": dialect.delimiter,
+                    "detected_delimiter": delimiter,
                     "header_detected": has_header,
                     "chunksize": chunksize,
                     "malformed_rows_skipped": skipped_rows,
