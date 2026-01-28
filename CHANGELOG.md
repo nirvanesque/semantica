@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added / Changed
+- CSV Ingestion Enhancements (PR #244 by @saloni0318)
+  - Auto-detect CSV encoding (chardet) and delimiter (csv.Sniffer)
+  - Tolerant decoding and malformed-row handling (`on_bad_lines='warn'`)
+  - Optional chunked reading for large files; metadata tracks detected values
+  - Expanded unit tests covering delimiters, quoted/multiline fields, header overrides, chunks, and NaN preservation
+
+- Tests: Comprehensive units for TextNormalizer (PR #242 by @ZohaibHassan16)
+  - Added focused test coverage for TextNormalizer behavior across inputs
+
+- Tests: Register integration mark and tidy ingest test warnings (PR #241 by @KaifAhmad1)
+  - Introduced integration test marker and reduced noisy warnings in ingest tests
+
+- Tests (ingest): Add unit tests for file, web, and feed ingestors (PR #239 by @Mohammed2372)
+  - Broadened ingest test coverage across multiple source types
+
 ## [0.2.5] - 2026-01-27
 
 ### Added
