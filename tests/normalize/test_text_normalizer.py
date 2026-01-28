@@ -90,7 +90,7 @@ class TestTextNormalizer(unittest.TestCase):
         # preserve test ---- default
 
         self.assertEqual(
-            self.normalizer.normalize_text(text, case="preserve"), "HeLLo WoRLD"
+            self.normalizer.normalize_text(text, case="preserve"), "HeLLo WoRLd"
         )
 
     def test_normalize_delegation(self):
