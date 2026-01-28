@@ -193,10 +193,10 @@ class PandasIngestor:
             raise ProcessingError(f"Failed to ingest DataFrame: {e}") from e
 
     
-          def from_csv(
+    def from_csv(
         self,
         file_path: Union[str, Path],
-        chunksize: Optional[int] = None,
+        chunksize: Optional[int] = None ,
         **pandas_options,
     ) -> PandasData:
         file_path = Path(file_path)
@@ -247,7 +247,7 @@ class PandasIngestor:
                 sep=delimiter,
                 encoding=encoding,
                 encoding_errors="replace",
-                quoting=csv.QUOTE_MINIMAL,
+                quoting=csv.QUOTE_NONE,
                 header=0 if has_header else None,
                 quotechar=quotechar,
                 escapechar="\\",
