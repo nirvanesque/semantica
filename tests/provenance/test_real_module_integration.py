@@ -227,7 +227,7 @@ class TestRealModuleIntegration:
         
         assert lineage_v1 is not None
         assert lineage_v2 is not None
-        assert lineage_v1["first_seen"] < lineage_v2["first_seen"]
+        assert lineage_v1["last_updated"] < lineage_v2["last_updated"]
     
     def test_batch_operations_with_provenance(self):
         """Test batch operations maintain provenance."""
