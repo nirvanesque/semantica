@@ -25,7 +25,7 @@ pip install semantica[db-all]
 
 This will install:
 - `snowflake-connector-python>=3.0.0`
-- `cryptography>=3.4.0` (for key-pair authentication)
+- `cryptography>=3.4.0` (required for key-pair authentication)
 
 ## Authentication Methods
 
@@ -57,8 +57,10 @@ export SNOWFLAKE_DATABASE="MYDB"
 export SNOWFLAKE_SCHEMA="PUBLIC"
 ```
 
+**Note:** For key-pair authentication, you must provide the `private_key_path` parameter directly in code. Environment variables are supported for account, user, warehouse, database, schema, role, authenticator, and token parameters.
+
 ```python
-# Now you can omit parameters - they'll be read from environment
+# Now you can omit supported parameters - they'll be read from environment
 ingestor = SnowflakeIngestor()
 ```
 
@@ -566,7 +568,3 @@ while True:
     process_chunk(chunk)
     offset += CHUNK_SIZE
 ```
-
-## API Reference
-
-See the [full API documentation](../reference/ingest/snowflake_ingestor.md) for detailed information on all classes and methods.

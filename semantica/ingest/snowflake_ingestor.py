@@ -48,22 +48,12 @@ from ..utils.progress_tracker import get_progress_tracker
 try:
     import snowflake.connector
     from snowflake.connector import DictCursor, SnowflakeConnection
-    from snowflake.connector.errors import (
-        DatabaseError,
-        Error,
-        InterfaceError,
-        ProgrammingError,
-    )
 
     SNOWFLAKE_AVAILABLE = True
 except (ImportError, OSError):
     snowflake = None
     SnowflakeConnection = None
     DictCursor = None
-    DatabaseError = None
-    Error = None
-    InterfaceError = None
-    ProgrammingError = None
     SNOWFLAKE_AVAILABLE = False
 
 
@@ -265,7 +255,12 @@ class SnowflakeConnector:
             if self.authenticator:
                 conn_params["authenticator"] = self.authenticator
 
-                if self.authenticator == "oauth" and self.token:
+                if self.authenticator == "oauth":
+                    if not self.token:
+                        raise ValidationError(
+                            "OAuth token is required when using OAuth authentication. "
+                            "Provide via 'token' parameter or SNOWFLAKE_TOKEN environment variable."
+                        )
                     conn_params["token"] = self.token
             elif self.private_key:
                 # Key-pair authentication
@@ -426,6 +421,26 @@ class SnowflakeIngestor:
 
         self.logger.debug("Snowflake ingestor initialized")
 
+    def _validate_identifier(self, identifier: str, identifier_type: str = "identifier"):
+        """Validate SQL identifier to prevent malformed names.
+        
+        Args:
+            identifier: The identifier to validate
+            identifier_type: Type of identifier (for error messages)
+            
+        Raises:
+            ValidationError: If identifier contains potentially problematic characters
+        """
+        if not identifier:
+            return
+            
+        # Check for quotes or other potentially problematic characters
+        if '"' in identifier or "'" in identifier or ";" in identifier:
+            raise ValidationError(
+                f"Invalid {identifier_type}: '{identifier}'. "
+                f"Identifiers must not contain quotes or semicolons."
+            )
+
     def ingest_table(
         self,
         table_name: str,
@@ -449,9 +464,13 @@ class SnowflakeIngestor:
             schema: Schema name (uses default if not provided)
             limit: Maximum number of rows to retrieve (optional)
             offset: Row offset for pagination (optional)
-            where: WHERE clause for filtering (optional)
-            order_by: ORDER BY clause for sorting (optional)
+            where: WHERE clause for filtering (optional, must be trusted SQL)
+            order_by: ORDER BY clause for sorting (optional, must be trusted SQL)
             **options: Additional query options
+            
+        Warning:
+            The 'where' and 'order_by' parameters accept raw SQL and must be
+            trusted input from the caller. Do not pass untrusted user input.
 
         Returns:
             SnowflakeData: Ingested data object containing:
@@ -476,6 +495,11 @@ class SnowflakeIngestor:
         )
 
         try:
+            # Validate identifiers
+            self._validate_identifier(table_name, "table_name")
+            self._validate_identifier(database, "database")
+            self._validate_identifier(schema, "schema")
+            
             # Connect to Snowflake
             conn = self.connector.connect()
 
@@ -669,6 +693,18 @@ class SnowflakeIngestor:
         try:
             database = database or self.connector.database
             schema = schema or self.connector.schema
+            
+            # Validate required parameters
+            if not database:
+                raise ValidationError(
+                    "Database name is required for schema introspection. "
+                    "Provide via 'database' parameter or set default database in connector."
+                )
+            
+            # Validate identifiers
+            self._validate_identifier(table_name, "table_name")
+            self._validate_identifier(database, "database")
+            self._validate_identifier(schema, "schema")
 
             conn = self.connector.connect()
 
@@ -747,6 +783,17 @@ class SnowflakeIngestor:
         try:
             database = database or self.connector.database
             schema = schema or self.connector.schema
+            
+            # Validate required parameters
+            if not database:
+                raise ValidationError(
+                    "Database name is required for listing tables. "
+                    "Provide via 'database' parameter or set default database in connector."
+                )
+            
+            # Validate identifiers
+            self._validate_identifier(database, "database")
+            self._validate_identifier(schema, "schema")
 
             conn = self.connector.connect()
 

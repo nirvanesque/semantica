@@ -14,7 +14,6 @@ import pytest
 # Test if snowflake-connector-python is available
 try:
     import snowflake.connector
-    from snowflake.connector.errors import DatabaseError, ProgrammingError
 
     SNOWFLAKE_AVAILABLE = True
 except ImportError:
