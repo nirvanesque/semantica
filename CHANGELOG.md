@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-02-03
+
 ### Added / Changed
 
 - **W3C PROV-O Compliant Provenance Tracking** (#254, #246):
