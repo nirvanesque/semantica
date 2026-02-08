@@ -929,8 +929,6 @@ print(f"Found {len(results)} results")
 
 **Custom Ontology Import** — Import existing ontologies (OWL, RDF, Turtle, JSON-LD, N3) and extend Schema.org, FOAF, Dublin Core, or custom ontologies.
 
-**Incremental Updates** — Real-time stream processing with Kafka, RabbitMQ, Kinesis for live updates.
-
 **Multi-Language Support** — Process multiple languages with automatic detection.
 
 **Advanced Reasoning** — Forward/backward chaining, Rete-based pattern matching, and automated explanation generation.
