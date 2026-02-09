@@ -23,8 +23,6 @@ updates:
     allow:
       - dependency-type: "production"
       - dependency-type: "development"
-    # Prioritize security updates
-    priority: "security"
     ignore:
       # Only ignore major version updates for stability-critical packages
       - dependency-name: "torch"
@@ -95,7 +93,6 @@ updates:
       - "optional"
     allow:
       - dependency-type: "production"
-    update-types: ["version-update:semver-patch", "version-update:semver-minor"]
 
   # Docker dependencies (if you use Docker)
   - package-ecosystem: "docker"
