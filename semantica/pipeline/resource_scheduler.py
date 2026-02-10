@@ -109,7 +109,7 @@ class ResourceScheduler:
 
         self.resources: Dict[str, Resource] = {}
         self.allocations: Dict[str, ResourceAllocation] = {}
-self.lock = threading.RLock()  # RLock allows re-entrancy for nested lock acquisition in allocate_resources
+        self.lock = threading.RLock()  # RLock allows re-entrancy for nested lock acquisition in allocate_resources
 
         self._initialize_resources()
 
