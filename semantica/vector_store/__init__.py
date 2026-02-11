@@ -147,6 +147,7 @@ from .methods import (
 )
 from .milvus_store import MilvusStore, MilvusClient, MilvusCollection, MilvusSearch
 from .namespace_manager import Namespace, NamespaceManager
+from .pgvector_store import PgVectorStore
 from .pinecone_store import PineconeStore, PineconeClient, PineconeIndex, PineconeSearch
 from .qdrant_store import QdrantStore, QdrantClient, QdrantCollection, QdrantSearch
 from .registry import MethodRegistry, method_registry
@@ -189,6 +190,8 @@ __all__ = [
     "PineconeClient",
     "PineconeIndex",
     "PineconeSearch",
+    # PgVector
+    "PgVectorStore",
     # Hybrid search
     "HybridSearch",
     "MetadataFilter",
