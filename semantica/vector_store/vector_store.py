@@ -60,7 +60,7 @@ class VectorStore:
     • Provides vector store operations
     """
 
-    SUPPORTED_BACKENDS = {"faiss", "weaviate", "qdrant", "milvus", "pinecone", "inmemory"}
+    SUPPORTED_BACKENDS = {"faiss", "weaviate", "qdrant", "milvus", "pinecone", "pgvector", "inmemory"}
 
     def __init__(self, backend="faiss", config=None, max_workers: int = 6, **kwargs):
         """Initialize vector store."""
@@ -79,21 +79,29 @@ class VectorStore:
         if not self.progress_tracker.enabled:
             self.progress_tracker.enabled = True
 
-        self.backend = backend
-        self.vectors: Dict[str, np.ndarray] = {}
-        self.metadata: Dict[str, Dict[str, Any]] = {}
-        self.dimension = self.config.get("dimension", 768)
+        self.backend = backend.lower()
+        
+        # Initialize backend-specific store if not using generic in-memory implementation
+        self._backend_store = None
+        if self.backend != "inmemory":
+            self._init_backend_store()
+        
+        # For in-memory backend, initialize local storage
+        if self.backend == "inmemory":
+            self.vectors: Dict[str, np.ndarray] = {}
+            self.metadata: Dict[str, Dict[str, Any]] = {}
+            self.dimension = self.config.get("dimension", 768)
 
-        # Initialize backend-specific indexer
-        # Avoid duplicate dimension argument
-        indexer_config = self.config.copy()
-        if "dimension" in indexer_config:
-            del indexer_config["dimension"]
+            # Initialize backend-specific indexer
+            # Avoid duplicate dimension argument
+            indexer_config = self.config.copy()
+            if "dimension" in indexer_config:
+                del indexer_config["dimension"]
 
-        self.indexer = VectorIndexer(
-            backend=backend, dimension=self.dimension, **indexer_config
-        )
-        self.retriever = VectorRetriever(backend=backend, **self.config)
+            self.indexer = VectorIndexer(
+                backend=backend, dimension=self.dimension, **indexer_config
+            )
+            self.retriever = VectorRetriever(backend=backend, **self.config)
 
         # Initialize embedding generator
         try:
@@ -106,6 +114,87 @@ class VectorStore:
         except Exception as e:
             self.logger.warning(f"Could not initialize embedding generator: {e}")
             self.embedder = None
+
+    def _init_backend_store(self):
+        """Initialize backend-specific store instance."""
+        try:
+            if self.backend == "pgvector":
+                # Import PgVectorStore
+                from .pgvector_store import PgVectorStore
+                
+                # Required parameters for PgVectorStore
+                connection_string = self.config.get("connection_string")
+                table_name = self.config.get("table_name", "vectors")
+                dimension = self.config.get("dimension", 768)
+                distance_metric = self.config.get("distance_metric", "cosine")
+                
+                if not connection_string:
+                    raise ValueError(
+                        "pgvector backend requires 'connection_string' in config. "
+                        "Example: VectorStore(backend='pgvector', config={"
+                        "'connection_string': 'postgresql://user:pass@localhost/db'})"
+                    )
+                
+                # Initialize PgVectorStore
+                self._backend_store = PgVectorStore(
+                    connection_string=connection_string,
+                    table_name=table_name,
+                    dimension=dimension,
+                    distance_metric=distance_metric,
+                    **{k: v for k, v in self.config.items() 
+                       if k not in ['connection_string', 'table_name', 'dimension', 'distance_metric']}
+                )
+                self.logger.info(f"Initialized PgVectorStore backend")
+                
+            elif self.backend == "faiss":
+                from .faiss_store import FAISSStore
+                self._backend_store = FAISSStore(
+                    dimension=self.config.get("dimension", 768),
+                    **{k: v for k, v in self.config.items() if k != 'dimension'}
+                )
+                self.logger.info(f"Initialized FAISSStore backend")
+                
+            elif self.backend == "weaviate":
+                from .weaviate_store import WeaviateStore
+                self._backend_store = WeaviateStore(
+                    **self.config
+                )
+                self.logger.info(f"Initialized WeaviateStore backend")
+                
+            elif self.backend == "qdrant":
+                from .qdrant_store import QdrantStore
+                self._backend_store = QdrantStore(
+                    **self.config
+                )
+                self.logger.info(f"Initialized QdrantStore backend")
+                
+            elif self.backend == "pinecone":
+                from .pinecone_store import PineconeStore
+                self._backend_store = PineconeStore(
+                    **self.config
+                )
+                self.logger.info(f"Initialized PineconeStore backend")
+                
+            elif self.backend == "milvus":
+                from .milvus_store import MilvusStore
+                self._backend_store = MilvusStore(
+                    **self.config
+                )
+                self.logger.info(f"Initialized MilvusStore backend")
+                
+            else:
+                # Fallback to in-memory for unknown backends
+                self.logger.warning(f"Backend '{self.backend}' not implemented, using in-memory")
+                self.backend = "inmemory"
+                
+        except ImportError as e:
+            raise ImportError(f"Backend '{self.backend}' not available: {e}. Please install required dependencies.") from e
+        except Exception as e:
+            if "requires" in str(e) and "connection_string" in str(e):
+                # Re-raise validation errors for missing required parameters
+                raise
+            else:
+                raise RuntimeError(f"Failed to initialize backend '{self.backend}': {e}") from e
 
     def embed(self, text: str) -> np.ndarray:
         """
@@ -327,6 +416,11 @@ class VectorStore:
         Returns:
             List of vector IDs
         """
+        # Delegate to backend store if available
+        if self._backend_store:
+            return self._backend_store.add(vectors, metadata, **options)
+        
+        # Use in-memory implementation
         tracking_id = self.progress_tracker.start_tracking(
             module="vector_store",
             submodule="VectorStore",
@@ -461,6 +555,11 @@ class VectorStore:
         Returns:
             List of search results with scores
         """
+        # Delegate to backend store if available
+        if self._backend_store:
+            return self._backend_store.search(query_vector, top_k=k, **options)
+        
+        # Use in-memory implementation
         tracking_id = self.progress_tracker.start_tracking(
             module="vector_store",
             submodule="VectorStore",
