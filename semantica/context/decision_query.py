@@ -839,29 +839,27 @@ class DecisionQuery:
             }
             
             # Get causal chains
-            downstream_query = """
-            MATCH (start:Decision {decision_id: $decision_id})
-            MATCH path = (start)-[:CAUSED|:INFLUENCED|:PRECEDENT_FOR]->*1..{max_depth}(end:Decision)
+            downstream_query = f"""
+            MATCH (start:Decision {{decision_id: $decision_id}})
+            MATCH path = (start)-[:CAUSED|INFLUENCED|PRECEDENT_FOR*1..{max_depth}]->(end:Decision)
             RETURN DISTINCT end, length(path) as distance
             ORDER BY distance
             """
             
-            upstream_query = """
-            MATCH (start:Decision {decision_id: $decision_id})
-            MATCH path = (start)<-[:CAUSED|:INFLUENCED|:PRECEDENT_FOR]-*1..{max_depth}(end:Decision)
+            upstream_query = f"""
+            MATCH (start:Decision {{decision_id: $decision_id}})
+            MATCH path = (start)<-[:CAUSED|INFLUENCED|PRECEDENT_FOR*1..{max_depth}]-(end:Decision)
             RETURN DISTINCT end, length(path) as distance
             ORDER BY distance
             """
             
             # Execute queries
             downstream_results = self.graph_store.execute_query(downstream_query, {
-                "decision_id": decision_id,
-                "max_depth": max_depth
+                "decision_id": decision_id
             })
             
             upstream_results = self.graph_store.execute_query(upstream_query, {
-                "decision_id": decision_id,
-                "max_depth": max_depth
+                "decision_id": decision_id
             })
             
             # Process results
