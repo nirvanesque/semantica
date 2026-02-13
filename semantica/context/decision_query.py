@@ -83,7 +83,7 @@ import numpy as np
 from ..embeddings import EmbeddingGenerator
 from ..graph_store import GraphStore
 from ..utils.logging import get_logger
-from .decision_models import Decision, Exception as DecisionException
+from .decision_models import Decision, PolicyException
 
 # Optional imports for advanced features
 try:
@@ -582,7 +582,7 @@ class DecisionQuery:
         self,
         exception_reason: str,
         limit: int = 10
-    ) -> List[DecisionException]:
+    ) -> List[PolicyException]:
         """
         Find similar exceptions for precedent.
         
@@ -654,13 +654,13 @@ class DecisionQuery:
             metadata=data.get("metadata", {})
         )
     
-    def _dict_to_exception(self, data: Dict[str, Any]) -> DecisionException:
-        """Convert dictionary to Exception object."""
+    def _dict_to_exception(self, data: Dict[str, Any]) -> PolicyException:
+        """Convert dictionary to PolicyException object."""
         # Handle timestamp conversion
         if isinstance(data.get("approval_timestamp"), str):
             data["approval_timestamp"] = datetime.fromisoformat(data["approval_timestamp"])
         
-        return DecisionException(
+        return PolicyException(
             exception_id=data.get("exception_id", ""),
             decision_id=data.get("decision_id", ""),
             policy_id=data.get("policy_id", ""),

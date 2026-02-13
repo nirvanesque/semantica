@@ -60,7 +60,7 @@ Decision Tracking Classes:
     - CausalChainAnalyzer: Traces decision causality and influence
     - PolicyEngine: Manages decision policies and compliance
     - DecisionContext: High-level decision tracking interface
-    - Policy/Precedent/Exception: Decision tracking data structures
+    - Policy/Precedent/PolicyException: Decision tracking data structures
 
 Example Usage:
     >>> from semantica.context import AgentContext
@@ -99,7 +99,7 @@ from .entity_linker import EntityLink, EntityLinker, LinkedEntity
 # Decision tracking imports
 from .decision_models import (
     Decision, DecisionContext as DecisionContextModel, Policy, 
-    Exception, Precedent, ApprovalChain
+    PolicyException, Precedent, ApprovalChain
 )
 from .decision_recorder import DecisionRecorder
 from .decision_query import DecisionQuery
@@ -132,7 +132,7 @@ __all__ = [
     "Decision",
     "DecisionContextModel", 
     "Policy",
-    "Exception",
+    "PolicyException",
     "Precedent",
     "ApprovalChain",
     # Decision tracking classes

@@ -79,7 +79,7 @@ from ..graph_store import GraphStore
 from ..provenance import ProvenanceManager
 from ..utils.logging import get_logger
 from .decision_models import (
-    Decision, DecisionContext, Policy, Exception, 
+    Decision, DecisionContext, Policy, PolicyException, 
     Precedent, ApprovalChain
 )
 

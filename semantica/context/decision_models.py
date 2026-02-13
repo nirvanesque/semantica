@@ -48,7 +48,7 @@ Validation Features:
     - Error Handling: Graceful error handling
 
 Example Usage:
-    >>> from semantica.context import Decision, Policy, Exception
+    >>> from semantica.context import Decision, Policy, PolicyException
     >>> decision = Decision(
     ...     category="loan_approval",
     ...     scenario="Mortgage application",
@@ -206,7 +206,7 @@ class Policy:
 
 
 @dataclass
-class Exception:
+class PolicyException:
     """Policy exception with approval tracking."""
     
     exception_id: str
@@ -237,7 +237,7 @@ class Exception:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Exception":
+    def from_dict(cls, data: Dict[str, Any]) -> "PolicyException":
         """Create exception from dictionary."""
         if isinstance(data.get("approval_timestamp"), str):
             data["approval_timestamp"] = datetime.fromisoformat(data["approval_timestamp"])

@@ -73,7 +73,7 @@ import uuid
 
 from ..graph_store import GraphStore
 from ..utils.logging import get_logger
-from .decision_models import Decision, Policy, Exception
+from .decision_models import Decision, Policy, PolicyException
 
 
 class PolicyEngine:
