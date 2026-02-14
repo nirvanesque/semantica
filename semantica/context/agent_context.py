@@ -238,7 +238,9 @@ class AgentContext:
                     self._policy_engine = PolicyEngine(knowledge_graph)
                     self.logger.info("Enhanced decision tracking components initialized successfully")
                 except Exception as e:
-                    self.logger.warning(f"Failed to initialize enhanced decision tracking: {e}")
+                    self.logger.warning(
+                        f"Failed to initialize enhanced decision tracking ({type(e).__name__})"
+                    )
                     self._decision_recorder = DecisionRecorder(knowledge_graph)
                     self._decision_query = DecisionQuery(knowledge_graph)
                     self._causal_analyzer = CausalChainAnalyzer(knowledge_graph)
@@ -254,7 +256,9 @@ class AgentContext:
                             use_graph_features=enable_kg_algorithms
                         )
                     except Exception as e:
-                        self.logger.warning(f"Failed to initialize decision pipeline: {e}")
+                        self.logger.warning(
+                            f"Failed to initialize decision pipeline ({type(e).__name__})"
+                        )
 
     @property
     def memory(self) -> AgentMemory:
@@ -756,7 +760,7 @@ class AgentContext:
                 "edge_count": graph.get("statistics", {}).get("edge_count", 0),
             }
         except Exception as e:
-            self.logger.warning(f"Failed to build graph from documents: {e}")
+            self.logger.warning(f"Failed to build graph from documents ({type(e).__name__})")
             return {"node_count": 0, "edge_count": 0}
 
     def _context_to_dict(
@@ -1457,7 +1461,7 @@ class AgentContext:
                 if memory_id:
                     imported += 1
             except Exception as e:
-                self.logger.warning(f"Failed to import memory: {e}")
+                self.logger.warning(f"Failed to import memory ({type(e).__name__})")
 
         return imported
 
@@ -1590,13 +1594,30 @@ class AgentContext:
             self.knowledge_graph.add_node_attribute(
                 decision.decision_id, {"cross_system_context": cross_system_context}
             )
+        about_edge_failures: List[Dict[str, str]] = []
         for entity_id in entities:
             try:
                 self.knowledge_graph.add_edge(decision.decision_id, entity_id, edge_type="ABOUT")
-            except Exception:
-                continue
+            except Exception as e:
+                about_edge_failures.append(
+                    {"entity_id": str(entity_id), "error_type": type(e).__name__}
+                )
+
+        if about_edge_failures:
+            failure_types = sorted(
+                {f.get("error_type", "") for f in about_edge_failures if f.get("error_type")}
+            )
+            self.logger.warning(
+                f"record_decision ABOUT edge creation failures: {len(about_edge_failures)} "
+                f"({', '.join(failure_types) if failure_types else 'unknown'})"
+            )
+            if hasattr(self.knowledge_graph, "add_node_attribute"):
+                self.knowledge_graph.add_node_attribute(
+                    decision.decision_id, {"about_edge_failures": about_edge_failures}
+                )
 
         vector_id = None
+        vector_store_error_type: Optional[str] = None
         if hasattr(self.vector_store, "store_decision"):
             try:
                 vector_id = self.vector_store.store_decision(
@@ -1610,8 +1631,17 @@ class AgentContext:
                     decision_maker=decision.decision_maker,
                     timestamp=decision.timestamp.isoformat()
                 )
-            except Exception:
+            except Exception as e:
                 vector_id = None
+                vector_store_error_type = type(e).__name__
+                self.logger.warning(
+                    f"record_decision vector store write failed ({vector_store_error_type})"
+                )
+                if hasattr(self.knowledge_graph, "add_node_attribute"):
+                    self.knowledge_graph.add_node_attribute(
+                        decision.decision_id,
+                        {"vector_store_error_type": vector_store_error_type},
+                    )
 
         if vector_id and hasattr(self.knowledge_graph, "add_node_attribute"):
             self.knowledge_graph.add_node_attribute(decision.decision_id, {"vector_id": vector_id})
@@ -1661,6 +1691,16 @@ class AgentContext:
 
         results: List[Decision] = []
 
+        def _safe_parse_timestamp(value: Any) -> datetime:
+            if isinstance(value, datetime):
+                return value
+            if not value:
+                return datetime.now()
+            try:
+                return datetime.fromisoformat(str(value))
+            except Exception:
+                return datetime.now()
+
         if use_hybrid_search and hasattr(self.vector_store, "search_decisions"):
             filters = {"category": category} if category else None
             vector_results = self.vector_store.search_decisions(
@@ -1683,7 +1723,7 @@ class AgentContext:
                             reasoning=data.get("reasoning", ""),
                             outcome=data.get("outcome", ""),
                             confidence=float(data.get("confidence", 0.0) or 0.0),
-                            timestamp=datetime.fromisoformat(data.get("timestamp")) if data.get("timestamp") else datetime.now(),
+                            timestamp=_safe_parse_timestamp(data.get("timestamp")),
                             decision_maker=data.get("decision_maker", "ai_agent"),
                             reasoning_embedding=data.get("reasoning_embedding"),
                             node2vec_embedding=data.get("node2vec_embedding"),
@@ -1711,7 +1751,7 @@ class AgentContext:
                         reasoning=data.get("reasoning", ""),
                         outcome=data.get("outcome", ""),
                         confidence=float(data.get("confidence", 0.0) or 0.0),
-                        timestamp=datetime.fromisoformat(data.get("timestamp")) if data.get("timestamp") else datetime.now(),
+                        timestamp=_safe_parse_timestamp(data.get("timestamp")),
                         decision_maker=data.get("decision_maker", "ai_agent"),
                         reasoning_embedding=data.get("reasoning_embedding"),
                         node2vec_embedding=data.get("node2vec_embedding"),
@@ -1966,7 +2006,7 @@ class AgentContext:
                     "message": "Basic analysis only - KG features not available"
                 }
         except Exception as e:
-            self.logger.error(f"Failed to analyze context graph: {e}")
+            self.logger.error(f"Failed to analyze context graph ({type(e).__name__})")
             return {"error": str(e)}
     
     def find_similar_entities(
@@ -1993,7 +2033,7 @@ class AgentContext:
                 # Fallback to basic content similarity
                 return []
         except Exception as e:
-            self.logger.error(f"Failed to find similar entities: {e}")
+            self.logger.error(f"Failed to find similar entities ({type(e).__name__})")
             return []
     
     def get_entity_centrality(self, entity_id: str) -> Dict[str, float]:
@@ -2015,7 +2055,7 @@ class AgentContext:
             else:
                 return {"error": "Centrality analysis not available"}
         except Exception as e:
-            self.logger.error(f"Failed to get entity centrality: {e}")
+            self.logger.error(f"Failed to get entity centrality ({type(e).__name__})")
             return {"error": str(e)}
     
     def find_precedents_advanced(
@@ -2055,7 +2095,7 @@ class AgentContext:
                 # Fallback to basic method
                 return self.find_precedents(scenario, category, limit)
         except Exception as e:
-            self.logger.error(f"Failed to find advanced precedents: {e}")
+            self.logger.error(f"Failed to find advanced precedents ({type(e).__name__})")
             return []
     
     def analyze_decision_influence(self, decision_id: str, max_depth: int = 3) -> Dict[str, Any]:
@@ -2084,7 +2124,7 @@ class AgentContext:
                     "message": "Basic analysis only - KG features not available"
                 }
         except Exception as e:
-            self.logger.error(f"Failed to analyze decision influence: {e}")
+            self.logger.error(f"Failed to analyze decision influence ({type(e).__name__})")
             return {"error": str(e)}
     
     def predict_decision_relationships(self, decision_id: str, top_k: int = 5) -> List[Dict]:
@@ -2107,7 +2147,7 @@ class AgentContext:
             else:
                 return []
         except Exception as e:
-            self.logger.error(f"Failed to predict decision relationships: {e}")
+            self.logger.error(f"Failed to predict decision relationships ({type(e).__name__})")
             return []
     
     def get_context_insights(self) -> Dict[str, Any]:

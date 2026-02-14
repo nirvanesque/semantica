@@ -763,8 +763,6 @@ precedents = context.find_precedents(
 )
 ```
 
-Runnable script: `examples/context_graphs_decision_tracking.py`
-
 **Core Notebooks:**
 - [**Context Module Introduction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/19_Context_Module.ipynb) - Basic memory and storage.
 - [**Advanced Context Engineering**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/advanced/11_Advanced_Context_Engineering.ipynb) - Hybrid retrieval, graph builders, and custom memory policies.

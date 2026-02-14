@@ -509,11 +509,14 @@ class ContextGraph:
         """Find a node by ID."""
         node = self.nodes.get(node_id)
         if node:
+            merged_metadata = {}
+            merged_metadata.update(getattr(node, "metadata", {}) or {})
+            merged_metadata.update(getattr(node, "properties", {}) or {})
             return {
                 "id": node.node_id,
                 "type": node.node_type,
                 "content": node.content,
-                "metadata": node.metadata,
+                "metadata": merged_metadata,
             }
         return None
 
@@ -530,7 +533,7 @@ class ContextGraph:
                 "id": n.node_id,
                 "type": n.node_type,
                 "content": n.content,
-                "metadata": n.metadata,
+                "metadata": {**(getattr(n, "metadata", {}) or {}), **(getattr(n, "properties", {}) or {})},
             }
             for n in nodes
         ]
