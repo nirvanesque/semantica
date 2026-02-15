@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed: PolicyEngine latest version selection on ContextGraph; AgentContext fallback robustness and secure logging (PR #TBD by @KaifAhmad1)
 - Tests: Added ContextGraph fallback and AgentContext smoke tests; full suite passing
 
+  - **Apache AGE Backend Security Fixes** (PR #311 by @Sameer6305, fixes by @KaifAhmad1):
+  - Added AgeStore class with GraphStore API compatibility
+  - Fixed SQL injection vulnerabilities with input validation
+  - Added psycopg2-binary dependency and migration guide
+  - Fixed parameter replacement and test mock leakage
+  - Enhanced error handling and Unicode display issues
+
 - **Context Engineering Enhancement** (PR #307 by @KaifAhmad1):
   - Comprehensive decision tracking system with full lifecycle management (record → analyze → query → precedent → influence)
   - Advanced KG algorithm integration: centrality analysis, community detection, node embeddings with ContextGraph
