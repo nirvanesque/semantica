@@ -77,6 +77,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+import uuid
 
 from ..utils.logging import get_logger
 from ..utils.progress_tracker import get_progress_tracker
@@ -841,6 +842,7 @@ class ContextGraph:
                     "id": n.node_id,
                     "type": n.node_type,
                     "content": n.content,
+                    "properties": n.properties,
                     "metadata": n.metadata,
                 }
                 for n in self.nodes.values()
@@ -860,6 +862,34 @@ class ContextGraph:
             },
         }
 
+    def from_dict(self, graph_dict: Dict[str, Any]) -> None:
+        """Load graph from dictionary format."""
+        # Clear existing graph
+        self.nodes.clear()
+        self.edges.clear()
+        
+        # Add nodes
+        for node_data in graph_dict.get("nodes", []):
+            node = ContextNode(
+                node_id=node_data["id"],
+                node_type=node_data["type"],
+                content=node_data.get("content", ""),
+                properties=node_data.get("properties", {}),
+                metadata=node_data.get("metadata", {})
+            )
+            self._add_internal_node(node)
+        
+        # Add edges
+        for edge_data in graph_dict.get("edges", []):
+            edge = ContextEdge(
+                source_id=edge_data["source"],
+                target_id=edge_data["target"],
+                edge_type=edge_data["type"],
+                weight=edge_data.get("weight", 1.0),
+                metadata=edge_data.get("metadata", {})
+            )
+            self._add_internal_edge(edge)
+
     # Decision Support Methods
     def add_decision(self, decision: "Decision") -> None:
         """
@@ -870,8 +900,14 @@ class ContextGraph:
         """
         from .decision_models import Decision
         
+        # Handle empty decision ID by generating UUID only if None
+        node_id = decision.decision_id if decision.decision_id is not None else str(uuid.uuid4())
+        
+        # Handle None metadata
+        metadata = decision.metadata or {}
+        
         node = ContextNode(
-            node_id=decision.decision_id,
+            node_id=node_id,
             node_type="Decision",
             content=decision.scenario,
             properties={
@@ -883,7 +919,7 @@ class ContextGraph:
                 "decision_maker": decision.decision_maker,
                 "reasoning_embedding": decision.reasoning_embedding,
                 "node2vec_embedding": decision.node2vec_embedding,
-                **decision.metadata
+                **metadata
             }
         )
         self._add_internal_node(node)
@@ -905,6 +941,15 @@ class ContextGraph:
         valid_types = ["CAUSED", "INFLUENCED", "PRECEDENT_FOR"]
         if relationship_type not in valid_types:
             raise ValueError(f"Relationship type must be one of: {valid_types}")
+        
+        # Check if decisions exist - if not, skip adding relationship
+        if source_decision_id not in self.nodes or target_decision_id not in self.nodes:
+            return
+        
+        # Check if nodes are decision nodes - if not, skip adding relationship
+        if (self.nodes[source_decision_id].node_type != "Decision" or 
+            self.nodes[target_decision_id].node_type != "Decision"):
+            return
         
         edge = ContextEdge(
             source_id=source_decision_id,
@@ -949,40 +994,48 @@ class ContextGraph:
             
             visited.add(current_id)
             
-            # Get decision node
-            if current_id in self.nodes:
-                node = self.nodes[current_id]
-                if node.node_type == "Decision":
-                    decision_data = node.properties
-                    decision = Decision(
-                        decision_id=current_id,
-                        category=decision_data.get("category", ""),
-                        scenario=node.content,
-                        reasoning=decision_data.get("reasoning", ""),
-                        outcome=decision_data.get("outcome", ""),
-                        confidence=decision_data.get("confidence", 0.0),
-                        timestamp=datetime.fromisoformat(decision_data.get("timestamp", datetime.now().isoformat())),
-                        decision_maker=decision_data.get("decision_maker", ""),
-                        reasoning_embedding=decision_data.get("reasoning_embedding"),
-                        node2vec_embedding=decision_data.get("node2vec_embedding"),
-                        metadata={k: v for k, v in decision_data.items() if k not in [
-                            "category", "reasoning", "outcome", "confidence", 
-                            "timestamp", "decision_maker", "reasoning_embedding", "node2vec_embedding"
-                        ]}
-                    )
-                    decision.metadata["causal_distance"] = depth
-                    decisions.append(decision)
+            # Skip the starting decision - only add connected decisions
+            if current_id != decision_id:
+                # Get decision node
+                if current_id in self.nodes:
+                    node = self.nodes[current_id]
+                    if node.node_type == "Decision":
+                        decision_data = node.properties
+                        decision = Decision(
+                            decision_id=current_id,
+                            category=decision_data.get("category", ""),
+                            scenario=node.content,
+                            reasoning=decision_data.get("reasoning", ""),
+                            outcome=decision_data.get("outcome", ""),
+                            confidence=decision_data.get("confidence", 0.0),
+                            timestamp=datetime.fromisoformat(decision_data.get("timestamp", datetime.now().isoformat())),
+                            decision_maker=decision_data.get("decision_maker", ""),
+                            reasoning_embedding=decision_data.get("reasoning_embedding"),
+                            node2vec_embedding=decision_data.get("node2vec_embedding"),
+                            metadata={k: v for k, v in decision_data.items() if k not in [
+                                "category", "reasoning", "outcome", "confidence", 
+                                "timestamp", "decision_maker", "reasoning_embedding", "node2vec_embedding"
+                            ]}
+                        )
+                        decision.metadata["causal_distance"] = depth
+                        decisions.append(decision)
             
             # Find connected decisions
             for edge in self.edges:
                 if direction == "upstream":
                     if edge.target_id == current_id and edge.edge_type in ["CAUSED", "INFLUENCED", "PRECEDENT_FOR"]:
-                        if edge.source_id not in visited:
+                        if edge.source_id not in visited and depth < max_depth:
                             queue.append((edge.source_id, depth + 1))
                 else:  # downstream
                     if edge.source_id == current_id and edge.edge_type in ["CAUSED", "INFLUENCED", "PRECEDENT_FOR"]:
-                        if edge.target_id not in visited:
+                        if edge.target_id not in visited and depth < max_depth:
                             queue.append((edge.target_id, depth + 1))
+        
+        # Sort by depth for upstream (most distant first) and downstream (closest first)
+        if direction == "upstream":
+            decisions.sort(key=lambda d: d.metadata.get("causal_distance", 0), reverse=True)
+        else:
+            decisions.sort(key=lambda d: d.metadata.get("causal_distance", 0))
         
         return decisions
 
@@ -1000,8 +1053,8 @@ class ContextGraph:
         # Find decisions connected via PRECEDENT_FOR relationships
         precedent_ids = []
         for edge in self.edges:
-            if edge.source_id == decision_id and edge.edge_type == "PRECEDENT_FOR":
-                precedent_ids.append(edge.target_id)
+            if edge.target_id == decision_id and edge.edge_type == "PRECEDENT_FOR":
+                precedent_ids.append(edge.source_id)
         
         # Convert to Decision objects
         decisions = []
