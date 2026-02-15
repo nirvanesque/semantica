@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed: Context Graphs decision tracking bugs and added comprehensive test coverage (PR #315 by @KaifAhmad1)
+  - Fixed empty/None decision ID handling in ContextGraph.add_decision()
+  - Fixed None metadata handling to prevent TypeError
+  - Fixed causal chain depth logic and node exclusion
+  - Fixed nonexistent node handling in add_causal_relationship()
+  - Added missing properties field in to_dict serialization
+  - Added missing from_dict method for graph deserialization
+  - Fixed precedent search direction in find_precedents()
+  - Fixed UUID generation logic in all decision models
+  - Added comprehensive test suite with 9 tests covering all features
+  - All 71 context tests now passing (100% success rate)
+
 - Fixed: PolicyEngine latest version selection on ContextGraph; AgentContext fallback robustness and secure logging (PR #TBD by @KaifAhmad1)
 - Tests: Added ContextGraph fallback and AgentContext smoke tests; full suite passing
 
