@@ -1915,7 +1915,7 @@ class ContextGraph:
             influenced = set()
             
             # Get neighbors in graph
-            neighbors = self.get_neighbors(decision_id, max_depth=max_depth)
+            neighbors = self.get_neighbors(decision_id, hops=max_depth)
             
             for neighbor in neighbors:
                 if neighbor.get("type") == "decision":
