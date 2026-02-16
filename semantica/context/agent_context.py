@@ -2183,12 +2183,12 @@ class AgentContext:
         insights = {
             "timestamp": datetime.now().isoformat(),
             "memory_stats": self.stats(),
-            "decision_stats": self.get_decision_statistics() if self.config.get("enable_decision_tracking") and hasattr(self, 'get_decision_statistics') else {},
+            "decision_stats": self.get_decision_statistics() if self.config.get("decision_tracking") and hasattr(self, 'get_decision_statistics') else {},
             "graph_analysis": self.analyze_context_graph(),
             "advanced_features": {
-                "kg_algorithms_enabled": self.config.get("enable_kg_algorithms", False),
-                "vector_store_features_enabled": self.config.get("enable_vector_store_features", False),
-                "decision_tracking_enabled": self.config.get("enable_decision_tracking", False)
+                "kg_algorithms_enabled": self.config.get("kg_algorithms", False),
+                "vector_store_features_enabled": self.config.get("vector_store_features", False),
+                "decision_tracking_enabled": self.config.get("decision_tracking", False)
             }
         }
         

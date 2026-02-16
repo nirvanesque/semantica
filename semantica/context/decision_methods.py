@@ -549,7 +549,7 @@ def enhance_agent_context_with_decisions(agent_context: AgentContext) -> None:
     logger = get_logger(__name__)
     
     try:
-        if not agent_context.config.get("enable_decision_tracking"):
+        if not agent_context.config.get("decision_tracking"):
             logger.warning("Decision tracking not enabled in AgentContext")
             return
         
