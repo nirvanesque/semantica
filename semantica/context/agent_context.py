@@ -1686,7 +1686,7 @@ class AgentContext:
                     decisions.append(decision)
                 return decisions
             except Exception as e:
-                self.logger.error(f"ContextGraph find_precedents failed: {e}")
+                self.logger.exception("ContextGraph find_precedents failed")
                 return []
 
         # Fallback to DecisionQuery for graph_store backend

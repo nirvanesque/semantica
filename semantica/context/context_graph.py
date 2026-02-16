@@ -1799,7 +1799,7 @@ class ContextGraph:
                 )
             
         except Exception as e:
-            self.logger.warning(f"Failed to add decision to graph: {e}")
+            self.logger.exception("Failed to add decision to graph")
     
     def _calculate_content_similarity(self, scenario: str, decision: Dict[str, Any]) -> float:
         """Calculate content similarity between scenario and decision."""

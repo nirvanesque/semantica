@@ -155,7 +155,7 @@ class PolicyEngine:
             self.logger.info(f"Added policy: {policy.policy_id} version {policy.version}")
             return policy.policy_id
         except Exception as e:
-            self.logger.error(f"Failed to add policy: {e}")
+            self.logger.exception("Failed to add policy")
             raise
     
     def update_policy(
@@ -232,7 +232,7 @@ class PolicyEngine:
             return new_version
             
         except Exception as e:
-            self.logger.error(f"Failed to update policy: {e}")
+            self.logger.exception("Failed to update policy")
             raise
     
     def get_applicable_policies(
@@ -309,7 +309,7 @@ class PolicyEngine:
             return policies
             
         except Exception as e:
-            self.logger.error(f"Failed to get applicable policies: {e}")
+            self.logger.exception("Failed to get applicable policies")
             raise
     
     def check_compliance(self, decision: Decision, policy_id: str) -> bool:
@@ -348,7 +348,7 @@ class PolicyEngine:
             return True
             
         except Exception as e:
-            self.logger.error(f"Failed to check compliance: {e}")
+            self.logger.exception("Failed to check compliance")
             return False
     
     def record_policy_application(
@@ -394,7 +394,7 @@ class PolicyEngine:
             )
             self.logger.info(f"Recorded policy application: {policy_id} v{version} to decision {decision_id}")
         except Exception as e:
-            self.logger.error(f"Failed to record policy application: {e}")
+            self.logger.exception("Failed to record policy application")
             raise
     
     def record_exception(
@@ -472,7 +472,7 @@ class PolicyEngine:
             self.logger.info(f"Recorded policy exception: {exception_id}")
             return exception_id
         except Exception as e:
-            self.logger.error(f"Failed to record exception: {e}")
+            self.logger.exception("Failed to record exception")
             raise
     
     def get_policy_history(self, policy_id: str) -> List[Policy]:
@@ -527,7 +527,7 @@ class PolicyEngine:
             return versions
             
         except Exception as e:
-            self.logger.error(f"Failed to get policy history: {e}")
+            self.logger.exception("Failed to get policy history")
             raise
     
     def get_affected_decisions(
@@ -578,7 +578,7 @@ class PolicyEngine:
             return decision_ids
             
         except Exception as e:
-            self.logger.error(f"Failed to get affected decisions: {e}")
+            self.logger.exception("Failed to get affected decisions")
             raise
     
     def analyze_policy_impact(
@@ -679,7 +679,7 @@ class PolicyEngine:
             return impact_analysis
             
         except Exception as e:
-            self.logger.error(f"Failed to analyze policy impact: {e}")
+            self.logger.exception("Failed to analyze policy impact")
             raise
     
     def get_policy(self, policy_id: str, version: Optional[str] = None) -> Optional[Policy]:
@@ -765,7 +765,7 @@ class PolicyEngine:
                 "metadata": data.get("metadata", {})
             })
         except Exception as e:
-            self.logger.error(f"Failed to get policy: {e}")
+            self.logger.exception("Failed to get policy")
             return None
     
     def _generate_next_version(self, current_version: str) -> str:
