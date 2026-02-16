@@ -1806,25 +1806,23 @@ class ContextGraph:
             self.add_node(
                 decision["id"],
                 "decision",
-                properties={
-                    "category": decision["category"],
-                    "outcome": decision["outcome"],
-                    "confidence": decision["confidence"],
-                    "timestamp": decision["timestamp"],
-                    "scenario": decision["scenario"][:100] + "..." if len(decision["scenario"]) > 100 else decision["scenario"],
-                    "decision_maker": decision.get("decision_maker", ""),
-                    "reasoning": decision["reasoning"][:200] + "..." if len(decision["reasoning"]) > 200 else decision["reasoning"]
-                }
+                category=decision["category"],
+                outcome=decision["outcome"],
+                confidence=decision["confidence"],
+                timestamp=decision["timestamp"],
+                scenario=decision["scenario"][:100] + "..." if len(decision["scenario"]) > 100 else decision["scenario"],
+                decision_maker=decision.get("decision_maker", ""),
+                reasoning=decision["reasoning"][:200] + "..." if len(decision["reasoning"]) > 200 else decision["reasoning"]
             )
             
             # Add entity nodes and relationships
             for entity in decision["entities"]:
                 # Add entity node if not exists
-                if not self.get_node(entity):
+                if not self.find_node(entity):
                     self.add_node(
                         entity,
                         "entity",
-                        properties={"name": entity}
+                        name=entity
                     )
                 
                 # Add relationship
@@ -1832,40 +1830,38 @@ class ContextGraph:
                     decision["id"],
                     entity,
                     "involves",
-                    properties={"confidence": decision["confidence"]}
+                    confidence=decision["confidence"]
                 )
             
             # Add category node and relationship
             category_id = f"category_{decision['category']}"
-            if not self.get_node(category_id):
+            if not self.find_node(category_id):
                 self.add_node(
                     category_id,
                     "category",
-                    properties={"name": decision["category"]}
+                    name=decision["category"]
                 )
             
             self.add_edge(
                 decision["id"],
                 category_id,
-                "belongs_to",
-                properties={}
+                "belongs_to"
             )
             
             # Add decision maker node if provided
             if decision.get("decision_maker"):
                 maker_id = f"maker_{decision['decision_maker']}"
-                if not self.get_node(maker_id):
+                if not self.find_node(maker_id):
                     self.add_node(
                         maker_id,
                         "decision_maker",
-                        properties={"name": decision["decision_maker"]}
+                        name=decision["decision_maker"]
                     )
                 
                 self.add_edge(
                     decision["id"],
                     maker_id,
-                    "made_by",
-                    properties={}
+                    "made_by"
                 )
             
         except Exception as e:
