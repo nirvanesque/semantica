@@ -11,9 +11,9 @@ def test_agent_context_minimal_decisions_and_chain():
     ctx = AgentContext(
         vector_store=vs,
         knowledge_graph=graph,
-        enable_decision_tracking=True,
-        enable_kg_algorithms=False,
-        enable_vector_store_features=False,
+        decision_tracking=True,
+        kg_algorithms=False,
+        vector_store_features=False,
     )
     d1 = ctx.record_decision(
         category="credit_approval",
@@ -45,9 +45,9 @@ def test_agent_context_policy_engine_with_graph_backend():
     ctx = AgentContext(
         vector_store=vs,
         knowledge_graph=graph,
-        enable_decision_tracking=True,
-        enable_kg_algorithms=False,
-        enable_vector_store_features=False,
+        decision_tracking=True,
+        kg_algorithms=False,
+        vector_store_features=False,
     )
     pe = ctx.get_policy_engine()
     pol = Policy(

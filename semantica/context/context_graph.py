@@ -12,6 +12,14 @@ Core Features:
     - Export to dictionary format
     - Decision tracking integration
 
+Comprehensive Decision Management:
+    - Decision Recording: Store decisions with full context and metadata
+    - Precedent Search: Find similar decisions using hybrid search algorithms
+    - Influence Analysis: Analyze decision impact and relationships
+    - Causal Analysis: Trace decision causality chains
+    - Policy Enforcement: Built-in policy compliance checking
+    - Advanced Analytics: Comprehensive decision insights
+
 KG Algorithm Integration:
     - Centrality Analysis: Degree, betweenness, closeness, eigenvector centrality
     - Community Detection: Modularity-based community identification
@@ -47,23 +55,43 @@ Enhanced Methods:
     - analyze_graph_with_kg(): Comprehensive graph analysis
     - get_node_centrality(): Get centrality measures for nodes
     - find_similar_nodes(): Find similar nodes with advanced similarity
-    - add_decision(): Add decisions with context integration
+    - record_decision(): Add decisions with context integration
     - find_precedents(): Find decision precedents
+    - analyze_decision_influence(): Analyze decision influence
+    - get_decision_insights(): Get comprehensive decision analytics
+    - trace_decision_causality(): Trace decision causality
+    - enforce_decision_policy(): Enforce decision policies
     - get_graph_metrics(): Get comprehensive statistics
     - export_graph(): Export graph in various formats
 
 Example Usage:
     >>> from semantica.context import ContextGraph
-    >>> graph = ContextGraph(enable_advanced_analytics=True,
-    ...                    enable_centrality_analysis=True,
-    ...                    enable_community_detection=True,
-    ...                    enable_node_embeddings=True)
+    >>> graph = ContextGraph(advanced_analytics=True,
+    ...                    centrality_analysis=True,
+    ...                    community_detection=True,
+    ...                    node_embeddings=True)
+    >>> 
+    >>> # Basic graph operations
     >>> graph.add_node("Python", type="language", properties={"popularity": "high"})
     >>> graph.add_node("Programming", type="concept")
     >>> graph.add_edge("Python", "Programming", type="related_to")
     >>> centrality = graph.get_node_centrality("Python")
     >>> similar = graph.find_similar_nodes("Python", similarity_type="content")
     >>> analysis = graph.analyze_graph_with_kg()
+    >>> 
+    >>> # Decision management
+    >>> decision_id = graph.record_decision(
+    ...     category="loan_approval",
+    ...     scenario="First-time homebuyer",
+    ...     reasoning="Good credit score",
+    ...     outcome="approved",
+    ...     confidence=0.95,
+    ...     entities=["customer_123", "property_456"]
+    ... )
+    >>> precedents = graph.find_precedents("loan_approval", limit=5)
+    >>> influence = graph.analyze_decision_influence(decision_id)
+    >>> insights = graph.get_decision_insights()
+    >>> causality = graph.trace_decision_causality(decision_id)
 
 Production Use Cases:
     - Knowledge Management: Build and analyze knowledge graphs
@@ -71,6 +99,10 @@ Production Use Cases:
     - Recommendation Systems: Graph-based recommendations
     - Social Networks: Analyze connections and influence
     - Research Networks: Map collaborations and citations
+    - Financial Services: Loan approvals, fraud detection, risk assessment
+    - Healthcare: Treatment decisions, policy compliance, clinical pathways
+    - Legal: Case precedent analysis, decision consistency
+    - Business: Workflow decisions, policy compliance, audit trails
 """
 
 from collections import defaultdict, deque
@@ -136,9 +168,16 @@ class ContextEdge:
 
 class ContextGraph:
     """
-    In-memory implementation of context graph.
-
-    Provides capabilities to build, store, and query a context graph.
+    Easy-to-Use Context Graph with All Advanced Features.
+    
+    This class provides simple methods for:
+    - Building knowledge graphs
+    - Recording and analyzing decisions
+    - Finding precedents and patterns
+    - Causal analysis and policy enforcement
+    - Advanced graph analytics
+    
+    Perfect for building intelligent AI agents that can learn from decisions!
     """
 
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs):
@@ -151,10 +190,10 @@ class ContextGraph:
                 - extract_entities: Extract entities from content (default: True)
                 - extract_relationships: Extract relationships (default: True)
                 - entity_linker: Entity linker instance
-                - enable_advanced_analytics: Enable KG algorithms (default: True)
-                - enable_centrality_analysis: Enable centrality measures (default: True)
-                - enable_community_detection: Enable community detection (default: True)
-                - enable_node_embeddings: Enable Node2Vec embeddings (default: True)
+                - advanced_analytics: Enable KG algorithms (default: True)
+                - centrality_analysis: Enable centrality measures (default: True)
+                - community_detection: Enable community detection (default: True)
+                - node_embeddings: Enable Node2Vec embeddings (default: True)
         """
         self.logger = get_logger("context_graph")
         self.config = config or {}
@@ -186,15 +225,15 @@ class ContextGraph:
         self.kg_components = {}
         self._analytics_cache = {}
         
-        enable_advanced = self.config.get("enable_advanced_analytics", True)
+        enable_advanced = self.config.get("advanced_analytics", True)
         
         if KG_AVAILABLE and enable_advanced:
             try:
-                if self.config.get("enable_centrality_analysis", True):
+                if self.config.get("centrality_analysis", True):
                     self.kg_components["centrality_calculator"] = CentralityCalculator()
-                if self.config.get("enable_community_detection", True):
+                if self.config.get("community_detection", True):
                     self.kg_components["community_detector"] = CommunityDetector()
-                if self.config.get("enable_node_embeddings", True):
+                if self.config.get("node_embeddings", True):
                     self.kg_components["node_embedder"] = NodeEmbedder()
                 self.kg_components["path_finder"] = PathFinder()
                 self.kg_components["similarity_calculator"] = SimilarityCalculator()
@@ -1146,7 +1185,7 @@ class ContextGraph:
             
         except Exception as e:
             self.logger.error(f"Failed to analyze graph with KG: {e}")
-            return {"error": str(e)}
+            return {"error": "Graph analysis failed due to an internal error"}
     
     def get_node_centrality(self, node_id: str) -> Dict[str, float]:
         """
@@ -1183,7 +1222,7 @@ class ContextGraph:
             
         except Exception as e:
             self.logger.error(f"Failed to get node centrality: {e}")
-            return {"error": str(e)}
+            return {"error": "Node centrality calculation failed due to an internal error"}
     
     def find_similar_nodes(
         self, node_id: str, similarity_type: str = "content", top_k: int = 10
@@ -1329,6 +1368,834 @@ class ContextGraph:
         union = words1.union(words2)
         
         return len(intersection) / len(union) if union else 0.0
+    
+    # --- Comprehensive Decision Management Features ---
+    
+    def record_decision(
+        self,
+        category: str,
+        scenario: str,
+        reasoning: str,
+        outcome: str,
+        confidence: float,
+        entities: Optional[List[str]] = None,
+        decision_maker: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> str:
+        """
+        Record a decision with full context and analytics.
+        
+        Args:
+            category: Decision category (e.g., "loan_approval")
+            scenario: Decision scenario description
+            reasoning: Decision reasoning explanation
+            outcome: Decision outcome
+            confidence: Confidence score (0.0 to 1.0)
+            entities: Related entities
+            decision_maker: Who made the decision
+            metadata: Additional metadata
+            **kwargs: Additional decision data
+            
+        Returns:
+            Decision ID for reference
+        """
+        import uuid
+        from datetime import datetime
+        
+        # Input validation
+        if not isinstance(category, str) or not category.strip():
+            raise ValueError("Category must be a non-empty string")
+        if len(category.strip()) > 100:
+            raise ValueError("Category must be 100 characters or less")
+        
+        if not isinstance(scenario, str) or not scenario.strip():
+            raise ValueError("Scenario must be a non-empty string")
+        if len(scenario.strip()) > 5000:
+            raise ValueError("Scenario must be 5000 characters or less")
+        
+        if not isinstance(reasoning, str) or not reasoning.strip():
+            raise ValueError("Reasoning must be a non-empty string")
+        if len(reasoning.strip()) > 10000:
+            raise ValueError("Reasoning must be 10000 characters or less")
+        
+        if not isinstance(outcome, str) or not outcome.strip():
+            raise ValueError("Outcome must be a non-empty string")
+        if len(outcome.strip()) > 1000:
+            raise ValueError("Outcome must be 1000 characters or less")
+        
+        if not isinstance(confidence, (int, float)):
+            raise ValueError("Confidence must be a number")
+        if not (0.0 <= confidence <= 1.0):
+            raise ValueError("Confidence must be between 0.0 and 1.0")
+        
+        if entities is not None:
+            if not isinstance(entities, list):
+                raise ValueError("Entities must be a list of strings")
+            for entity in entities:
+                if not isinstance(entity, str) or not entity.strip():
+                    raise ValueError("Each entity must be a non-empty string")
+                if len(entity.strip()) > 200:
+                    raise ValueError("Each entity must be 200 characters or less")
+        
+        if decision_maker is not None:
+            if not isinstance(decision_maker, str) or not decision_maker.strip():
+                raise ValueError("Decision maker must be a non-empty string")
+            if len(decision_maker.strip()) > 200:
+                raise ValueError("Decision maker must be 200 characters or less")
+        
+        if metadata is not None:
+            if not isinstance(metadata, dict):
+                raise ValueError("Metadata must be a dictionary")
+            for key, value in metadata.items():
+                if not isinstance(key, str) or not key.strip():
+                    raise ValueError("Metadata keys must be non-empty strings")
+                if len(key.strip()) > 100:
+                    raise ValueError("Metadata keys must be 100 characters or less")
+                if len(str(value)) > 1000:
+                    raise ValueError("Metadata values must be 1000 characters or less")
+        
+        # Validate kwargs
+        for key, value in kwargs.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("Additional field names must be non-empty strings")
+            if len(key.strip()) > 100:
+                raise ValueError("Additional field names must be 100 characters or less")
+            if len(str(value)) > 1000:
+                raise ValueError("Additional field values must be 1000 characters or less")
+        
+        decision_id = str(uuid.uuid4())
+        timestamp = datetime.now().timestamp()
+        
+        # Sanitize inputs
+        category = category.strip()
+        scenario = scenario.strip()
+        reasoning = reasoning.strip()
+        outcome = outcome.strip()
+        confidence = float(confidence)
+        entities = [entity.strip() for entity in (entities or []) if entity.strip()]
+        decision_maker = decision_maker.strip() if decision_maker else None
+        
+        # Create decision record
+        decision = {
+            "id": decision_id,
+            "category": category,
+            "scenario": scenario,
+            "reasoning": reasoning,
+            "outcome": outcome,
+            "confidence": confidence,
+            "entities": entities,
+            "decision_maker": decision_maker,
+            "timestamp": timestamp,
+            "metadata": metadata or {},
+            **kwargs
+        }
+        
+        # Store decision in graph
+        self._add_decision_to_graph(decision)
+        
+        # Store in internal decision storage
+        if not hasattr(self, '_decisions'):
+            self._decisions = {}
+            self._decision_index = defaultdict(set)
+            self._entity_index = defaultdict(set)
+            self._temporal_index = []
+        
+        self._decisions[decision_id] = decision
+        self._decision_index[category].add(decision_id)
+        
+        for entity in entities or []:
+            self._entity_index[entity].add(decision_id)
+        
+        self._temporal_index.append((decision_id, timestamp))
+        self._temporal_index.sort(key=lambda x: x[1], reverse=True)
+        
+        self.logger.info(f"Recorded decision {decision_id} in category {category}")
+        return decision_id
+    
+    def find_precedents(
+        self,
+        scenario: str,
+        category: Optional[str] = None,
+        limit: int = 10,
+        similarity_threshold: float = 0.5,
+        use_semantic_search: bool = True,
+        **filters
+    ) -> List[Dict[str, Any]]:
+        """
+        Find similar decisions (precedents) using hybrid search.
+        
+        Args:
+            scenario: Scenario to find precedents for
+            category: Filter by decision category
+            limit: Maximum number of precedents
+            similarity_threshold: Minimum similarity score
+            use_semantic_search: Use vector embeddings for search
+            **filters: Additional filters
+            
+        Returns:
+            List of similar decisions with similarity scores
+        """
+        if not hasattr(self, '_decisions') or not self._decisions:
+            return []
+        
+        candidates = set()
+        
+        # Get candidates by category
+        if category:
+            candidates.update(self._decision_index.get(category, set()))
+        else:
+            candidates.update(self._decisions.keys())
+        
+        # Filter by entities if provided
+        if "entities" in filters:
+            entity_candidates = set()
+            for entity in filters["entities"]:
+                entity_candidates.update(self._entity_index.get(entity, set()))
+            candidates = candidates.intersection(entity_candidates)
+        
+        # Calculate similarities
+        precedents = []
+        for decision_id in candidates:
+            decision = self._decisions[decision_id]
+            
+            # Content similarity
+            content_sim = self._calculate_decision_content_similarity(scenario, decision)
+            
+            # Structural similarity (graph-based)
+            structural_sim = 0.0
+            if self.config.get("advanced_analytics"):
+                structural_sim = self._calculate_structural_similarity_for_decision(decision_id, scenario)
+            
+            # Combined similarity
+            combined_sim = 0.7 * content_sim + 0.3 * structural_sim
+            
+            if combined_sim >= similarity_threshold:
+                precedents.append({
+                    "decision": decision,
+                    "similarity": combined_sim,
+                    "content_similarity": content_sim,
+                    "structural_similarity": structural_sim
+                })
+        
+        # Sort by similarity and limit
+        precedents.sort(key=lambda x: x["similarity"], reverse=True)
+        return precedents[:limit]
+    
+    def analyze_decision_influence(
+        self,
+        decision_id: str,
+        max_depth: int = 3,
+        include_indirect: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Analyze decision influence and impact.
+        
+        Args:
+            decision_id: Decision to analyze
+            max_depth: Maximum depth for influence analysis
+            include_indirect: Include indirect influences
+            
+        Returns:
+            Influence analysis results
+        """
+        if not hasattr(self, '_decisions') or decision_id not in self._decisions:
+            raise ValueError(f"Decision {decision_id} not found")
+        
+        decision = self._decisions[decision_id]
+        
+        # Direct influence (same entities, category)
+        direct_influence = set()
+        for entity in decision["entities"]:
+            direct_influence.update(self._entity_index.get(entity, set()))
+        direct_influence.discard(decision_id)
+        direct_influence.update(self._decision_index.get(decision["category"], set()))
+        direct_influence.discard(decision_id)
+        
+        # Indirect influence (through graph relationships)
+        indirect_influence = set()
+        if include_indirect and self.config.get("advanced_analytics"):
+            indirect_influence = self._find_indirect_decision_influence(decision_id, max_depth)
+        
+        # Calculate influence scores
+        influence_scores = {}
+        for influenced_id in direct_influence | indirect_influence:
+            score = self._calculate_decision_influence_score(decision_id, influenced_id)
+            influence_scores[influenced_id] = score
+        
+        # Sort by influence score
+        sorted_influence = sorted(
+            influence_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        return {
+            "decision_id": decision_id,
+            "direct_influence": list(direct_influence),
+            "indirect_influence": list(indirect_influence),
+            "influence_scores": sorted_influence,
+            "total_influenced": len(influence_scores),
+            "max_influence_score": max(influence_scores.values()) if influence_scores else 0.0
+        }
+    
+    def get_decision_insights(self) -> Dict[str, Any]:
+        """
+        Get comprehensive insights about all decisions.
+        
+        Returns:
+            Comprehensive analytics and insights
+        """
+        if not hasattr(self, '_decisions') or not self._decisions:
+            return {"message": "No decisions recorded yet"}
+        
+        # Basic statistics
+        total_decisions = len(self._decisions)
+        categories = {}
+        outcomes = {}
+        confidence_scores = []
+        
+        for decision in self._decisions.values():
+            # Category distribution
+            categories[decision["category"]] = categories.get(decision["category"], 0) + 1
+            
+            # Outcome distribution
+            outcomes[decision["outcome"]] = outcomes.get(decision["outcome"], 0) + 1
+            
+            # Confidence scores
+            confidence_scores.append(decision["confidence"])
+        
+        # Advanced analytics (if available)
+        advanced_insights = {}
+        if self.config.get("advanced_analytics"):
+            advanced_insights = self.analyze_graph_with_kg()
+        
+        # Temporal analysis
+        temporal_insights = self._get_decision_temporal_analysis()
+        
+        # Entity analysis
+        entity_insights = self._get_decision_entity_analysis()
+        
+        return {
+            "total_decisions": total_decisions,
+            "categories": categories,
+            "outcomes": outcomes,
+            "confidence_stats": {
+                "mean": sum(confidence_scores) / len(confidence_scores),
+                "min": min(confidence_scores),
+                "max": max(confidence_scores),
+                "median": sorted(confidence_scores)[len(confidence_scores) // 2]
+            },
+            "advanced_analytics": advanced_insights,
+            "temporal_analysis": temporal_insights,
+            "entity_analysis": entity_insights,
+            "graph_metrics": self.get_graph_metrics() if hasattr(self, 'get_graph_metrics') else {}
+        }
+    
+    def trace_decision_causality(
+        self,
+        decision_id: str,
+        max_depth: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Trace causal chain for a decision.
+        
+        Args:
+            decision_id: Decision to trace
+            max_depth: Maximum depth for causal analysis
+            
+        Returns:
+            Causal chain as list of decision relationships
+        """
+        if not hasattr(self, '_decisions') or decision_id not in self._decisions:
+            raise ValueError(f"Decision {decision_id} not found")
+        
+        try:
+            # Use graph traversal to find causal relationships
+            causal_chain = []
+            visited = set()
+            
+            def trace_recursive(current_id, depth, path):
+                if depth >= max_depth or current_id in visited:
+                    return
+                
+                visited.add(current_id)
+                current_decision = self._decisions[current_id]
+                
+                # Find potential causes (decisions that influenced this one)
+                potential_causes = []
+                for entity in current_decision["entities"]:
+                    for other_decision_id in self._entity_index.get(entity, set()):
+                        if other_decision_id != current_id:
+                            other_decision = self._decisions[other_decision_id]
+                            if other_decision["timestamp"] < current_decision["timestamp"]:
+                                potential_causes.append(other_decision_id)
+                
+                for cause_id in potential_causes:
+                    cause_path = path + [{"from": cause_id, "to": current_id, "type": "influences"}]
+                    causal_chain.append(cause_path)
+                    trace_recursive(cause_id, depth + 1, cause_path)
+            
+            trace_recursive(decision_id, 0, [])
+            return causal_chain
+            
+        except Exception as e:
+            self.logger.error(f"Causal analysis failed: {e}")
+            return [{"error": "Causal analysis failed due to an internal error"}]
+    
+    def enforce_decision_policy(
+        self,
+        decision_data: Dict[str, Any],
+        policy_rules: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Enforce policies on decision data.
+        
+        Args:
+            decision_data: Decision data to check
+            policy_rules: Policy rules to enforce
+            
+        Returns:
+            Policy enforcement results
+        """
+        # Simple policy enforcement implementation
+        violations = []
+        warnings = []
+        
+        # Default policy rules
+        default_rules = {
+            "min_confidence": 0.7,
+            "required_outcomes": ["approved", "rejected", "flagged"],
+            "required_metadata": ["decision_maker"],
+            "max_reasoning_length": 1000
+        }
+        
+        rules = policy_rules or default_rules
+        
+        # Check confidence
+        if decision_data.get("confidence", 0) < rules.get("min_confidence", 0.7):
+            violations.append(f"Confidence too low: {decision_data.get('confidence', 0)}")
+        
+        # Check outcome
+        if decision_data.get("outcome") not in rules.get("required_outcomes", []):
+            violations.append(f"Invalid outcome: {decision_data.get('outcome')}")
+        
+        # Check required metadata
+        for required_field in rules.get("required_metadata", []):
+            if not decision_data.get(required_field):
+                violations.append(f"Missing required field: {required_field}")
+        
+        # Check reasoning length
+        reasoning = decision_data.get("reasoning", "")
+        if len(reasoning) > rules.get("max_reasoning_length", 1000):
+            warnings.append(f"Reasoning too long: {len(reasoning)} characters")
+        
+        return {
+            "compliant": len(violations) == 0,
+            "violations": violations,
+            "warnings": warnings,
+            "policy_rules": rules
+        }
+    
+    # --- Private helper methods for decision management ---
+    
+    def _add_decision_to_graph(self, decision: Dict[str, Any]) -> None:
+        """Add decision to context graph."""
+        try:
+            # Add decision node
+            self.add_node(
+                decision["id"],
+                "decision",
+                category=decision["category"],
+                outcome=decision["outcome"],
+                confidence=decision["confidence"],
+                timestamp=decision["timestamp"],
+                scenario=decision["scenario"][:100] + "..." if len(decision["scenario"]) > 100 else decision["scenario"],
+                decision_maker=decision.get("decision_maker", ""),
+                reasoning=decision["reasoning"][:200] + "..." if len(decision["reasoning"]) > 200 else decision["reasoning"]
+            )
+            
+            # Add entity nodes and relationships
+            for entity in decision["entities"]:
+                # Add entity node if not exists
+                if not self.find_node(entity):
+                    self.add_node(
+                        entity,
+                        "entity",
+                        name=entity
+                    )
+                
+                # Add relationship
+                self.add_edge(
+                    decision["id"],
+                    entity,
+                    "involves",
+                    confidence=decision["confidence"]
+                )
+            
+            # Add category node and relationship
+            category_id = f"category_{decision['category']}"
+            if not self.find_node(category_id):
+                self.add_node(
+                    category_id,
+                    "category",
+                    name=decision["category"]
+                )
+            
+            self.add_edge(
+                decision["id"],
+                category_id,
+                "belongs_to"
+            )
+            
+            # Add decision maker node if provided
+            if decision.get("decision_maker"):
+                maker_id = f"maker_{decision['decision_maker']}"
+                if not self.find_node(maker_id):
+                    self.add_node(
+                        maker_id,
+                        "decision_maker",
+                        name=decision["decision_maker"]
+                    )
+                
+                self.add_edge(
+                    decision["id"],
+                    maker_id,
+                    "made_by"
+                )
+            
+        except Exception as e:
+            self.logger.exception("Failed to add decision to graph")
+    
+    def _calculate_decision_content_similarity(self, scenario: str, decision: Dict[str, Any]) -> float:
+        """Calculate content similarity between scenario and decision."""
+        try:
+            # Simple word-based similarity
+            scenario_words = set(scenario.lower().split())
+            decision_text = f"{decision['scenario']} {decision['reasoning']} {' '.join(decision['entities'])}"
+            decision_words = set(decision_text.lower().split())
+            
+            intersection = scenario_words.intersection(decision_words)
+            union = scenario_words.union(decision_words)
+            
+            return len(intersection) / len(union) if union else 0.0
+            
+        except Exception as e:
+            self.logger.exception("Content similarity calculation failed")
+            return 0.0
+    
+    def _calculate_structural_similarity_for_decision(self, decision_id: str, scenario: str) -> float:
+        """Calculate structural similarity using graph algorithms."""
+        try:
+            if not self.config.get("advanced_analytics"):
+                return 0.0
+            
+            # Use graph similarity algorithms
+            similar_nodes = self.find_similar_nodes(
+                decision_id,
+                similarity_type="structural",
+                top_k=5
+            )
+            
+            if similar_nodes:
+                # similar_nodes is List[Tuple[str, float]], extract similarity scores
+                return max(similarity for node_id, similarity in similar_nodes)
+            
+        except Exception as e:
+            self.logger.exception("Structural similarity calculation failed")
+        
+        return 0.0
+    
+    def _find_indirect_decision_influence(self, decision_id: str, max_depth: int) -> Set[str]:
+        """Find indirect influences using graph traversal."""
+        try:
+            influenced = set()
+            
+            # Get neighbors in graph
+            neighbors = self.get_neighbors(decision_id, hops=max_depth)
+            
+            for neighbor in neighbors:
+                if neighbor.get("type") == "decision":
+                    influenced.add(neighbor["id"])
+            
+            return influenced
+            
+        except Exception as e:
+            self.logger.warning(f"Indirect influence analysis failed: {e}")
+            return set()
+    
+    def _calculate_decision_influence_score(self, source_id: str, target_id: str) -> float:
+        """Calculate influence score between two decisions."""
+        try:
+            if not hasattr(self, '_decisions'):
+                return 0.0
+                
+            source_decision = self._decisions[source_id]
+            target_decision = self._decisions[target_id]
+            
+            # Base score from shared entities
+            shared_entities = set(source_decision["entities"]) & set(target_decision["entities"])
+            entity_score = len(shared_entities) / max(len(source_decision["entities"]), 1)
+            
+            # Category similarity
+            category_score = 1.0 if source_decision["category"] == target_decision["category"] else 0.0
+            
+            # Temporal proximity (more recent decisions have higher influence)
+            time_diff = abs(source_decision["timestamp"] - target_decision["timestamp"])
+            time_score = max(0.0, 1.0 - time_diff / (30 * 24 * 3600))  # 30 days window
+            
+            # Combined score
+            combined_score = 0.5 * entity_score + 0.3 * category_score + 0.2 * time_score
+            
+            return combined_score
+            
+        except Exception as e:
+            self.logger.warning(f"Influence score calculation failed: {e}")
+            return 0.0
+    
+    def _get_decision_temporal_analysis(self) -> Dict[str, Any]:
+        """Get temporal analysis of decisions."""
+        try:
+            if not hasattr(self, '_temporal_index') or not self._temporal_index:
+                return {}
+            
+            # Group decisions by time periods
+            recent_decisions = [did for did, ts in self._temporal_index[:10]]
+            
+            return {
+                "recent_decisions": len(recent_decisions),
+                "oldest_decision": min(ts for _, ts in self._temporal_index),
+                "newest_decision": max(ts for _, ts in self._temporal_index),
+                "time_span": max(ts for _, ts in self._temporal_index) - min(ts for _, ts in self._temporal_index)
+            }
+            
+        except Exception as e:
+            self.logger.warning(f"Temporal analysis failed: {e}")
+            return {}
+    
+    def _get_decision_entity_analysis(self) -> Dict[str, Any]:
+        """Get entity analysis from decisions."""
+        try:
+            if not hasattr(self, '_decisions'):
+                return {}
+                
+            entity_counts = {}
+            for decision in self._decisions.values():
+                for entity in decision["entities"]:
+                    entity_counts[entity] = entity_counts.get(entity, 0) + 1
+            
+            # Get top entities
+            top_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            
+            return {
+                "total_entities": len(entity_counts),
+                "top_entities": top_entities,
+                "avg_entities_per_decision": sum(len(d["entities"]) for d in self._decisions.values()) / len(self._decisions)
+            }
+            
+        except Exception as e:
+            self.logger.warning(f"Entity analysis failed: {e}")
+            return {}
+    
+    # --- Easy-to-Use Convenience Methods ---
+    
+    def add_decision(
+        self,
+        category: str,
+        scenario: str,
+        reasoning: str,
+        outcome: str,
+        confidence: float = 0.5,
+        entities: Optional[List[str]] = None,
+        decision_maker: Optional[str] = "system",
+        **kwargs
+    ) -> str:
+        """
+        Easy way to record a decision.
+        
+        Args:
+            category: Decision category (e.g., "loan_approval")
+            scenario: What was the situation
+            reasoning: Why was this decision made
+            outcome: What was decided
+            confidence: How confident (0.0 to 1.0)
+            entities: Related entities (people, items, etc.)
+            decision_maker: Who made the decision
+            **kwargs: Additional information
+            
+        Returns:
+            Decision ID for reference
+        """
+        return self.record_decision(
+            category=category,
+            scenario=scenario,
+            reasoning=reasoning,
+            outcome=outcome,
+            confidence=confidence,
+            entities=entities,
+            decision_maker=decision_maker,
+            metadata=kwargs
+        )
+    
+    def find_similar_decisions(
+        self,
+        scenario: str,
+        category: Optional[str] = None,
+        max_results: int = 10,
+        min_similarity: float = 0.3
+    ) -> List[Dict[str, Any]]:
+        """
+        Easy way to find similar past decisions.
+        
+        Args:
+            scenario: What situation are you looking for
+            category: Filter by decision type
+            max_results: Maximum results to return
+            min_similarity: Minimum similarity score
+            
+        Returns:
+            List of similar decisions with similarity scores
+        """
+        return self.find_precedents(
+            scenario=scenario,
+            category=category,
+            limit=max_results,
+            similarity_threshold=min_similarity
+        )
+    
+    def analyze_decision_impact(
+        self,
+        decision_id: str,
+        include_indirect: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Easy way to analyze how a decision impacts others.
+        
+        Args:
+            decision_id: Decision to analyze
+            include_indirect: Include indirect impacts
+            
+        Returns:
+            Impact analysis results
+        """
+        return self.analyze_decision_influence(
+            decision_id=decision_id,
+            max_depth=3,
+            include_indirect=include_indirect
+        )
+    
+    def get_decision_summary(self) -> Dict[str, Any]:
+        """
+        Easy way to get a summary of all decisions.
+        
+        Returns:
+            Summary statistics and insights
+        """
+        return self.get_decision_insights()
+    
+    def trace_decision_chain(
+        self,
+        decision_id: str,
+        max_steps: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Easy way to trace how decisions are connected.
+        
+        Args:
+            decision_id: Starting decision
+            max_steps: Maximum steps to trace
+            
+        Returns:
+            Decision chain connections
+        """
+        return self.trace_decision_causality(
+            decision_id=decision_id,
+            max_depth=max_steps
+        )
+    
+    def check_decision_rules(
+        self,
+        decision_data: Dict[str, Any],
+        rules: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Easy way to check if a decision follows the rules.
+        
+        Args:
+            decision_data: Decision to check
+            rules: Custom rules (uses default if None)
+            
+        Returns:
+            Compliance check results
+        """
+        return self.enforce_decision_policy(
+            decision_data=decision_data,
+            policy_rules=rules
+        )
+    
+    def get_graph_summary(self) -> Dict[str, Any]:
+        """
+        Easy way to get graph statistics.
+        
+        Returns:
+            Graph summary information
+        """
+        if hasattr(self, 'get_graph_metrics'):
+            return self.get_graph_metrics()
+        else:
+            return {
+                "nodes": len(self.nodes),
+                "edges": len(self.edges),
+                "node_types": self._get_node_type_distribution(),
+                "edge_types": self._get_edge_type_distribution()
+            }
+    
+    def find_related_nodes(
+        self,
+        node_id: str,
+        how_many: int = 10,
+        similarity_type: str = "content"
+    ) -> List[Tuple[str, float]]:
+        """
+        Easy way to find nodes similar to a given node.
+        
+        Args:
+            node_id: Reference node
+            how_many: How many similar nodes to find
+            similarity_type: Type of similarity ("content", "structural")
+            
+        Returns:
+            List of (node_id, similarity_score) tuples
+        """
+        return self.find_similar_nodes(
+            node_id=node_id,
+            similarity_type=similarity_type,
+            top_k=how_many
+        )
+    
+    def get_node_importance(
+        self,
+        node_id: str
+    ) -> Dict[str, float]:
+        """
+        Easy way to get how important a node is in the graph.
+        
+        Args:
+            node_id: Node to analyze
+            
+        Returns:
+            Centrality measures (importance scores)
+        """
+        return self.get_node_centrality(node_id)
+    
+    def analyze_connections(self) -> Dict[str, Any]:
+        """
+        Easy way to analyze the entire graph structure.
+        
+        Returns:
+            Graph analysis results
+        """
+        return self.analyze_graph_with_kg()
 
 
 # For backward compatibility

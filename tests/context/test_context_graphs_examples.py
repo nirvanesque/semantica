@@ -46,10 +46,10 @@ class TestContextGraphsExamples:
         
         # Create context graph with advanced features
         graph = ContextGraph(
-            enable_advanced_analytics=True,
-            enable_centrality_analysis=True,
-            enable_community_detection=True,
-            enable_node_embeddings=True
+            advanced_analytics=True,
+            centrality_analysis=True,
+            community_detection=True,
+            node_embeddings=True
         )
         
         # Add a decision
@@ -127,10 +127,10 @@ class TestContextGraphsExamples:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True
         )
         
         # Credit decision with precedent search
@@ -169,10 +169,10 @@ class TestContextGraphsExamples:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True
         )
         
         # Treatment decision with policy compliance
@@ -216,10 +216,10 @@ class TestContextGraphsExamples:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True
         )
         
         # Legal decision with precedent analysis
@@ -370,21 +370,21 @@ class TestContextGraphsExamples:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True,
-            use_graph_expansion=True,
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True,
+            graph_expansion=True,
             max_expansion_hops=3,
             hybrid_alpha=0.7
         )
         
         # Verify configuration
-        assert context.config["enable_decision_tracking"] is True
-        assert context.config["enable_advanced_analytics"] is True
-        assert context.config["enable_kg_algorithms"] is True
-        assert context.config["enable_vector_store_features"] is True
-        assert context.config["use_graph_expansion"] is True
+        assert context.config["decision_tracking"] is True
+        assert context.config["advanced_analytics"] is True
+        assert context.config["kg_algorithms"] is True
+        assert context.config["vector_store_features"] is True
+        assert context.config["graph_expansion"] is True
         assert context.config["max_expansion_hops"] == 3
         assert context.config["hybrid_alpha"] == 0.7
         print("+ Configuration validation working")

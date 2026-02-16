@@ -52,10 +52,10 @@ class TestBankingDecisionSystem:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True
         )
     
     def test_banking_decision_lifecycle(self, banking_context):
@@ -216,10 +216,10 @@ class TestBankingDecisionSystem:
         enhanced_query = DecisionQuery(
             graph_store=mock_knowledge_graph,
             vector_store=mock_vector_store,
-            enable_advanced_analytics=True,
-            enable_centrality_analysis=True,
-            enable_community_detection=True,
-            enable_node_embeddings=True
+            advanced_analytics=True,
+            centrality_analysis=True,
+            community_detection=True,
+            node_embeddings=True
         )
         
         print(f"[OK] Enhanced DecisionQuery with {len(enhanced_query.kg_components)} KG components")
@@ -240,10 +240,10 @@ class TestBankingDecisionSystem:
         
         # Test enhanced ContextGraph
         enhanced_graph = ContextGraph(
-            enable_advanced_analytics=True,
-            enable_centrality_analysis=True,
-            enable_community_detection=True,
-            enable_node_embeddings=True
+            advanced_analytics=True,
+            centrality_analysis=True,
+            community_detection=True,
+            node_embeddings=True
         )
         
         print(f"[OK] Enhanced ContextGraph with {len(enhanced_graph.kg_components)} KG components")

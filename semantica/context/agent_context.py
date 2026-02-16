@@ -46,10 +46,11 @@ Key Methods:
 Example Usage:
     >>> from semantica.context import AgentContext
     >>> context = AgentContext(vector_store=vs, knowledge_graph=kg, 
-    ...                       enable_decision_tracking=True,
-    ...                       enable_advanced_analytics=True,
-    ...                       enable_kg_algorithms=True,
-    ...                       enable_vector_store_features=True)
+    ...                       decision_tracking=True,
+    ...                       advanced_analytics=True,
+    ...                       kg_algorithms=True,
+    ...                       vector_store_features=True,
+    ...                       graph_expansion=True)
     >>> memory_id = context.store("User asked about Python", conversation_id="conv1")
     >>> results = context.retrieve("Python programming")
     >>> decision_id = context.record_decision(category="approval", 
@@ -124,13 +125,13 @@ class AgentContext:
         knowledge_graph: Optional[Any] = None,
         retention_days: Optional[int] = 30,
         max_memories: int = 10000,
-        use_graph_expansion: bool = True,
+        graph_expansion: bool = True,
         max_expansion_hops: int = 2,
         hybrid_alpha: float = 0.5,
-        enable_decision_tracking: bool = False,
-        enable_advanced_analytics: bool = True,
-        enable_kg_algorithms: bool = True,
-        enable_vector_store_features: bool = True,
+        decision_tracking: bool = False,
+        advanced_analytics: bool = True,
+        kg_algorithms: bool = True,
+        vector_store_features: bool = True,
         **kwargs,
     ):
         """
@@ -141,14 +142,14 @@ class AgentContext:
             knowledge_graph: Knowledge graph instance (optional, enables GraphRAG)
             retention_days: Days to keep memories (default: 30, None=unlimited)
             max_memories: Maximum number of memories (default: 10000)
-            use_graph_expansion: Enable graph expansion for retrieval (default: True)
+            graph_expansion: Enable graph expansion for retrieval (default: True)
             max_expansion_hops: Maximum hops for graph expansion (default: 2)
             hybrid_alpha: Balance between vector (0) and graph (1) retrieval
                 (default: 0.5)
-            enable_decision_tracking: Enable decision tracking features (default: False)
-            enable_advanced_analytics: Enable advanced analytics (default: True)
-            enable_kg_algorithms: Enable KG algorithms integration (default: True)
-            enable_vector_store_features: Enable vector store features (default: True)
+            decision_tracking: Enable decision tracking features (default: False)
+            advanced_analytics: Enable advanced analytics (default: True)
+            kg_algorithms: Enable KG algorithms integration (default: True)
+            vector_store_features: Enable vector store features (default: True)
             **kwargs: Additional options passed to underlying components
 
         Raises:
@@ -168,11 +169,11 @@ class AgentContext:
         
         # Store advanced feature flags
         self.config = {
-            "enable_decision_tracking": enable_decision_tracking,
-            "enable_advanced_analytics": enable_advanced_analytics,
-            "enable_kg_algorithms": enable_kg_algorithms,
-            "enable_vector_store_features": enable_vector_store_features,
-            "use_graph_expansion": use_graph_expansion,
+            "decision_tracking": decision_tracking,
+            "advanced_analytics": advanced_analytics,
+            "kg_algorithms": kg_algorithms,
+            "vector_store_features": vector_store_features,
+            "graph_expansion": graph_expansion,
             "max_expansion_hops": max_expansion_hops,
             "hybrid_alpha": hybrid_alpha,
             **kwargs
@@ -195,7 +196,7 @@ class AgentContext:
                 "memory_store": self._memory,
                 "knowledge_graph": knowledge_graph,
                 "vector_store": vector_store,
-                "use_graph_expansion": use_graph_expansion,
+                "use_graph_expansion": graph_expansion,
                 "max_expansion_hops": max_expansion_hops,
                 "hybrid_alpha": hybrid_alpha,
                 **kwargs,
@@ -221,18 +222,18 @@ class AgentContext:
         self._causal_analyzer = None
         self._policy_engine = None
         
-        if enable_decision_tracking and knowledge_graph:
+        if decision_tracking and knowledge_graph:
             if hasattr(knowledge_graph, "execute_query"):
                 self._decision_backend = "graph_store"
                 try:
                     self._decision_recorder = DecisionRecorder(knowledge_graph)
                     self._decision_query = DecisionQuery(
                         graph_store=knowledge_graph,
-                        vector_store=vector_store if enable_vector_store_features else None,
-                        enable_advanced_analytics=enable_advanced_analytics,
-                        enable_centrality_analysis=enable_kg_algorithms,
-                        enable_community_detection=enable_kg_algorithms,
-                        enable_node_embeddings=enable_kg_algorithms
+                        vector_store=vector_store if vector_store_features else None,
+                        advanced_analytics=advanced_analytics,
+                        centrality_analysis=kg_algorithms,
+                        community_detection=kg_algorithms,
+                        node_embeddings=kg_algorithms
                     )
                     self._causal_analyzer = CausalChainAnalyzer(knowledge_graph)
                     self._policy_engine = PolicyEngine(knowledge_graph)
@@ -247,13 +248,38 @@ class AgentContext:
                     self._policy_engine = PolicyEngine(knowledge_graph)
             else:
                 self._decision_backend = "context_graph"
+                # Initialize basic decision components for ContextGraph
                 self._policy_engine = PolicyEngine(knowledge_graph)
                 self._causal_analyzer = CausalChainAnalyzer(knowledge_graph)
-                if enable_vector_store_features and hasattr(self.vector_store, "initialize_decision_pipeline"):
+                
+                # Initialize DecisionQuery for ContextGraph
+                try:
+                    self._decision_query = DecisionQuery(
+                        graph_store=knowledge_graph,
+                        vector_store=vector_store if vector_store_features else None,
+                        advanced_analytics=advanced_analytics,
+                        centrality_analysis=kg_algorithms,
+                        community_detection=kg_algorithms,
+                        node_embeddings=kg_algorithms
+                    )
+                    self.logger.info("ContextGraph decision tracking initialized successfully")
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to initialize DecisionQuery for ContextGraph ({type(e).__name__})"
+                    )
+                    # Create a minimal DecisionQuery that delegates to ContextGraph
+                    self._decision_query = type('MinimalDecisionQuery', (), {
+                        'analyze_decision_influence': lambda self, decision_id, max_depth=3: 
+                            knowledge_graph.analyze_decision_influence(decision_id, max_depth) if hasattr(knowledge_graph, 'analyze_decision_influence') else {},
+                        'find_precedents': lambda self, query, category=None, limit=10:
+                            knowledge_graph.find_precedents(query, category, limit) if hasattr(knowledge_graph, 'find_precedents') else [],
+                    })()
+                
+                if vector_store_features and hasattr(self.vector_store, "initialize_decision_pipeline"):
                     try:
                         self.vector_store.initialize_decision_pipeline(
-                            graph_store=knowledge_graph if enable_kg_algorithms else None,
-                            use_graph_features=enable_kg_algorithms
+                            graph_store=knowledge_graph if kg_algorithms else None,
+                            use_graph_features=kg_algorithms
                         )
                     except Exception as e:
                         self.logger.warning(
@@ -1586,67 +1612,22 @@ class AgentContext:
 
             return decision_id
 
-        if not hasattr(self.knowledge_graph, "add_decision"):
+        if not hasattr(self.knowledge_graph, "record_decision"):
             raise RuntimeError("Decision tracking backend does not support decisions")
 
-        self.knowledge_graph.add_decision(decision)
-        if cross_system_context and hasattr(self.knowledge_graph, "add_node_attribute"):
-            self.knowledge_graph.add_node_attribute(
-                decision.decision_id, {"cross_system_context": cross_system_context}
-            )
-        about_edge_failures: List[Dict[str, str]] = []
-        for entity_id in entities:
-            try:
-                self.knowledge_graph.add_edge(decision.decision_id, entity_id, edge_type="ABOUT")
-            except Exception as e:
-                about_edge_failures.append(
-                    {"entity_id": str(entity_id), "error_type": type(e).__name__}
-                )
-
-        if about_edge_failures:
-            failure_types = sorted(
-                {f.get("error_type", "") for f in about_edge_failures if f.get("error_type")}
-            )
-            self.logger.warning(
-                f"record_decision ABOUT edge creation failures: {len(about_edge_failures)} "
-                f"({', '.join(failure_types) if failure_types else 'unknown'})"
-            )
-            if hasattr(self.knowledge_graph, "add_node_attribute"):
-                self.knowledge_graph.add_node_attribute(
-                    decision.decision_id, {"about_edge_failures": about_edge_failures}
-                )
-
-        vector_id = None
-        vector_store_error_type: Optional[str] = None
-        if hasattr(self.vector_store, "store_decision"):
-            try:
-                vector_id = self.vector_store.store_decision(
-                    scenario=scenario,
-                    reasoning=reasoning,
-                    outcome=outcome,
-                    confidence=confidence,
-                    entities=entities,
-                    category=category,
-                    decision_id=decision.decision_id,
-                    decision_maker=decision.decision_maker,
-                    timestamp=decision.timestamp.isoformat()
-                )
-            except Exception as e:
-                vector_id = None
-                vector_store_error_type = type(e).__name__
-                self.logger.warning(
-                    f"record_decision vector store write failed ({vector_store_error_type})"
-                )
-                if hasattr(self.knowledge_graph, "add_node_attribute"):
-                    self.knowledge_graph.add_node_attribute(
-                        decision.decision_id,
-                        {"vector_store_error_type": vector_store_error_type},
-                    )
-
-        if vector_id and hasattr(self.knowledge_graph, "add_node_attribute"):
-            self.knowledge_graph.add_node_attribute(decision.decision_id, {"vector_id": vector_id})
-
-        return decision.decision_id
+        # Delegate to ContextGraph
+        decision_id = self.knowledge_graph.record_decision(
+            category=category,
+            scenario=scenario,
+            reasoning=reasoning,
+            outcome=outcome,
+            confidence=confidence,
+            entities=entities,
+            decision_maker=decision_maker,
+            metadata={"cross_system_context": cross_system_context} if cross_system_context else None
+        )
+        
+        return decision_id
 
     def find_precedents(
         self,
@@ -1677,6 +1658,38 @@ class AgentContext:
         if not self._decision_backend:
             raise RuntimeError("Decision tracking is not enabled")
 
+        # Delegate to ContextGraph if available
+        if self._decision_backend == "context_graph" and hasattr(self.knowledge_graph, "find_precedents"):
+            try:
+                precedents = self.knowledge_graph.find_precedents(
+                    scenario=scenario,
+                    category=category,
+                    limit=limit,
+                    use_semantic_search=use_hybrid_search
+                )
+                # Convert to Decision objects if needed
+                from .decision_models import Decision
+                decisions = []
+                for precedent in precedents:
+                    decision_data = precedent["decision"]
+                    decision = Decision(
+                        decision_id=decision_data["id"],
+                        category=decision_data["category"],
+                        scenario=decision_data["scenario"],
+                        reasoning=decision_data["reasoning"],
+                        outcome=decision_data["outcome"],
+                        confidence=decision_data["confidence"],
+                        timestamp=datetime.fromtimestamp(decision_data["timestamp"]),
+                        decision_maker=decision_data.get("decision_maker"),
+                        entities=decision_data.get("entities", [])
+                    )
+                    decisions.append(decision)
+                return decisions
+            except Exception as e:
+                self.logger.exception("ContextGraph find_precedents failed")
+                return []
+
+        # Fallback to DecisionQuery for graph_store backend
         if self._decision_backend == "graph_store":
             if use_hybrid_search:
                 try:
@@ -1991,7 +2004,7 @@ class AgentContext:
         Returns:
             Comprehensive graph analysis results
         """
-        if not self._graph_builder or not self.config.get("enable_advanced_analytics", True):
+        if not self._graph_builder or not self.config.get("advanced_analytics", True):
             return {"error": "Advanced analytics not available"}
         
         try:
@@ -2112,11 +2125,21 @@ class AgentContext:
         if not self._decision_query:
             raise RuntimeError("Decision tracking is not enabled")
         
+        # Delegate to ContextGraph if available
+        if hasattr(self.knowledge_graph, "analyze_decision_influence"):
+            try:
+                return self.knowledge_graph.analyze_decision_influence(decision_id, max_depth)
+            except Exception as e:
+                self.logger.error(f"ContextGraph analyze_decision_influence failed: {e}")
+                # Fallback to DecisionQuery
+                pass
+        
+        # Fallback to DecisionQuery
         try:
             if hasattr(self._decision_query, 'analyze_decision_influence'):
                 return self._decision_query.analyze_decision_influence(decision_id, max_depth)
             else:
-                # Fallback to basic causal chain
+                # Basic causal chain fallback
                 return {
                     "decision_id": decision_id,
                     "downstream_decisions": self.get_causal_chain(decision_id, "downstream", max_depth),
@@ -2160,12 +2183,12 @@ class AgentContext:
         insights = {
             "timestamp": datetime.now().isoformat(),
             "memory_stats": self.stats(),
-            "decision_stats": self.get_decision_statistics() if self.config.get("enable_decision_tracking") and hasattr(self, 'get_decision_statistics') else {},
+            "decision_stats": self.get_decision_statistics() if self.config.get("decision_tracking") and hasattr(self, 'get_decision_statistics') else {},
             "graph_analysis": self.analyze_context_graph(),
             "advanced_features": {
-                "kg_algorithms_enabled": self.config.get("enable_kg_algorithms", False),
-                "vector_store_features_enabled": self.config.get("enable_vector_store_features", False),
-                "decision_tracking_enabled": self.config.get("enable_decision_tracking", False)
+                "kg_algorithms_enabled": self.config.get("kg_algorithms", False),
+                "vector_store_features_enabled": self.config.get("vector_store_features", False),
+                "decision_tracking_enabled": self.config.get("decision_tracking", False)
             }
         }
         

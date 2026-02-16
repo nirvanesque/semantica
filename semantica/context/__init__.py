@@ -46,7 +46,7 @@ Enhanced Analytics:
 
 Main Classes:
     - AgentContext: High-level interface with KG integration
-    - ContextGraph: In-memory graph store with KG algorithm support
+    - ContextGraph: In-memory graph store with KG algorithm support and comprehensive decision management
     - ContextNode/ContextEdge: Graph data structures
     - AgentMemory: Persistent agent memory with RAG
     - MemoryItem: Memory item data structure
@@ -63,12 +63,13 @@ Decision Tracking Classes:
     - Policy/Precedent/PolicyException: Decision tracking data structures
 
 Example Usage:
-    >>> from semantica.context import AgentContext
+    >>> from semantica.context import AgentContext, ContextGraph
+    >>> # Simple AgentContext with decision tracking
     >>> context = AgentContext(vector_store=vs, knowledge_graph=kg, 
-    ...                       enable_decision_tracking=True,
-    ...                       enable_advanced_analytics=True,
-    ...                       enable_kg_algorithms=True,
-    ...                       enable_vector_store_features=True)
+    ...                       decision_tracking=True,
+    ...                       advanced_analytics=True,
+    ...                       kg_algorithms=True,
+    ...                       vector_store_features=True)
     >>> memory_id = context.store("User asked about Python", conversation_id="conv1")
     >>> results = context.retrieve("Python programming")
     >>> decision_id = context.record_decision(category="approval", 
@@ -81,6 +82,21 @@ Example Usage:
     ...                                               use_kg_features=True)
     >>> influence = context.analyze_decision_influence(decision_id)
     >>> insights = context.get_context_insights()
+    
+    >>> # Comprehensive ContextGraph with all decision features
+    >>> graph = ContextGraph(advanced_analytics=True, enable_causality=True)
+    >>> decision_id = graph.record_decision(
+    ...     category="loan_approval",
+    ...     scenario="First-time homebuyer",
+    ...     reasoning="Good credit score and stable income",
+    ...     outcome="approved",
+    ...     confidence=0.95,
+    ...     entities=["customer_123", "property_456"]
+    ... )
+    >>> precedents = graph.find_precedents("loan_approval", limit=5)
+    >>> influence = graph.analyze_decision_influence(decision_id)
+    >>> insights = graph.get_decision_insights()
+    >>> causality = graph.trace_decision_causality(decision_id)
 
 Production Examples:
     - Banking: Mortgage approvals, credit decisions, risk assessment

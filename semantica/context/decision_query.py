@@ -55,10 +55,10 @@ Search Capabilities:
 Example Usage:
     >>> from semantica.context import DecisionQuery
     >>> query = DecisionQuery(graph_store=kg, vector_store=vs,
-    ...                      enable_advanced_analytics=True,
-    ...                      enable_centrality_analysis=True,
-    ...                      enable_community_detection=True,
-    ...                      enable_node_embeddings=True)
+    ...                      advanced_analytics=True,
+    ...                      centrality_analysis=True,
+    ...                      community_detection=True,
+    ...                      node_embeddings=True)
     >>> precedents = query.find_precedents_hybrid("Loan application",
     ...                                           category="approval",
     ...                                           limit=10)
@@ -111,11 +111,11 @@ class DecisionQuery:
         graph_store: GraphStore,
         embedding_generator: Optional[EmbeddingGenerator] = None,
         vector_store: Optional[Any] = None,
-        enable_advanced_analytics: bool = True,
-        enable_node_embeddings: bool = True,
-        enable_centrality_analysis: bool = True,
-        enable_community_detection: bool = True,
-        enable_link_prediction: bool = True
+        advanced_analytics: bool = True,
+        node_embeddings: bool = True,
+        centrality_analysis: bool = True,
+        community_detection: bool = True,
+        link_prediction: bool = True
     ):
         """
         Initialize DecisionQuery with optional advanced features.
@@ -124,11 +124,11 @@ class DecisionQuery:
             graph_store: Graph database instance
             embedding_generator: Optional embedding generator for semantic search
             vector_store: Optional vector store for hybrid search
-            enable_advanced_analytics: Enable advanced graph analytics (requires semantica.kg)
-            enable_node_embeddings: Enable Node2Vec embeddings (requires semantica.kg)
-            enable_centrality_analysis: Enable centrality measures (requires semantica.kg)
-            enable_community_detection: Enable community detection (requires semantica.kg)
-            enable_link_prediction: Enable link prediction (requires semantica.kg)
+            advanced_analytics: Enable advanced graph analytics (requires semantica.kg)
+            node_embeddings: Enable Node2Vec embeddings (requires semantica.kg)
+            centrality_analysis: Enable centrality measures (requires semantica.kg)
+            community_detection: Enable community detection (requires semantica.kg)
+            link_prediction: Enable link prediction (requires semantica.kg)
         """
         self.graph_store = graph_store
         self.embedding_generator = embedding_generator
@@ -139,17 +139,17 @@ class DecisionQuery:
         self.kg_components = {}
         self.vector_components = {}
         
-        if KG_AVAILABLE and enable_advanced_analytics:
+        if KG_AVAILABLE and advanced_analytics:
             try:
-                if enable_centrality_analysis:
+                if centrality_analysis:
                     self.kg_components["centrality_calculator"] = CentralityCalculator()
-                if enable_community_detection:
+                if community_detection:
                     self.kg_components["community_detector"] = CommunityDetector()
-                if enable_node_embeddings:
+                if node_embeddings:
                     self.kg_components["node_embedder"] = NodeEmbedder()
                 self.kg_components["path_finder"] = PathFinder()
                 self.kg_components["similarity_calculator"] = SimilarityCalculator()
-                if enable_link_prediction:
+                if link_prediction:
                     self.kg_components["link_predictor"] = LinkPredictor()
                 
                 self.logger.info("Advanced KG components initialized successfully")

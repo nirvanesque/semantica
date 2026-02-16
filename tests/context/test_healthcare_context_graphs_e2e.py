@@ -52,10 +52,10 @@ class TestHealthcareDecisionSystem:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True,
-            enable_advanced_analytics=True,
-            enable_kg_algorithms=True,
-            enable_vector_store_features=True
+            decision_tracking=True,
+            advanced_analytics=True,
+            kg_algorithms=True,
+            vector_store_features=True
         )
     
     def test_healthcare_decision_workflow(self, healthcare_context):

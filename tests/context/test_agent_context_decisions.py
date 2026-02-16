@@ -38,7 +38,7 @@ class TestAgentContextDecisions:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
     
     @pytest.fixture
@@ -47,7 +47,7 @@ class TestAgentContextDecisions:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=False
+            decision_tracking=False
         )
     
     def test_agent_context_initialization_with_decisions(self, mock_vector_store, mock_knowledge_graph):
@@ -55,10 +55,10 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
         
-        assert context.config["enable_decision_tracking"] is True
+        assert context.config["decision_tracking"] is True
         assert context._decision_recorder is not None
         assert context._decision_query is not None
         assert context._causal_analyzer is not None
@@ -69,10 +69,10 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=False
+            decision_tracking=False
         )
         
-        assert context.config["enable_decision_tracking"] is False
+        assert context.config["decision_tracking"] is False
         assert context._decision_recorder is None
         assert context._decision_query is None
         assert context._causal_analyzer is None
@@ -255,7 +255,7 @@ class TestAgentContextDecisions:
             knowledge_graph=mock_knowledge_graph
         )
         
-        assert context.config["enable_decision_tracking"] is False
+        assert context.config["decision_tracking"] is False
         assert context._decision_recorder is None
     
     def test_error_handling(self, agent_context_with_decisions):
@@ -279,11 +279,11 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=None,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
         
         # Should initialize but warn about missing knowledge graph
-        assert context.config["enable_decision_tracking"] is True
+        assert context.config["decision_tracking"] is True
     
     def test_error_handling(self, agent_context_with_decisions):
         """Test error handling in decision tracking."""

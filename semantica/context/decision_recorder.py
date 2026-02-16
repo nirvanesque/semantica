@@ -149,7 +149,7 @@ class DecisionRecorder:
             return decision.decision_id
             
         except Exception as e:
-            self.logger.error(f"Failed to record decision: {e}")
+            self.logger.exception("Failed to record decision")
             raise
     
     def link_entities(self, decision_id: str, entities: List[str]) -> None:
@@ -176,7 +176,7 @@ class DecisionRecorder:
             self.logger.info(f"Linked decision {decision_id} to {len(entities)} entities")
             
         except Exception as e:
-            self.logger.error(f"Failed to link entities: {e}")
+            self.logger.exception("Failed to link entities")
             raise
     
     def apply_policies(self, decision_id: str, policy_ids: List[str]) -> None:
@@ -204,7 +204,7 @@ class DecisionRecorder:
             self.logger.info(f"Applied {len(policy_ids)} policies to decision {decision_id}")
             
         except Exception as e:
-            self.logger.error(f"Failed to apply policies: {e}")
+            self.logger.exception("Failed to apply policies")
             raise
     
     def record_exception(
@@ -262,7 +262,7 @@ class DecisionRecorder:
             return exception.exception_id
             
         except Exception as e:
-            self.logger.error(f"Failed to record exception: {e}")
+            self.logger.exception("Failed to record exception")
             raise
     
     def capture_cross_system_context(
@@ -302,7 +302,7 @@ class DecisionRecorder:
             self.logger.info(f"Captured cross-system context for decision {decision_id}")
             
         except Exception as e:
-            self.logger.error(f"Failed to capture cross-system context: {e}")
+            self.logger.exception("Failed to capture cross-system context")
             raise
     
     def record_approval_chain(
@@ -352,7 +352,7 @@ class DecisionRecorder:
             self.logger.info(f"Recorded approval chain with {len(approvers)} approvers")
             
         except Exception as e:
-            self.logger.error(f"Failed to record approval chain: {e}")
+            self.logger.exception("Failed to record approval chain")
             raise
     
     def link_precedents(
@@ -389,7 +389,7 @@ class DecisionRecorder:
             self.logger.info(f"Linked {len(precedent_ids)} precedents to decision {decision_id}")
             
         except Exception as e:
-            self.logger.error(f"Failed to link precedents: {e}")
+            self.logger.exception("Failed to link precedents")
             raise
     
     def _store_decision_node(self, decision: Decision) -> None:
@@ -502,4 +502,4 @@ class DecisionRecorder:
             )
             
         except Exception as e:
-            self.logger.warning(f"Failed to track provenance: {e}")
+            self.logger.exception("Failed to track provenance")
