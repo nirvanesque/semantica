@@ -348,6 +348,7 @@ ecommerce_graph.add_edge("user_123", "laptop_xyz", "viewed")
 
 # Make recommendation decision
 from semantica.context.decision_models import Decision
+from datetime import datetime
 
 rec_decision = Decision(
     decision_id="rec_001",
@@ -375,7 +376,7 @@ rec_decision_id = ecommerce_graph.add_decision_simple(
 # Find similar recommendations
 similar_recs = ecommerce_graph.find_precedents_by_scenario(
     scenario="laptop recommendation",
-    max_results=5
+    limit=5
 )
 ```
 
