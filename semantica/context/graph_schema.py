@@ -66,8 +66,11 @@ def create_decision_constraints(graph_store: GraphStore) -> None:
     try:
         # Drop legacy constraint when possible so versioned policies can coexist.
         graph_store.execute_query("DROP CONSTRAINT policy_id_unique IF EXISTS")
-    except Exception:
-        pass
+    except Exception as e:
+        get_logger(__name__).warning(
+            "Failed to drop legacy policy_id_unique constraint before policy "
+            f"versioning migration: {e}"
+        )
 
     try:
         graph_store.execute_query(
