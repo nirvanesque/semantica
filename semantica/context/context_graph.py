@@ -616,6 +616,40 @@ class ContextGraph:
 
     # --- Internal Helpers ---
 
+    def _normalize_timestamp(self, timestamp_value) -> datetime:
+        """
+        Normalize timestamp value to datetime object.
+        
+        Handles various timestamp formats:
+        - datetime: returns as-is
+        - int/float: converts from epoch seconds
+        - str: parses ISO format (with optional Z)
+        - None/invalid: returns current datetime
+        
+        Args:
+            timestamp_value: Timestamp value in various formats
+            
+        Returns:
+            datetime: Normalized datetime object
+        """
+        from datetime import datetime
+        
+        if isinstance(timestamp_value, datetime):
+            return timestamp_value
+        elif isinstance(timestamp_value, (int, float)):
+            return datetime.fromtimestamp(timestamp_value)
+        elif isinstance(timestamp_value, str):
+            # Handle ISO format with optional Z suffix
+            timestamp_str = timestamp_value.rstrip('Z')  # Remove Z if present
+            try:
+                return datetime.fromisoformat(timestamp_str)
+            except ValueError:
+                # Fallback to current datetime if parsing fails
+                return datetime.now()
+        else:
+            # Fallback for None or other types
+            return datetime.now()
+
     def _add_internal_node(self, node: ContextNode) -> bool:
         """Internal method to add a node."""
         self.nodes[node.node_id] = node
@@ -951,6 +985,9 @@ class ContextGraph:
         # Handle None metadata
         metadata = decision.metadata or {}
         
+        # Normalize timestamp to ensure consistent storage format
+        normalized_timestamp = self._normalize_timestamp(decision.timestamp)
+        
         node = ContextNode(
             node_id=node_id,
             node_type="Decision",
@@ -960,7 +997,7 @@ class ContextGraph:
                 "reasoning": decision.reasoning,
                 "outcome": decision.outcome,
                 "confidence": decision.confidence,
-                "timestamp": decision.timestamp.isoformat(),
+                "timestamp": normalized_timestamp.isoformat(),
                 "decision_maker": decision.decision_maker,
                 "reasoning_embedding": decision.reasoning_embedding,
                 "node2vec_embedding": decision.node2vec_embedding,
@@ -1051,11 +1088,7 @@ class ContextGraph:
                     if (hasattr(node, 'node_type') and isinstance(node.node_type, str) and
                         node.node_type.lower() == "decision"):
                         decision_data = node.properties
-                        timestamp_str = decision_data.get("timestamp", datetime.now().isoformat())
-                        if isinstance(timestamp_str, str):
-                            timestamp = datetime.fromisoformat(timestamp_str)
-                        else:
-                            timestamp = timestamp_str
+                        timestamp = self._normalize_timestamp(decision_data.get("timestamp"))
                         decision = Decision(
                             decision_id=current_id,
                             category=decision_data.get("category", ""),
@@ -1120,11 +1153,7 @@ class ContextGraph:
                     node.node_type.lower() == "decision"):
                     decision_data = node.properties
                     from .decision_models import Decision
-                    timestamp_str = decision_data.get("timestamp", datetime.now().isoformat())
-                    if isinstance(timestamp_str, str):
-                        timestamp = datetime.fromisoformat(timestamp_str)
-                    else:
-                        timestamp = timestamp_str
+                    timestamp = self._normalize_timestamp(decision_data.get("timestamp"))
                     decision = Decision(
                         decision_id=pid,
                         category=decision_data.get("category", ""),
