@@ -1,6 +1,7 @@
 """Tests for decision trace capture convenience API."""
 
 from datetime import datetime
+import logging
 from unittest.mock import Mock
 
 from semantica.context.decision_methods import capture_decision_trace
@@ -20,10 +21,19 @@ def _sample_decision() -> Decision:
     )
 
 
-def test_capture_decision_trace_without_graph_store_is_backward_compatible():
+def test_capture_decision_trace_without_graph_store_is_backward_compatible(caplog):
     decision = _sample_decision()
-    decision_id = capture_decision_trace(decision, cross_system_context={})
+    with caplog.at_level(logging.WARNING):
+        decision_id = capture_decision_trace(
+            decision,
+            cross_system_context={"crm": {"arr": 120000}},
+            policy_ids=[{"policy_id": "renewal_discount_policy", "version": "3.2"}],
+        )
     assert decision_id == decision.decision_id
+    assert "capture_decision_trace skipped persistence (no graph_store)" in caplog.text
+    assert f"decision_id={decision.decision_id}" in caplog.text
+    assert f"decision_maker={decision.decision_maker}" in caplog.text
+    assert f"outcome={decision.outcome}" in caplog.text
 
 
 def test_capture_decision_trace_with_graph_store_records_trace_events():

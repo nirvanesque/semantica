@@ -252,9 +252,21 @@ def capture_decision_trace(
     try:
         # Backward-compatible behavior: allow legacy call sites without graph_store.
         if graph_store is None:
+            policy_refs = _normalize_policy_refs(policy_ids)
             logger.warning(
-                "capture_decision_trace called without graph_store; "
-                "returning decision_id only for backward compatibility"
+                "capture_decision_trace skipped persistence (no graph_store) | "
+                f"decision_id={decision.decision_id} "
+                f"decision_maker={decision.decision_maker} "
+                f"timestamp={decision.timestamp.isoformat() if hasattr(decision.timestamp, 'isoformat') else decision.timestamp} "
+                f"category={decision.category} "
+                f"outcome={decision.outcome} "
+                f"confidence={decision.confidence} "
+                f"cross_system_keys={list((cross_system_context or {}).keys())} "
+                f"policy_refs={policy_refs} "
+                f"exception_count={len(_normalize_record_list(exceptions))} "
+                f"approval_count={len(_normalize_record_list(approvals))} "
+                f"precedent_count={len(_normalize_precedents(precedents))} "
+                "mode=backward_compatible_non_persistent"
             )
             return decision.decision_id
 
