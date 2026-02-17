@@ -619,7 +619,12 @@ class ContextGraph:
     def _add_internal_node(self, node: ContextNode) -> bool:
         """Internal method to add a node."""
         self.nodes[node.node_id] = node
-        self.node_type_index[node.node_type].add(node.node_id)
+        # Handle edge case where node_type might be None or not a string
+        if hasattr(node, 'node_type') and isinstance(node.node_type, str):
+            self.node_type_index[node.node_type].add(node.node_id)
+        else:
+            # Use 'unknown' as fallback for invalid node_type
+            self.node_type_index['unknown'].add(node.node_id)
         return True
 
     def _add_internal_edge(self, edge: ContextEdge) -> bool:
@@ -986,8 +991,12 @@ class ContextGraph:
             return
         
         # Check if nodes are decision nodes - if not, skip adding relationship
-        if (self.nodes[source_decision_id].node_type.lower() != "decision" or 
-            self.nodes[target_decision_id].node_type.lower() != "decision"):
+        source_node = self.nodes[source_decision_id]
+        target_node = self.nodes[target_decision_id]
+        if (not hasattr(source_node, 'node_type') or not isinstance(source_node.node_type, str) or
+            not hasattr(target_node, 'node_type') or not isinstance(target_node.node_type, str) or
+            source_node.node_type.lower() != "decision" or 
+            target_node.node_type.lower() != "decision"):
             return
         
         edge = ContextEdge(
@@ -1038,7 +1047,8 @@ class ContextGraph:
                 # Get decision node
                 if current_id in self.nodes:
                     node = self.nodes[current_id]
-                    if node.node_type.lower() == "decision":
+                    if (hasattr(node, 'node_type') and isinstance(node.node_type, str) and
+                        node.node_type.lower() == "decision"):
                         decision_data = node.properties
                         timestamp_str = decision_data.get("timestamp", datetime.now().isoformat())
                         if isinstance(timestamp_str, str):
@@ -1105,7 +1115,8 @@ class ContextGraph:
         for pid in precedent_ids[:limit]:
             if pid in self.nodes:
                 node = self.nodes[pid]
-                if node.node_type.lower() == "decision":
+                if (hasattr(node, 'node_type') and isinstance(node.node_type, str) and
+                    node.node_type.lower() == "decision"):
                     decision_data = node.properties
                     from .decision_models import Decision
                     timestamp_str = decision_data.get("timestamp", datetime.now().isoformat())
