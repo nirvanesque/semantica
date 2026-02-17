@@ -28,15 +28,16 @@ No new modules were introduced. All changes are within existing context componen
 
 ## Detailed Changes
 
-### 1. `semantica/context/decision_methods.py` ✨ Enhancement `+217/-5`
+### 1. semantica/context/decision_methods.py ✨ Enhancement +217/-5
 
-Implement end-to-end decision trace capture.
+Implement end-to-end decision trace capture
 
-- Replaced placeholder `capture_decision_trace()` with full orchestration logic.
-- Added support for recording decisions, policies, exceptions, approvals, and precedents.
-- Implemented `_append_immutable_trace_events()` for hash-chained audit trail generation.
-- Made `graph_store` parameter optional for backward compatibility.
-- Added `immutable_audit_log` flag to control trace event creation.
+• Replaced placeholder `capture_decision_trace()` with full orchestration logic  
+• Added support for recording decisions, policies, exceptions, approvals, and precedents  
+• Implemented `_append_immutable_trace_events()` for hash-chained audit trail generation  
+• Made `graph_store` parameter optional for backward compatibility  
+• Added `immutable_audit_log` flag to control trace event creation  
+`semantica/context/decision_methods.py`
 
 ### 1) End-to-end trace capture (replaced placeholder)
 File:
