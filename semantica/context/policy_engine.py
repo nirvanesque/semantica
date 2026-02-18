@@ -267,6 +267,12 @@ class PolicyEngine:
                     policy_data = record.get("p") if isinstance(record, dict) else None
                     if not isinstance(policy_data, dict):
                         policy_data = record if isinstance(record, dict) else {}
+                    if not isinstance(policy_data, dict) or not policy_data.get("policy_id"):
+                        self.logger.debug(
+                            "Skipping malformed policy record in get_applicable_policies: "
+                            f"{record}"
+                        )
+                        continue
                     policy = self._dict_to_policy(policy_data)
                     if self._policy_matches_entities(policy, entities):
                         policies.append(policy)
@@ -318,7 +324,23 @@ class PolicyEngine:
         """Normalize execute_query result shapes to record lists."""
         if isinstance(results, dict):
             records = results.get("records", [])
-            return records if isinstance(records, list) else []
+            if not isinstance(records, list):
+                return []
+
+            # FalkorDB shape: {"records": [[...], ...], "header": ["col1", ...]}
+            header = results.get("header")
+            if (
+                isinstance(header, list)
+                and records
+                and all(isinstance(row, list) for row in records)
+            ):
+                normalized: List[Dict[str, Any]] = []
+                for row in records:
+                    row_map: Dict[str, Any] = dict(zip(header, row))
+                    normalized.append(row_map)
+                return normalized
+
+            return records
         if isinstance(results, list):
             return results
         return []

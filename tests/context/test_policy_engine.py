@@ -187,6 +187,42 @@ class TestPolicyEngine:
         
         assert len(policies) == 1
         assert policies[0].category == category
+
+    def test_get_applicable_policies_falkordb_row_shape(self, policy_engine, mock_graph_store):
+        """Test policy parsing when backend returns FalkorDB list rows + header."""
+        category = "credit_approval"
+        mock_graph_store.execute_query.return_value = {
+            "records": [
+                [
+                    {
+                        "policy_id": "policy_001",
+                        "name": "Credit Approval Policy",
+                        "description": "Standard credit approval rules",
+                        "rules": {"min_score": 650},
+                        "category": "credit_approval",
+                        "version": "1.0",
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat(),
+                        "metadata": {},
+                    }
+                ]
+            ],
+            "header": ["p"],
+        }
+
+        policies = policy_engine.get_applicable_policies(category, None)
+
+        assert len(policies) == 1
+        assert policies[0].policy_id == "policy_001"
+
+    def test_get_applicable_policies_skips_malformed_record(self, policy_engine, mock_graph_store):
+        """Test malformed policy records are skipped instead of crashing."""
+        category = "credit_approval"
+        mock_graph_store.execute_query.return_value = [{"unexpected": "shape"}]
+
+        policies = policy_engine.get_applicable_policies(category, None)
+
+        assert policies == []
     
     def test_check_compliance_success(self, policy_engine, mock_graph_store):
         """Test successful compliance checking."""
