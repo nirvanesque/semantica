@@ -118,7 +118,7 @@ class TestEndToEndContextIntegration:
         results = retriever.retrieve(
             query="Credit limit increase for business expansion",
             max_results=10,
-            use_graph_expansion=True
+            graph_expansion=True
         )
         print(f"✅ Retrieved {len(results)} context items")
         
@@ -286,10 +286,10 @@ class TestEndToEndContextIntegration:
         
         # Test different search configurations
         search_configs = [
-            {"use_graph_expansion": False, "max_results": 10},
-            {"use_graph_expansion": True, "max_results": 10},
-            {"use_graph_expansion": True, "max_results": 20},
-            {"use_graph_expansion": False, "max_results": 20},
+            {"graph_expansion": False, "max_results": 10},
+            {"graph_expansion": True, "max_results": 10},
+            {"graph_expansion": True, "max_results": 20},
+            {"graph_expansion": False, "max_results": 20},
         ]
         
         for i, config in enumerate(search_configs):
@@ -399,7 +399,7 @@ class TestEndToEndContextIntegration:
         )
         
         # Should handle KG errors gracefully
-        results = retriever_broken.retrieve("Test query", max_results=5, use_graph_expansion=True)
+        results = retriever_broken.retrieve("Test query", max_results=5, graph_expansion=True)
         assert len(results) > 0, "Should handle KG errors gracefully"
         print("✅ Handles KG errors gracefully")
         
@@ -572,7 +572,7 @@ class TestRealWorldContextScenarios:
         context_results = retriever.retrieve(
             query="Premium customer investment and fraud assessment",
             max_results=15,
-            use_graph_expansion=True
+            graph_expansion=True
         )
         
         print(f"✅ Retrieved {len(context_results)} context items")

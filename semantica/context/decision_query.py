@@ -55,10 +55,10 @@ Search Capabilities:
 Example Usage:
     >>> from semantica.context import DecisionQuery
     >>> query = DecisionQuery(graph_store=kg, vector_store=vs,
-    ...                      enable_advanced_analytics=True,
-    ...                      enable_centrality_analysis=True,
-    ...                      enable_community_detection=True,
-    ...                      enable_node_embeddings=True)
+    ...                      advanced_analytics=True,
+    ...                      centrality_analysis=True,
+    ...                      community_detection=True,
+    ...                      node_embeddings=True)
     >>> precedents = query.find_precedents_hybrid("Loan application",
     ...                                           category="approval",
     ...                                           limit=10)
@@ -111,11 +111,11 @@ class DecisionQuery:
         graph_store: GraphStore,
         embedding_generator: Optional[EmbeddingGenerator] = None,
         vector_store: Optional[Any] = None,
-        enable_advanced_analytics: bool = True,
-        enable_node_embeddings: bool = True,
-        enable_centrality_analysis: bool = True,
-        enable_community_detection: bool = True,
-        enable_link_prediction: bool = True
+        advanced_analytics: bool = True,
+        node_embeddings: bool = True,
+        centrality_analysis: bool = True,
+        community_detection: bool = True,
+        link_prediction: bool = True
     ):
         """
         Initialize DecisionQuery with optional advanced features.
@@ -124,11 +124,11 @@ class DecisionQuery:
             graph_store: Graph database instance
             embedding_generator: Optional embedding generator for semantic search
             vector_store: Optional vector store for hybrid search
-            enable_advanced_analytics: Enable advanced graph analytics (requires semantica.kg)
-            enable_node_embeddings: Enable Node2Vec embeddings (requires semantica.kg)
-            enable_centrality_analysis: Enable centrality measures (requires semantica.kg)
-            enable_community_detection: Enable community detection (requires semantica.kg)
-            enable_link_prediction: Enable link prediction (requires semantica.kg)
+            advanced_analytics: Enable advanced graph analytics (requires semantica.kg)
+            node_embeddings: Enable Node2Vec embeddings (requires semantica.kg)
+            centrality_analysis: Enable centrality measures (requires semantica.kg)
+            community_detection: Enable community detection (requires semantica.kg)
+            link_prediction: Enable link prediction (requires semantica.kg)
         """
         self.graph_store = graph_store
         self.embedding_generator = embedding_generator
@@ -139,17 +139,17 @@ class DecisionQuery:
         self.kg_components = {}
         self.vector_components = {}
         
-        if KG_AVAILABLE and enable_advanced_analytics:
+        if KG_AVAILABLE and advanced_analytics:
             try:
-                if enable_centrality_analysis:
+                if centrality_analysis:
                     self.kg_components["centrality_calculator"] = CentralityCalculator()
-                if enable_community_detection:
+                if community_detection:
                     self.kg_components["community_detector"] = CommunityDetector()
-                if enable_node_embeddings:
+                if node_embeddings:
                     self.kg_components["node_embedder"] = NodeEmbedder()
                 self.kg_components["path_finder"] = PathFinder()
                 self.kg_components["similarity_calculator"] = SimilarityCalculator()
-                if enable_link_prediction:
+                if link_prediction:
                     self.kg_components["link_predictor"] = LinkPredictor()
                 
                 self.logger.info("Advanced KG components initialized successfully")
@@ -344,11 +344,13 @@ class DecisionQuery:
         query_parts.append("LIMIT $limit")
         
         query = " ".join(query_parts)
-        results = self.graph_store.execute_query(query, params)
-        
+        results = self._extract_records(self.graph_store.execute_query(query, params))
+
         decisions = []
         for record in results:
-            decision_data = record.get("d", {})
+            decision_data = record.get("d") if isinstance(record, dict) else None
+            if not isinstance(decision_data, dict):
+                decision_data = record if isinstance(record, dict) else {}
             decision = self._dict_to_decision(decision_data)
             
             # Calculate similarity if embedding available
@@ -393,10 +395,13 @@ class DecisionQuery:
                 "category": category,
                 "limit": limit
             })
+            results = self._extract_records(results)
             
             decisions = []
             for record in results:
-                decision_data = record.get("d", {})
+                decision_data = record.get("d") if isinstance(record, dict) else None
+                if not isinstance(decision_data, dict):
+                    decision_data = record if isinstance(record, dict) else {}
                 decisions.append(self._dict_to_decision(decision_data))
             
             self.logger.info(f"Found {len(decisions)} decisions in category {category}")
@@ -429,10 +434,13 @@ class DecisionQuery:
                 "entity_id": entity_id,
                 "limit": limit
             })
+            results = self._extract_records(results)
             
             decisions = []
             for record in results:
-                decision_data = record.get("d", {})
+                decision_data = record.get("d") if isinstance(record, dict) else None
+                if not isinstance(decision_data, dict):
+                    decision_data = record if isinstance(record, dict) else {}
                 decisions.append(self._dict_to_decision(decision_data))
             
             self.logger.info(f"Found {len(decisions)} decisions about entity {entity_id}")
@@ -472,10 +480,13 @@ class DecisionQuery:
                 "end": end,
                 "limit": limit
             })
+            results = self._extract_records(results)
             
             decisions = []
             for record in results:
-                decision_data = record.get("d", {})
+                decision_data = record.get("d") if isinstance(record, dict) else None
+                if not isinstance(decision_data, dict):
+                    decision_data = record if isinstance(record, dict) else {}
                 decisions.append(self._dict_to_decision(decision_data))
             
             self.logger.info(f"Found {len(decisions)} decisions in time range")
@@ -518,10 +529,13 @@ class DecisionQuery:
             results = self.graph_store.execute_query(query, {
                 "start_entity": start_entity
             })
+            results = self._extract_records(results)
             
             decisions = []
             for record in results:
-                decision_data = record.get("d", {})
+                decision_data = record.get("d") if isinstance(record, dict) else None
+                if not isinstance(decision_data, dict):
+                    decision_data = record if isinstance(record, dict) else {}
                 decision = self._dict_to_decision(decision_data)
                 decision.metadata["hop_count"] = record.get("hop_count", 0)
                 decisions.append(decision)
@@ -562,6 +576,7 @@ class DecisionQuery:
             results = self.graph_store.execute_query(query, {
                 "decision_id": decision_id
             })
+            results = self._extract_records(results)
             
             paths = []
             for record in results:
@@ -606,10 +621,13 @@ class DecisionQuery:
             LIMIT $limit
             """
             results = self.graph_store.execute_query(query, {"limit": limit})
+            results = self._extract_records(results)
             
             exceptions = []
             for record in results:
-                exception_data = record.get("e", {})
+                exception_data = record.get("e") if isinstance(record, dict) else None
+                if not isinstance(exception_data, dict):
+                    exception_data = record if isinstance(record, dict) else {}
                 exception = self._dict_to_exception(exception_data)
                 
                 # Calculate similarity if embedding available
@@ -639,9 +657,13 @@ class DecisionQuery:
         # Handle timestamp conversion
         if isinstance(data.get("timestamp"), str):
             data["timestamp"] = datetime.fromisoformat(data["timestamp"])
-        
+
+        decision_id = data.get("decision_id") or data.get("id")
+        if not decision_id:
+            raise KeyError("decision_id")
+
         return Decision(
-            decision_id=data.get("decision_id", ""),
+            decision_id=decision_id,
             category=data.get("category", ""),
             scenario=data.get("scenario", ""),
             reasoning=data.get("reasoning", ""),
@@ -651,7 +673,7 @@ class DecisionQuery:
             decision_maker=data.get("decision_maker", ""),
             reasoning_embedding=data.get("reasoning_embedding"),
             node2vec_embedding=data.get("node2vec_embedding"),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
     
     def _dict_to_exception(self, data: Dict[str, Any]) -> PolicyException:
@@ -659,16 +681,22 @@ class DecisionQuery:
         # Handle timestamp conversion
         if isinstance(data.get("approval_timestamp"), str):
             data["approval_timestamp"] = datetime.fromisoformat(data["approval_timestamp"])
-        
+
+        exception_id = data.get("exception_id") or data.get("id")
+        decision_id = data.get("decision_id")
+        policy_id = data.get("policy_id")
+        if not exception_id or not decision_id or not policy_id:
+            raise KeyError("exception_id/decision_id/policy_id")
+
         return PolicyException(
-            exception_id=data.get("exception_id", ""),
-            decision_id=data.get("decision_id", ""),
-            policy_id=data.get("policy_id", ""),
+            exception_id=exception_id,
+            decision_id=decision_id,
+            policy_id=policy_id,
             reason=data.get("reason", ""),
             approver=data.get("approver", ""),
             approval_timestamp=data.get("approval_timestamp", datetime.now()),
             justification=data.get("justification", ""),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
     
     def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
@@ -805,6 +833,7 @@ class DecisionQuery:
             results = self.graph_store.execute_query(query, {
                 "decision_id": decision_id
             })
+            results = self._extract_records(results)
             
             return {"nodes": results, "max_depth": max_depth}
         except Exception:
@@ -857,10 +886,12 @@ class DecisionQuery:
             downstream_results = self.graph_store.execute_query(downstream_query, {
                 "decision_id": decision_id
             })
+            downstream_results = self._extract_records(downstream_results)
             
             upstream_results = self.graph_store.execute_query(upstream_query, {
                 "decision_id": decision_id
             })
+            upstream_results = self._extract_records(upstream_results)
             
             # Process results
             for record in downstream_results:
@@ -954,3 +985,12 @@ class DecisionQuery:
         except Exception as e:
             self.logger.error(f"Failed to predict relationships: {e}")
             return []
+
+    def _extract_records(self, results: Any) -> List[Dict[str, Any]]:
+        """Normalize execute_query result shapes to a list of record maps."""
+        if isinstance(results, dict):
+            records = results.get("records", [])
+            return records if isinstance(records, list) else []
+        if isinstance(results, list):
+            return results
+        return []

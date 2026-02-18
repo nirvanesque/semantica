@@ -149,7 +149,7 @@ class DecisionRecorder:
             return decision.decision_id
             
         except Exception as e:
-            self.logger.error(f"Failed to record decision: {e}")
+            self.logger.exception("Failed to record decision")
             raise
     
     def link_entities(self, decision_id: str, entities: List[str]) -> None:
@@ -176,35 +176,88 @@ class DecisionRecorder:
             self.logger.info(f"Linked decision {decision_id} to {len(entities)} entities")
             
         except Exception as e:
-            self.logger.error(f"Failed to link entities: {e}")
+            self.logger.exception("Failed to link entities")
             raise
     
-    def apply_policies(self, decision_id: str, policy_ids: List[str]) -> None:
+    def apply_policies(
+        self,
+        decision_id: str,
+        policy_ids: List[Union[str, Dict[str, str]]],
+    ) -> List[Dict[str, str]]:
         """
         Track policy applications for a decision.
         
         Args:
             decision_id: Decision ID
-            policy_ids: List of policy IDs that were applied
+            policy_ids: List of policy IDs or policy refs with explicit version
+
+        Returns:
+            Applied policy references with resolved versions
         """
         try:
-            for policy_id in policy_ids:
-                # Create APPLIED_POLICY relationship
+            applied: List[Dict[str, str]] = []
+
+            for policy_ref in policy_ids:
+                if isinstance(policy_ref, dict):
+                    policy_id = str(policy_ref.get("policy_id", ""))
+                    policy_version = (
+                        str(policy_ref.get("version"))
+                        if policy_ref.get("version") is not None
+                        else None
+                    )
+                else:
+                    policy_id = str(policy_ref)
+                    policy_version = None
+
+                if not policy_id:
+                    continue
+
+                # Resolve exactly one policy node:
+                # - explicit version when provided
+                # - latest available version for legacy callers
                 query = """
                 MATCH (d:Decision {decision_id: $decision_id})
                 MATCH (p:Policy {policy_id: $policy_id})
-                MERGE (d)-[:APPLIED_POLICY]->(p)
-                SET d.applied_at = timestamp()
+                WHERE $policy_version IS NULL OR p.version = $policy_version
+                WITH d, p
+                ORDER BY p.updated_at DESC, p.version DESC
+                LIMIT 1
+                MERGE (d)-[r:APPLIED_POLICY]->(p)
+                SET r.policy_id = $policy_id,
+                    r.policy_version = p.version,
+                    d.applied_at = timestamp()
+                RETURN p.policy_id as policy_id, p.version as version
                 """
-                self.graph_store.execute_query(query, {
+                result = self.graph_store.execute_query(query, {
                     "decision_id": decision_id,
-                    "policy_id": policy_id
+                    "policy_id": policy_id,
+                    "policy_version": policy_version,
                 })
+
+                records = (
+                    result.get("records", [])
+                    if isinstance(result, dict)
+                    else (result if isinstance(result, list) else [])
+                )
+                if records:
+                    record = records[0]
+                    applied.append(
+                        {
+                            "policy_id": str(record.get("policy_id", policy_id)),
+                            "version": str(record.get("version", policy_version or "")),
+                        }
+                    )
+                else:
+                    self.logger.warning(
+                        f"No policy match found for {policy_id}"
+                        + (f" version {policy_version}" if policy_version else "")
+                    )
             
-            self.logger.info(f"Applied {len(policy_ids)} policies to decision {decision_id}")
+            self.logger.info(f"Applied {len(applied)} policies to decision {decision_id}")
+            return applied
             
         except Exception as e:
-            self.logger.error(f"Failed to apply policies: {e}")
+            self.logger.exception("Failed to apply policies")
             raise
     
     def record_exception(
@@ -231,7 +284,7 @@ class DecisionRecorder:
             Exception ID
         """
         try:
-            exception = Exception(
+            exception = PolicyException(
                 exception_id=str(uuid.uuid4()),
                 decision_id=decision_id,
                 policy_id=policy_id,
@@ -262,7 +315,7 @@ class DecisionRecorder:
             return exception.exception_id
             
         except Exception as e:
-            self.logger.error(f"Failed to record exception: {e}")
+            self.logger.exception("Failed to record exception")
             raise
     
     def capture_cross_system_context(
@@ -302,7 +355,7 @@ class DecisionRecorder:
             self.logger.info(f"Captured cross-system context for decision {decision_id}")
             
         except Exception as e:
-            self.logger.error(f"Failed to capture cross-system context: {e}")
+            self.logger.exception("Failed to capture cross-system context")
             raise
     
     def record_approval_chain(
@@ -352,7 +405,7 @@ class DecisionRecorder:
             self.logger.info(f"Recorded approval chain with {len(approvers)} approvers")
             
         except Exception as e:
-            self.logger.error(f"Failed to record approval chain: {e}")
+            self.logger.exception("Failed to record approval chain")
             raise
     
     def link_precedents(
@@ -389,7 +442,7 @@ class DecisionRecorder:
             self.logger.info(f"Linked {len(precedent_ids)} precedents to decision {decision_id}")
             
         except Exception as e:
-            self.logger.error(f"Failed to link precedents: {e}")
+            self.logger.exception("Failed to link precedents")
             raise
     
     def _store_decision_node(self, decision: Decision) -> None:
@@ -423,7 +476,7 @@ class DecisionRecorder:
             "metadata": decision.metadata
         })
     
-    def _store_exception_node(self, exception: Exception) -> None:
+    def _store_exception_node(self, exception: PolicyException) -> None:
         """Store exception node in graph database."""
         query = """
         CREATE (e:Exception {
@@ -502,4 +555,4 @@ class DecisionRecorder:
             )
             
         except Exception as e:
-            self.logger.warning(f"Failed to track provenance: {e}")
+            self.logger.exception("Failed to track provenance")

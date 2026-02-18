@@ -350,13 +350,25 @@ class NodeEmbedder:
         
         # Build adjacency
         for node in nodes:
-            if hasattr(graph_store, 'get_neighbors'):
-                neighbors = graph_store.get_neighbors(node, relationship_types)
-                adjacency[node] = neighbors
-            else:
-                # Fallback for NetworkX
-                if hasattr(graph_store, 'neighbors'):
-                    adjacency[node] = list(graph_store.neighbors(node))
+            if hasattr(graph_store, 'neighbors'):
+                adjacency[node] = list(graph_store.neighbors(node))
+            elif hasattr(graph_store, 'get_neighbor_ids'):
+                adjacency[node] = graph_store.get_neighbor_ids(node, relationship_types)
+            elif hasattr(graph_store, 'get_neighbors'):
+                try:
+                    neighbor_details = graph_store.get_neighbors(node, hops=1, relationship_types=relationship_types)
+                    adjacency[node] = [
+                        n.get("id") for n in neighbor_details
+                        if isinstance(n, dict) and n.get("id")
+                    ]
+                except TypeError:
+                    neighbor_details = graph_store.get_neighbors(node)
+                    adjacency[node] = [
+                        n.get("id") for n in neighbor_details
+                        if isinstance(n, dict) and n.get("id")
+                    ]
+            elif hasattr(graph_store, 'nodes') and hasattr(graph_store, 'edges'):
+                adjacency[node] = []
         
         return dict(adjacency)
     

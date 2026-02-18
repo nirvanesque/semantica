@@ -2011,8 +2011,18 @@ Answer:"""
             try:
                 # Basic neighbor expansion
                 if hasattr(self.knowledge_graph, 'get_neighbors'):
-                    neighbors = self.knowledge_graph.get_neighbors(entity_name)
-                    for neighbor in neighbors[:5]:  # Limit to prevent explosion
+                    if hasattr(self.knowledge_graph, "neighbors"):
+                        neighbor_ids = list(self.knowledge_graph.neighbors(entity_name))
+                    elif hasattr(self.knowledge_graph, "get_neighbor_ids"):
+                        neighbor_ids = self.knowledge_graph.get_neighbor_ids(entity_name)
+                    else:
+                        neighbor_details = self.knowledge_graph.get_neighbors(entity_name, hops=1)
+                        neighbor_ids = [
+                            n.get("id") for n in neighbor_details
+                            if isinstance(n, dict) and n.get("id")
+                        ]
+
+                    for neighbor in neighbor_ids[:5]:  # Limit to prevent explosion
                         expanded_entities.append({
                             "name": neighbor,
                             "type": "related_entity",
@@ -2082,8 +2092,17 @@ Answer:"""
                             if hasattr(self.centrality_calculator, 'calculate_degree_centrality'):
                                 # Simplified centrality calculation
                                 if hasattr(self.knowledge_graph, 'get_neighbors'):
-                                    neighbors = self.knowledge_graph.get_neighbors(entity_name)
-                                    centrality_scores[entity_name] = len(neighbors)
+                                    if hasattr(self.knowledge_graph, "neighbors"):
+                                        neighbor_ids = list(self.knowledge_graph.neighbors(entity_name))
+                                    elif hasattr(self.knowledge_graph, "get_neighbor_ids"):
+                                        neighbor_ids = self.knowledge_graph.get_neighbor_ids(entity_name)
+                                    else:
+                                        neighbor_details = self.knowledge_graph.get_neighbors(entity_name, hops=1)
+                                        neighbor_ids = [
+                                            n.get("id") for n in neighbor_details
+                                            if isinstance(n, dict) and n.get("id")
+                                        ]
+                                    centrality_scores[entity_name] = len(neighbor_ids)
                                 else:
                                     centrality_scores[entity_name] = 1
                         
@@ -2136,6 +2155,7 @@ Answer:"""
                 safe_category = category[:20] if category else "unknown"
                 self.logger.warning(f"Failed to find policies for {safe_category}: {type(e).__name__}")
                 return policies
+        return policies
 
     # Decision Retrieval Methods
     def find_precedents_hybrid(

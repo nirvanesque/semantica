@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 from semantica.context.decision_models import (
-    Decision, DecisionContext, Policy, Exception, Precedent, ApprovalChain,
+    Decision, DecisionContext, Policy, PolicyException, Precedent, ApprovalChain,
     validate_decision, validate_policy, serialize_decision, deserialize_decision,
     serialize_policy, deserialize_policy
 )
@@ -213,12 +213,12 @@ class TestPolicy:
         assert len(policy.policy_id) > 0
 
 
-class TestException:
-    """Test Exception data model."""
+class TestPolicyException:
+    """Test PolicyException data model."""
     
-    def test_exception_creation(self):
-        """Test basic exception creation."""
-        exception = Exception(
+    def test_policy_exception_creation(self):
+        """Test basic policy exception creation."""
+        policy_exception = PolicyException(
             exception_id="exc_001",
             decision_id="decision_001",
             policy_id="policy_001",
@@ -229,17 +229,17 @@ class TestException:
             metadata={"override_type": "vip_exception"}
         )
         
-        assert exception.exception_id == "exc_001"
-        assert exception.decision_id == "decision_001"
-        assert exception.policy_id == "policy_001"
-        assert exception.reason == "Customer is VIP with special arrangements"
-        assert exception.approver == "manager_001"
-        assert exception.justification == "Long-term customer with excellent history"
-        assert exception.metadata["override_type"] == "vip_exception"
+        assert policy_exception.exception_id == "exc_001"
+        assert policy_exception.decision_id == "decision_001"
+        assert policy_exception.policy_id == "policy_001"
+        assert policy_exception.reason == "Customer is VIP with special arrangements"
+        assert policy_exception.approver == "manager_001"
+        assert policy_exception.justification == "Long-term customer with excellent history"
+        assert policy_exception.metadata["override_type"] == "vip_exception"
     
-    def test_exception_auto_id(self):
+    def test_policy_exception_auto_id(self):
         """Test automatic ID generation."""
-        exception = Exception(
+        policy_exception = PolicyException(
             exception_id="",
             decision_id="decision_001",
             policy_id="policy_001",
@@ -249,8 +249,8 @@ class TestException:
             justification="test justification"
         )
         
-        assert exception.exception_id != ""
-        assert len(exception.exception_id) > 0
+        assert policy_exception.exception_id != ""
+        assert len(policy_exception.exception_id) > 0
 
 
 class TestPrecedent:

@@ -455,6 +455,9 @@ class LinkPredictor:
         if hasattr(graph_store, 'neighbors'):
             return list(graph_store.neighbors(node_id))
         elif hasattr(graph_store, 'get_neighbors'):
-            return graph_store.get_neighbors(node_id)
+            neighbors = graph_store.get_neighbors(node_id)
+            if neighbors and isinstance(neighbors[0], dict):
+                return [n.get("id") for n in neighbors if isinstance(n, dict) and n.get("id")]
+            return neighbors
         else:
             return []

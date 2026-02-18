@@ -38,7 +38,7 @@ class TestAgentContextDecisions:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
     
     @pytest.fixture
@@ -47,7 +47,7 @@ class TestAgentContextDecisions:
         return AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=False
+            decision_tracking=False
         )
     
     def test_agent_context_initialization_with_decisions(self, mock_vector_store, mock_knowledge_graph):
@@ -55,10 +55,10 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
         
-        assert context.config["enable_decision_tracking"] is True
+        assert context.config["decision_tracking"] is True
         assert context._decision_recorder is not None
         assert context._decision_query is not None
         assert context._causal_analyzer is not None
@@ -69,10 +69,10 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=mock_knowledge_graph,
-            enable_decision_tracking=False
+            decision_tracking=False
         )
         
-        assert context.config["enable_decision_tracking"] is False
+        assert context.config["decision_tracking"] is False
         assert context._decision_recorder is None
         assert context._decision_query is None
         assert context._causal_analyzer is None
@@ -246,6 +246,22 @@ class TestAgentContextDecisions:
             assert context[system]["system_name"] == system
             assert "captured_at" in context[system]
             assert context[system]["status"] == "captured"
+
+    def test_capture_cross_system_inputs_sanitizes_errors(
+        self, agent_context_with_decisions, mock_knowledge_graph
+    ):
+        """Test capture errors are sanitized in returned payload."""
+        mock_knowledge_graph.execute_query.side_effect = RuntimeError(
+            "backend connection failed: sensitive details"
+        )
+
+        context = agent_context_with_decisions.capture_cross_system_inputs(
+            ["salesforce"], "customer_001"
+        )
+
+        assert context["salesforce"]["status"] == "capture_failed"
+        assert context["salesforce"]["error"] == "internal_capture_error"
+        assert "sensitive" not in context["salesforce"]["error"]
     
     def test_backward_compatibility(self, mock_vector_store, mock_knowledge_graph):
         """Test backward compatibility when decision tracking is not explicitly set."""
@@ -255,7 +271,7 @@ class TestAgentContextDecisions:
             knowledge_graph=mock_knowledge_graph
         )
         
-        assert context.config["enable_decision_tracking"] is False
+        assert context.config["decision_tracking"] is False
         assert context._decision_recorder is None
     
     def test_error_handling(self, agent_context_with_decisions):
@@ -279,11 +295,11 @@ class TestAgentContextDecisions:
         context = AgentContext(
             vector_store=mock_vector_store,
             knowledge_graph=None,
-            enable_decision_tracking=True
+            decision_tracking=True
         )
         
         # Should initialize but warn about missing knowledge graph
-        assert context.config["enable_decision_tracking"] is True
+        assert context.config["decision_tracking"] is True
     
     def test_error_handling(self, agent_context_with_decisions):
         """Test error handling in decision tracking."""

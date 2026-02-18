@@ -891,6 +891,12 @@ class CommunityDetector:
                 all_neighbors = graph.get_neighbors(node)
             else:
                 all_neighbors = []
+
+            if all_neighbors and isinstance(all_neighbors[0], dict):
+                all_neighbors = [
+                    n.get("id") for n in all_neighbors
+                    if isinstance(n, dict) and n.get("id")
+                ]
             
             # Filter by relationship types if specified
             if relationship_types is not None and hasattr(graph, 'get_edge_data'):

@@ -739,6 +739,11 @@ class CentralityCalculator:
             neighbors = list(graph.neighbors(node))
         elif hasattr(graph, 'get_neighbors'):
             neighbors = graph.get_neighbors(node)
+            if neighbors and isinstance(neighbors[0], dict):
+                neighbors = [
+                    n.get("id") for n in neighbors
+                    if isinstance(n, dict) and n.get("id")
+                ]
         else:
             neighbors = []
         

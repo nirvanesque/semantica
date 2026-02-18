@@ -17,7 +17,6 @@
 
 </div>
 
-
 ---
 
 ## 🚀 Why Semantica?
@@ -35,30 +34,30 @@ pip install semantica
 ```
 
 ```python
-from semantica.context import AgentContext
+from semantica.context import AgentContext, ContextGraph
 from semantica.vector_store import VectorStore
-from semantica.kg import GraphBuilder
 
-# Initialize context with advanced features
+# Initialize with enhanced context features
 vs = VectorStore(backend="faiss", dimension=768)
-kg = GraphBuilder().build({"entities": [], "relationships": []})
+kg = ContextGraph(advanced_analytics=True)
 context = AgentContext(
     vector_store=vs,
     knowledge_graph=kg,
-    enable_decision_tracking=True,
-    enable_advanced_analytics=True,
-    enable_kg_algorithms=True,
-    enable_vector_store_features=True
+    decision_tracking=True,
+    advanced_analytics=True,
+    kg_algorithms=True,
+    vector_store_features=True,
+    graph_expansion=True
 )
 
-# Store memory with context graphs
+# Store memory with automatic context graph building
 memory_id = context.store(
     "User is working on a React project with FastAPI",
     conversation_id="session_1"
 )
 
-# Record decision with full context
-decision_id = context.record_decision(
+# Easy decision recording with convenience methods
+decision_id = context.graph_builder.add_decision(
     category="technology_choice",
     scenario="Framework selection for web API",
     reasoning="React ecosystem with FastAPI provides best performance",
@@ -66,15 +65,25 @@ decision_id = context.record_decision(
     confidence=0.92
 )
 
-# Find similar decisions (precedents)
-precedents = context.find_precedents_advanced(
+# Find similar decisions with advanced analytics
+similar_decisions = context.graph_builder.find_similar_decisions(
     scenario="Framework selection",
-    use_kg_features=True
+    max_results=5
 )
+
+# Analyze decision impact and influence
+impact = context.graph_builder.analyze_decision_impact(decision_id)
+
+# Check compliance with business rules
+compliance = context.graph_builder.check_decision_rules({
+    "category": "technology_choice",
+    "confidence": 0.92
+})
 
 print(f"Memory stored: {memory_id}")
 print(f"Decision recorded: {decision_id}")
-print(f"Found {len(precedents)} precedents")
+print(f"Found {len(similar_decisions)} similar decisions")
+print(f"Compliance check: {compliance.get('compliant', False)}")
 ```
 
 **[📖 Full Quick Start](#-quick-start)** • **[🍳 Cookbook Examples](#-semantica-cookbook)** • **[💬 Join Discord](https://discord.gg/N7WmAuDH)** • **[⭐ Star Us](https://github.com/Hawksight-AI/semantica)**
@@ -136,71 +145,167 @@ print(f"Found {len(precedents)} precedents")
 
 - **Docling Support** — Document parsing with table extraction (PDF, DOCX, PPTX, XLSX)
 - **AWS Neptune** — Amazon Neptune graph database support with IAM authentication
+- **Apache AGE** — PostgreSQL graph extension backend (openCypher via SQL)
 - **Custom Ontology Import** — Import existing ontologies (OWL, RDF, Turtle, JSON-LD)
 
 > **Built for environments where every answer must be explainable and governed.**
 
 ---
 
-## 🧠 Context Module: Advanced Context Engineering
+## 🧠 Context Module: Advanced Context Engineering & Decision Intelligence
 
-The **Context Module** is Semantica's flagship component, providing sophisticated context management with **context graphs**, **decision tracking**, and **advanced knowledge engineering**.
+The **Context Module** is Semantica's flagship component, providing sophisticated context management with **context graphs**, **advanced decision tracking**, **knowledge graph analytics**, and **easy-to-use interfaces**.
 
 ### 🎯 Core Capabilities
 
 | **Feature** | **Description** | **Use Case** |
 |------------|-------------|------------|
 | **Context Graphs** | Structured knowledge representation with entity relationships | Knowledge management, decision support |
-| **Decision Tracking** | Complete decision lifecycle with precedent search | Banking approvals, healthcare decisions |
-| **KG Algorithms** | Advanced graph analytics (centrality, community detection) | Influence analysis, similarity search |
+| **Advanced Decision Tracking** | Complete decision lifecycle with precedent search, causal analysis, and policy enforcement | Banking approvals, healthcare decisions |
+| **Easy-to-Use Methods** | 10 convenience methods for common operations without complexity | Rapid development, user-friendly API |
+| **KG Algorithms** | Advanced graph analytics (centrality, community detection, Node2Vec) | Influence analysis, similarity search |
+| **Policy Engine** | Automated compliance checking with business rules and exception handling | Regulatory compliance, business rules |
 | **Vector Store Integration** | Hybrid search with custom similarity weights | Advanced retrieval and filtering |
 | **Memory Management** | Hierarchical memory with short-term and long-term storage | Agent conversation history |
 
-### 🚀 Advanced Features
+### 🚀 Enhanced Features
 
+- **Easy Decision Recording**: `add_decision()` with automatic entity linking
+- **Smart Precedent Search**: `find_similar_decisions()` with hybrid similarity
+- **Impact Analysis**: `analyze_decision_impact()` with influence scoring
+- **Policy Compliance**: `check_decision_rules()` with automated validation
+- **Causal Chains**: `trace_decision_chain()` for decision lineage
+- **Graph Analytics**: `get_node_importance()`, `analyze_connections()` for insights
 - **Hybrid Retrieval**: Combines vector search, graph traversal, and keyword matching
 - **Multi-Hop Reasoning**: Trace relationships across multiple graph hops
-- **Decision Influence Analysis**: Understand how decisions impact each other
-- **Policy Engine**: Enforce business rules and compliance automatically
-- **Causal Chain Analysis**: Trace decision causality and influence paths
-- **Entity Linking**: Resolve ambiguities and maintain consistent entity references
+- **Production Ready**: Comprehensive error handling and scalability
 
-### Examples
+### 🔧 Easy-to-Use API
 
 ```python
-# Banking Decision System
+# Simple usage with convenience methods
+from semantica.context import ContextGraph
+
+graph = ContextGraph(advanced_analytics=True)
+
+# Add decision with ease
+decision_id = graph.add_decision(
+    category="loan_approval",
+    scenario="Mortgage application",
+    reasoning="Good credit score",
+    outcome="approved",
+    confidence=0.95
+)
+
+# Find similar decisions
+similar = graph.find_similar_decisions("mortgage", max_results=5)
+
+# Analyze impact
+impact = graph.analyze_decision_impact(decision_id)
+
+# Check compliance
+compliance = graph.check_decision_rules({
+    "category": "loan_approval",
+    "confidence": 0.95
+})
+```
+
+### 🏢 Enterprise Integration
+
+```python
+# Full enterprise setup with AgentContext
 from semantica.context import AgentContext
+from semantica.vector_store import VectorStore
 
 context = AgentContext(
-    vector_store=vs,
-    knowledge_graph=kg,
-    enable_decision_tracking=True,
-    enable_kg_algorithms=True
+    vector_store=VectorStore(backend="faiss"),
+    knowledge_graph=ContextGraph(advanced_analytics=True),
+    decision_tracking=True,
+    kg_algorithms=True,
+    vector_store_features=True
 )
 
-# Record loan decision
+# Record decision with full context
 decision_id = context.record_decision(
-    category="mortgage_approval",
-    scenario="First-time homebuyer application",
-    reasoning="Strong credit score, stable employment",
-    outcome="approved",
-    confidence=0.94
+    category="fraud_detection",
+    scenario="Suspicious transaction pattern",
+    reasoning="Multiple high-value transactions in short timeframe",
+    outcome="flagged_for_review",
+    confidence=0.87,
+    entities=["transaction_123", "customer_456"]
 )
 
-# Find similar decisions with KG features
-precedents = context.find_precedents_advanced(
-    scenario="Mortgage application",
-    use_kg_features=True,
-    similarity_weights={"semantic": 0.5, "structural": 0.3, "category": 0.2}
+# Advanced precedent search with KG features
+precedents = context.find_precedents(
+    "suspicious transaction",
+    category="fraud_detection",
+    use_kg_features=True
 )
 
-# Analyze decision influence
+# Comprehensive influence analysis
 influence = context.analyze_decision_influence(decision_id)
 ```
 
 ---
 
-## 🚨 The Problem: The Semantic Gap
+## AgentContext - Your Agent's Brain
+
+The main interface that makes your agent intelligent. It handles memory, decisions, and knowledge organization automatically.
+
+### Quick Start
+```python
+from semantica.context import AgentContext
+from semantica.vector_store import VectorStore
+
+# Create your intelligent agent
+agent = AgentContext(vector_store=VectorStore(backend="inmemory", dimension=384))
+
+# Your agent can now remember things
+memory_id = agent.store("User asked about Python programming")
+print(f"Agent remembered: {memory_id}")
+
+# And find information when needed
+results = agent.retrieve("Python tutorials")
+print(f"Agent found {len(results)} relevant memories")
+```
+
+### Easy Decision Learning
+```python
+# Your agent learns from its decisions
+decision_id = agent.record_decision(
+    category="content_recommendation",
+    scenario="User wants Python tutorial",
+    reasoning="User mentioned being a beginner",
+    outcome="recommended_basics",
+    confidence=0.85
+)
+
+# Your agent can now find similar past decisions
+similar_decisions = agent.find_precedents("Python tutorial", limit=3)
+print(f"Agent found {len(similar_decisions)} similar past decisions")
+```
+
+### Getting Smarter Over Time
+```python
+# Enable all learning features
+smart_agent = AgentContext(
+    vector_store=vector_store,
+    decision_tracking=True,    # Learn from decisions
+    graph_expansion=True,      # Find related information
+    advanced_analytics=True,   # Understand patterns
+    kg_algorithms=True,        # Advanced analysis
+    vector_store_features=True
+)
+
+# Get insights about your agent's learning
+insights = smart_agent.get_context_insights()
+print(f"Total decisions learned: {insights.get('total_decisions', 0)}")
+print(f"Decision categories: {list(insights.get('categories', {}).keys())}")
+```
+
+---
+
+## The Problem: The Semantic Gap
 
 ### Most AI systems fail in high-stakes domains because they operate on **text similarity**, not **meaning**.
 
@@ -246,44 +351,45 @@ The **semantic gap** is the fundamental disconnect between what AI systems can p
 
 ---
 
-## 🆚 Semantica vs Traditional RAG
+## Semantica vs Traditional RAG
 
 | Feature | Traditional RAG | Semantica |
 |:--------|:----------------|:----------|
-| **Reasoning** | ❌ Black-box answers | ✅ Explainable reasoning paths |
-| **Provenance** | ❌ No provenance | ✅ W3C PROV-O compliant lineage tracking |
-| **Search** | ⚠️ Vector similarity only | ✅ Semantic + graph reasoning |
-| **Quality** | ❌ No conflict handling | ✅ Explicit contradiction detection |
-| **Safety** | ⚠️ Unsafe for high-stakes | ✅ Designed for governed environments |
-| **Compliance** | ❌ No audit trails | ✅ Complete audit trails with integrity verification |
+| **Reasoning** | Black-box answers | Explainable reasoning paths |
+| **Provenance** | No provenance | W3C PROV-O compliant lineage tracking |
+| **Search** | Vector similarity only | Semantic + graph reasoning |
+| **Quality** | No conflict handling | Explicit contradiction detection |
+| **Safety** | Unsafe for high-stakes | Designed for governed environments |
+| **Compliance** | No audit trails | Complete audit trails with integrity verification |
 
 ---
 
-## 🧩 Semantica Architecture
+## Semantica Architecture
 
-### 1️⃣ Input Layer — Governed Ingestion
-- 📄 **Multiple Formats** — PDFs, DOCX, HTML, JSON, CSV, Excel, PPTX
-- 🔧 **Docling Support** — Docling parser for table extraction
-- 💾 **Data Sources** — Databases, APIs, streams, archives, web content
-- 🎨 **Media Support** — Image parsing with OCR, audio/video metadata extraction
-- 📊 **Single Pipeline** — Unified ingestion with metadata and source tracking
+### Input Layer — Governed Ingestion
+- **Multiple Formats** — PDFs, DOCX, HTML, JSON, CSV, Excel, PPTX
+- **Docling Support** — Docling parser for table extraction
+- **Data Sources** — Databases, APIs, streams, archives, web content
+- **Media Support** — Image parsing with OCR, audio/video metadata extraction
+- **Single Pipeline** — Unified ingestion with metadata and source tracking
 
-### 2️⃣ Semantic Layer — Trust & Reasoning Engine
-- 🔍 **Entity Extraction** — NER, normalization, classification
-- 🔗 **Relationship Discovery** — Triplet generation, semantic links
-- 📐 **Ontology Induction** — Automated domain rule generation
-- 🔄 **Deduplication** — Jaro-Winkler similarity, conflict resolution
-- ✅ **Quality Assurance** — Conflict detection, validation
-- 📊 **Provenance Tracking** — W3C PROV-O compliant lineage tracking across all modules
-- 🧠 **Reasoning Traces** — Explainable inference paths
-- 🔐 **Change Management** — Version control with audit trails, checksums, compliance support
+### Semantic Layer — Trust & Reasoning Engine
+- **Entity Extraction** — NER, normalization, classification
+- **Relationship Discovery** — Triplet generation, semantic links
+- **Ontology Induction** — Automated domain rule generation
+- **Deduplication** — Jaro-Winkler similarity, conflict resolution
+- **Quality Assurance** — Conflict detection, validation
+- **Provenance Tracking** — W3C PROV-O compliant lineage tracking across all modules
+- **Reasoning Traces** — Explainable inference paths
+- **Change Management** — Version control with audit trails, checksums, compliance support
 
-### 3️⃣ Output Layer — Auditable Knowledge Assets
-- 📊 **Knowledge Graphs** — Queryable, temporal, explainable
-- 📐 **OWL Ontologies** — HermiT/Pellet validated, custom ontology import support
-- 🔢 **Vector Embeddings** — FastEmbed by default
-- ☁️ **AWS Neptune** — Amazon Neptune graph database support
-- 🔍 **Provenance** — Every AI response links back to:
+### Output Layer — Auditable Knowledge Assets
+- **Knowledge Graphs** — Queryable, temporal, explainable
+- **OWL Ontologies** — HermiT/Pellet validated, custom ontology import support
+- **Vector Embeddings** — FastEmbed by default
+- **AWS Neptune** — Amazon Neptune graph database support
+- **Apache AGE** — PostgreSQL graph extension with openCypher support
+- **Provenance** — Every AI response links back to:
   - 📄 Source documents
   - 🏷️ Extracted entities & relations
   - 📐 Ontology rules applied
@@ -291,27 +397,27 @@ The **semantic gap** is the fundamental disconnect between what AI systems can p
 
 ---
 
-## 🏥 Built for High-Stakes Domains
+## Built for High-Stakes Domains
 
 Designed for domains where **mistakes have real consequences** and **every decision must be accountable**:
 
-- **🏥 Healthcare & Life Sciences** — Clinical decision support, drug interaction analysis, medical literature reasoning, patient safety tracking
-- **💰 Finance & Risk** — Fraud detection, regulatory support (SOX, GDPR, MiFID II), credit risk assessment, algorithmic trading validation
-- **⚖️ Legal & Compliance** — Evidence-backed legal research, contract analysis, regulatory change tracking, case law reasoning
-- **🔒 Cybersecurity & Intelligence** — Threat attribution, incident response, security audit trails, intelligence analysis
-- **🏛️ Government & Defense** — Governed AI systems, policy decisions, classified information handling, defense intelligence
-- **🏭 Critical Infrastructure** — Power grid management, transportation safety, water treatment, emergency response
-- **🚗 Autonomous Systems** — Self-driving vehicles, drone navigation, robotics safety, industrial automation  
+- **Healthcare & Life Sciences** — Clinical decision support, drug interaction analysis, medical literature reasoning, patient safety tracking
+- **Finance & Risk** — Fraud detection, regulatory support (SOX, GDPR, MiFID II), credit risk assessment, algorithmic trading validation
+- **Legal & Compliance** — Evidence-backed legal research, contract analysis, regulatory change tracking, case law reasoning
+- **Cybersecurity & Intelligence** — Threat attribution, incident response, security audit trails, intelligence analysis
+- **Government & Defense** — Governed AI systems, policy decisions, classified information handling, defense intelligence
+- **Critical Infrastructure** — Power grid management, transportation safety, water treatment, emergency response
+- **Autonomous Systems** — Self-driving vehicles, drone navigation, robotics safety, industrial automation  
 
 ---
 
 ## 👥 Who Uses Semantica?
 
-- **🤖 AI / ML Engineers** — Building explainable GraphRAG & agents
-- **⚙️ Data Engineers** — Creating governed semantic pipelines
-- **📊 Knowledge Engineers** — Managing ontologies & KGs at scale
-- **🏢 Enterprise Teams** — Requiring trustworthy AI infrastructure
-- **🛡️ Risk & Compliance Teams** — Needing audit-ready systems  
+- **AI / ML Engineers** — Building explainable GraphRAG & agents
+- **Data Engineers** — Creating governed semantic pipelines
+- **Knowledge Engineers** — Managing ontologies & KGs at scale
+- **Enterprise Teams** — Requiring trustworthy AI infrastructure
+- **Risk & Compliance Teams** — Needing audit-ready systems  
 
 ---
 
@@ -509,13 +615,13 @@ results = vector_store.search(query="supply chain", top_k=5)
 
 ### Graph Store & Triplet Store
 
-> **Neo4j, FalkorDB, Amazon Neptune** • **SPARQL queries** • **RDF triplets**
+> **Neo4j, FalkorDB, Amazon Neptune, Apache AGE** • **SPARQL queries** • **RDF triplets**
 
 ```python
 from semantica.graph_store import GraphStore
 from semantica.triplet_store import TripletStore
 
-# Graph Store (Neo4j, FalkorDB)
+# Graph Store (Neo4j, FalkorDB, Apache AGE)
 graph_store = GraphStore(backend="neo4j", uri="bolt://localhost:7687", user="neo4j", password="password")
 graph_store.add_nodes([{"id": "n1", "labels": ["Person"], "properties": {"name": "Alice"}}])
 
@@ -536,6 +642,15 @@ neptune_store.add_nodes([
 
 # Query Operations
 result = neptune_store.execute_query("MATCH (p:Person) RETURN p.name, p.age")
+
+# Apache AGE Graph Store (PostgreSQL + openCypher)
+age_store = GraphStore(
+    backend="age",
+    connection_string="host=localhost dbname=agedb user=postgres password=secret",
+    graph_name="semantica",
+)
+age_store.connect()
+age_store.create_node(labels=["Person"], properties={"name": "Alice", "age": 30})
 
 # Triplet Store (Blazegraph, Jena, RDF4J)
 triplet_store = TripletStore(backend="blazegraph", endpoint="http://localhost:9999/blazegraph")
@@ -592,12 +707,12 @@ is_valid = kg_manager.verify_checksum(snapshot)
 ```
 
 **What We Provide:**
-- 🔐 **Persistent Storage** — SQLite and in-memory backends implemented
-- 📊 **Detailed Diffs** — Entity-level and relationship-level change tracking
-- ✅ **Data Integrity** — SHA-256 checksums with tamper detection
-- 📝 **Standardized Metadata** — ChangeLogEntry with author, timestamp, description
-- ⚡ **Performance Tested** — Tested with large-scale entity datasets
-- 🧪 **Test Coverage** — Comprehensive test coverage covering core functionality
+- **Persistent Storage** — SQLite and in-memory backends implemented
+- **Detailed Diffs** — Entity-level and relationship-level change tracking
+- **Data Integrity** — SHA-256 checksums with tamper detection
+- **Standardized Metadata** — ChangeLogEntry with author, timestamp, description
+- **Performance Tested** — Tested with large-scale entity datasets
+- **Test Coverage** — Comprehensive test coverage covering core functionality
 
 **Compliance Note:** Provides technical infrastructure (audit trails, checksums, temporal tracking) that supports compliance efforts for HIPAA, SOX, FDA 21 CFR Part 11. Organizations must implement additional policies and procedures for full regulatory compliance.
 
@@ -713,11 +828,11 @@ retriever = context.retriever  # Access underlying ContextRetriever
 results = retriever.retrieve(
     query="What is the user building?",
     max_results=10,
-    use_graph_expansion=True
+    graph_expansion=True
 )
 
 # Retrieve with context expansion
-results = context.retrieve("What is the user building?", use_graph_expansion=True)
+results = context.retrieve("What is the user building?", graph_expansion=True)
 
 # Query with reasoning and LLM-generated responses
 llm_provider = Groq(model="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"))
@@ -732,6 +847,106 @@ reasoned_result = context.query_with_reasoning(
 - **ContextGraph**: Builds and manages context graphs from entities and relationships for enhanced retrieval
 - **ContextRetriever**: Performs hybrid retrieval combining vector search, graph traversal, and memory for optimal context relevance
 - **AgentContext**: High-level interface integrating Context Graph and Context Retriever for GraphRAG applications
+
+#### Context Graphs: Advanced Decision Tracking & Analytics
+
+```python
+from semantica.context import AgentContext, ContextGraph
+from semantica.vector_store import VectorStore
+
+# Initialize with advanced decision tracking
+context = AgentContext(
+    vector_store=VectorStore(backend="inmemory", dimension=128),
+    knowledge_graph=ContextGraph(advanced_analytics=True),
+    decision_tracking=True,
+    kg_algorithms=True,  # Enable advanced graph analytics
+)
+
+# Easy decision recording with convenience methods
+decision_id = context.graph_builder.add_decision(
+    category="credit_approval",
+    scenario="High-risk credit limit increase",
+    reasoning="Recent velocity-check failure and prior fraud flag",
+    outcome="rejected",
+    confidence=0.78,
+    entities=["customer:jessica_norris"],
+)
+
+# Find similar decisions with advanced analytics
+similar_decisions = context.graph_builder.find_similar_decisions(
+    scenario="credit increase",
+    category="credit_approval",
+    max_results=5,
+)
+
+# Analyze decision impact and influence
+impact_analysis = context.graph_builder.analyze_decision_impact(decision_id)
+node_importance = context.graph_builder.get_node_importance("customer:jessica_norris")
+
+# Check compliance with business rules
+compliance = context.graph_builder.check_decision_rules({
+    "category": "credit_approval",
+    "scenario": "Credit limit increase",
+    "reasoning": "Risk assessment completed",
+    "outcome": "rejected",
+    "confidence": 0.78
+})
+```
+
+**Enhanced Features:**
+- **Easy-to-Use Methods**: 10 convenience methods for common operations
+- **Decision Analytics**: Influence analysis, centrality measures, community detection
+- **Policy Engine**: Automated compliance checking with business rules
+- **Causal Analysis**: Trace decision causality and impact chains
+- **Graph Analytics**: Advanced KG algorithms (Node2Vec, centrality, community detection)
+- **Hybrid Search**: Semantic + structural + category similarity
+- **Production Ready**: Scalable architecture with comprehensive error handling
+
+## Configuration Options
+
+### Simple Setup (Most Common)
+```python
+# Just memory and basic learning
+agent = AgentContext(vector_store=vector_store)
+```
+
+### Smart Setup (Recommended)
+```python
+# Memory + decision learning
+agent = AgentContext(
+    vector_store=vector_store,
+    decision_tracking=True,
+    graph_expansion=True
+)
+```
+
+### Complete Setup (Maximum Power)
+```python
+# Everything enabled
+agent = AgentContext(
+    vector_store=vector_store,
+    knowledge_graph=ContextGraph(advanced_analytics=True),
+    decision_tracking=True,
+    graph_expansion=True,
+    advanced_analytics=True,
+    kg_algorithms=True,
+    vector_store_features=True
+)
+```
+
+### ContextGraph Options
+```python
+# Basic knowledge graph
+graph = ContextGraph()
+
+# Advanced knowledge graph
+graph = ContextGraph(
+    advanced_analytics=True,      # Enable smart algorithms
+    centrality_analysis=True,     # Find important concepts
+    community_detection=True,     # Find groups of related concepts
+    node_embeddings=True          # Understand concept similarity
+)
+```
 
 **Core Notebooks:**
 - [**Context Module Introduction**](https://github.com/Hawksight-AI/semantica/tree/main/cookbook/introduction/19_Context_Module.ipynb) - Basic memory and storage.

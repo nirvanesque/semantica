@@ -5,6 +5,7 @@ This module provides schema setup utilities for decision tracking,
 including node labels, relationship types, and indexes for graph databases.
 """
 
+import json
 from typing import Dict, Any, List
 
 from ..graph_store import GraphStore
@@ -44,22 +45,51 @@ def create_decision_constraints(graph_store: GraphStore) -> None:
     constraints = [
         # Decision nodes
         "CREATE CONSTRAINT decision_id_unique IF NOT EXISTS FOR (d:Decision) REQUIRE d.decision_id IS UNIQUE",
-        
-        # Policy nodes  
-        "CREATE CONSTRAINT policy_id_unique IF NOT EXISTS FOR (p:Policy) REQUIRE p.policy_id IS UNIQUE",
-        
+
         # Exception nodes
         "CREATE CONSTRAINT exception_id_unique IF NOT EXISTS FOR (e:Exception) REQUIRE e.exception_id IS UNIQUE",
-        
+
         # ApprovalChain nodes
         "CREATE CONSTRAINT approval_id_unique IF NOT EXISTS FOR (a:ApprovalChain) REQUIRE a.approval_id IS UNIQUE",
-        
+
         # DecisionContext nodes
         "CREATE CONSTRAINT context_id_unique IF NOT EXISTS FOR (c:DecisionContext) REQUIRE c.context_id IS UNIQUE",
-        
+
         # Precedent nodes
-        "CREATE CONSTRAINT precedent_id_unique IF NOT EXISTS FOR (pr:Precedent) REQUIRE pr.precedent_id IS UNIQUE"
+        "CREATE CONSTRAINT precedent_id_unique IF NOT EXISTS FOR (pr:Precedent) REQUIRE pr.precedent_id IS UNIQUE",
+
+        # Immutable trace nodes
+        "CREATE CONSTRAINT decision_trace_id_unique IF NOT EXISTS FOR (t:DecisionTraceEvent) REQUIRE t.trace_id IS UNIQUE",
     ]
+
+    # Policy versioning needs (policy_id, version) identity. Keep legacy fallback for old backends.
+    try:
+        # Drop legacy constraint when possible so versioned policies can coexist.
+        graph_store.execute_query("DROP CONSTRAINT policy_id_unique IF EXISTS")
+    except Exception as e:
+        get_logger(__name__).warning(
+            "Failed to drop legacy policy_id_unique constraint before policy "
+            f"versioning migration: {e}"
+        )
+
+    try:
+        graph_store.execute_query(
+            "CREATE CONSTRAINT policy_identity_unique IF NOT EXISTS "
+            "FOR (p:Policy) REQUIRE (p.policy_id, p.version) IS UNIQUE"
+        )
+    except Exception as e:
+        get_logger(__name__).warning(
+            "Composite policy constraint not supported; falling back to legacy "
+            "policy_id uniqueness (policy versioning may be limited)"
+        )
+        try:
+            graph_store.execute_query(
+                "CREATE CONSTRAINT policy_id_unique IF NOT EXISTS FOR (p:Policy) REQUIRE p.policy_id IS UNIQUE"
+            )
+        except Exception as fallback_error:
+            get_logger(__name__).debug(
+                f"Policy constraint creation failed (may already exist): {fallback_error}"
+            )
     
     for constraint in constraints:
         try:
@@ -77,6 +107,15 @@ def create_decision_indexes(graph_store: GraphStore) -> None:
         graph_store: Graph database instance
     """
     indexes = [
+        # Explicit identity indexes (helps verification and non-constraint lookups)
+        "CREATE INDEX decision_id_index IF NOT EXISTS FOR (d:Decision) ON (d.decision_id)",
+        "CREATE INDEX policy_id_index IF NOT EXISTS FOR (p:Policy) ON (p.policy_id)",
+        "CREATE INDEX exception_id_index IF NOT EXISTS FOR (e:Exception) ON (e.exception_id)",
+        "CREATE INDEX approval_id_index IF NOT EXISTS FOR (a:ApprovalChain) ON (a.approval_id)",
+        "CREATE INDEX context_id_index IF NOT EXISTS FOR (c:DecisionContext) ON (c.context_id)",
+        "CREATE INDEX precedent_id_index IF NOT EXISTS FOR (pr:Precedent) ON (pr.precedent_id)",
+        "CREATE INDEX decision_trace_id_index IF NOT EXISTS FOR (t:DecisionTraceEvent) ON (t.trace_id)",
+
         # Decision indexes
         "CREATE INDEX decision_category_index IF NOT EXISTS FOR (d:Decision) ON (d.category)",
         "CREATE INDEX decision_timestamp_index IF NOT EXISTS FOR (d:Decision) ON (d.timestamp)",
@@ -111,6 +150,11 @@ def create_decision_indexes(graph_store: GraphStore) -> None:
         # Cross-system context indexes
         "CREATE INDEX cross_system_name_index IF NOT EXISTS FOR (c:CrossSystemContext) ON (c.system_name)",
         "CREATE INDEX cross_system_created_at_index IF NOT EXISTS FOR (c:CrossSystemContext) ON (c.created_at)",
+
+        # Decision trace indexes
+        "CREATE INDEX decision_trace_event_index IF NOT EXISTS FOR (t:DecisionTraceEvent) ON (t.event_index)",
+        "CREATE INDEX decision_trace_type_index IF NOT EXISTS FOR (t:DecisionTraceEvent) ON (t.event_type)",
+        "CREATE INDEX decision_trace_timestamp_index IF NOT EXISTS FOR (t:DecisionTraceEvent) ON (t.event_timestamp)",
         
         # Entity type indexes for general graph operations
         "CREATE INDEX entity_type_index IF NOT EXISTS FOR (n) ON (n.type)",
@@ -153,7 +197,11 @@ def verify_schema(graph_store: GraphStore) -> bool:
             "policy_id_index",
             "policy_category_index",
             "exception_id_index",
-            "approval_id_index"
+            "approval_id_index",
+            "decision_trace_id_index",
+            "decision_trace_event_index",
+            "decision_trace_type_index",
+            "decision_trace_timestamp_index",
         ]
         
         for index_name in index_checks:
@@ -178,6 +226,25 @@ def verify_schema(graph_store: GraphStore) -> bool:
                     logger.warning(f"Schema verification failed for {index_name}: {e}")
                     return False
         
+        # Verify policy constraint compatibility:
+        # prefer composite (policy_id, version), allow legacy policy_id uniqueness.
+        try:
+            constraints_result = graph_store.execute_query("SHOW CONSTRAINTS")
+            constraint_records = (
+                constraints_result.get("records", [])
+                if isinstance(constraints_result, dict)
+                else constraints_result
+            )
+            constraint_text = json.dumps(constraint_records, default=str).lower()
+            has_composite = "policy_identity_unique" in constraint_text
+            has_legacy = "policy_id_unique" in constraint_text
+            if not (has_composite or has_legacy):
+                logger.warning("Missing policy identity constraint (composite or legacy)")
+                return False
+        except Exception:
+            # Backend may not support SHOW CONSTRAINTS; skip hard failure here.
+            pass
+
         # Check for node labels
         label_checks = [
             "Decision",
@@ -185,7 +252,8 @@ def verify_schema(graph_store: GraphStore) -> bool:
             "Exception",
             "ApprovalChain",
             "DecisionContext",
-            "Precedent"
+            "Precedent",
+            "DecisionTraceEvent",
         ]
         
         for label in label_checks:
@@ -227,7 +295,7 @@ def get_schema_info() -> Dict[str, Any]:
                     "policy_id", "name", "description", "rules", "category",
                     "version", "created_at", "updated_at", "metadata"
                 ],
-                "constraints": ["policy_id_unique"],
+                "constraints": ["policy_identity_unique"],
                 "indexes": ["policy_id_index", "policy_category_index", "policy_version_index"]
             },
             "Exception": {
@@ -267,6 +335,19 @@ def get_schema_info() -> Dict[str, Any]:
                     "context_id", "system_name", "context_data", "created_at"
                 ],
                 "indexes": ["cross_system_name_index", "cross_system_created_at_index"]
+            },
+            "DecisionTraceEvent": {
+                "properties": [
+                    "trace_id", "decision_id", "event_index", "event_type",
+                    "event_timestamp", "event_payload", "previous_hash", "event_hash"
+                ],
+                "constraints": ["decision_trace_id_unique"],
+                "indexes": [
+                    "decision_trace_id_index",
+                    "decision_trace_event_index",
+                    "decision_trace_type_index",
+                    "decision_trace_timestamp_index"
+                ]
             }
         },
         "relationship_types": {
@@ -288,6 +369,9 @@ def get_schema_info() -> Dict[str, Any]:
             "Provenance relationships": [
                 "DERIVED_FROM", "INFLUENCED_BY", "BASED_ON"
             ],
+            "Decision trace relationships": [
+                "HAS_TRACE_EVENT", "NEXT_TRACE_EVENT"
+            ],
             "Entity and context relationships": [
                 "REPORTED_BY", "RELATES_TO", "ESCALATED_TO", "SIMILAR_TO"
             ],
@@ -302,13 +386,15 @@ def get_schema_info() -> Dict[str, Any]:
             "approval_id_index", "approval_method_index", "approval_approver_index",
             "context_id_index", "context_decision_id_index",
             "precedent_id_index", "precedent_source_index", "precedent_similarity_index",
+            "decision_trace_id_index", "decision_trace_event_index", "decision_trace_type_index", "decision_trace_timestamp_index",
             "cross_system_name_index", "cross_system_created_at_index",
             "entity_type_index", "entity_id_index", "relationship_strength_index",
             "temporal_before_index", "temporal_after_index", "temporal_during_index"
         ],
         "constraints": [
-            "decision_id_unique", "policy_id_unique", "exception_id_unique",
-            "approval_id_unique", "context_id_unique", "precedent_id_unique"
+            "decision_id_unique", "policy_identity_unique", "exception_id_unique",
+            "approval_id_unique", "context_id_unique", "precedent_id_unique",
+            "decision_trace_id_unique"
         ]
     }
 
@@ -383,11 +469,13 @@ def drop_decision_schema(graph_store: GraphStore) -> None:
         # Drop constraints
         constraints = [
             "DROP CONSTRAINT decision_id_unique IF EXISTS",
-            "DROP CONSTRAINT policy_id_unique IF EXISTS", 
+            "DROP CONSTRAINT policy_identity_unique IF EXISTS",
+            "DROP CONSTRAINT policy_id_unique IF EXISTS",
             "DROP CONSTRAINT exception_id_unique IF EXISTS",
             "DROP CONSTRAINT approval_id_unique IF EXISTS",
             "DROP CONSTRAINT context_id_unique IF EXISTS",
-            "DROP CONSTRAINT precedent_id_unique IF EXISTS"
+            "DROP CONSTRAINT precedent_id_unique IF EXISTS",
+            "DROP CONSTRAINT decision_trace_id_unique IF EXISTS",
         ]
         
         for constraint in constraints:
@@ -398,12 +486,22 @@ def drop_decision_schema(graph_store: GraphStore) -> None:
         
         # Drop indexes
         indexes = [
+            "DROP INDEX decision_id_index IF EXISTS",
             "DROP INDEX decision_category_index IF EXISTS",
             "DROP INDEX decision_timestamp_index IF EXISTS",
+            "DROP INDEX policy_id_index IF EXISTS",
             "DROP INDEX policy_category_index IF EXISTS",
             "DROP INDEX policy_version_index IF EXISTS",
+            "DROP INDEX exception_id_index IF EXISTS",
             "DROP INDEX exception_reason_index IF EXISTS",
-            "DROP INDEX approval_method_index IF EXISTS"
+            "DROP INDEX approval_id_index IF EXISTS",
+            "DROP INDEX approval_method_index IF EXISTS",
+            "DROP INDEX context_id_index IF EXISTS",
+            "DROP INDEX precedent_id_index IF EXISTS",
+            "DROP INDEX decision_trace_id_index IF EXISTS",
+            "DROP INDEX decision_trace_event_index IF EXISTS",
+            "DROP INDEX decision_trace_type_index IF EXISTS",
+            "DROP INDEX decision_trace_timestamp_index IF EXISTS"
         ]
         
         for index in indexes:
@@ -416,6 +514,7 @@ def drop_decision_schema(graph_store: GraphStore) -> None:
         cleanup_query = """
         MATCH (n) WHERE n:Decision OR n:Policy OR n:Exception OR n:ApprovalChain 
                      OR n:DecisionContext OR n:Precedent OR n:CrossSystemContext
+                     OR n:DecisionTraceEvent
         DETACH DELETE n
         """
         graph_store.execute_query(cleanup_query)

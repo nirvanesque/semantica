@@ -6,6 +6,8 @@ offering simple interfaces for common use cases.
 """
 
 from datetime import datetime
+import hashlib
+import json
 from typing import Any, Dict, List, Optional, Union
 
 from ..graph_store import GraphStore
@@ -215,7 +217,15 @@ def multi_hop_query(
 
 def capture_decision_trace(
     decision: Decision,
-    cross_system_context: Dict[str, Any]
+    cross_system_context: Dict[str, Any],
+    graph_store: Optional[GraphStore] = None,
+    entities: Optional[List[str]] = None,
+    source_documents: Optional[List[str]] = None,
+    policy_ids: Optional[Union[str, Dict[str, str], List[Union[str, Dict[str, str]]]]] = None,
+    exceptions: Optional[List[Dict[str, Any]]] = None,
+    approvals: Optional[List[Dict[str, Any]]] = None,
+    precedents: Optional[List[Dict[str, str]]] = None,
+    immutable_audit_log: bool = True,
 ) -> str:
     """
     Complete decision trace capture.
@@ -223,6 +233,16 @@ def capture_decision_trace(
     Args:
         decision: Decision object to capture
         cross_system_context: Cross-system context
+        graph_store: Optional graph store used to persist full trace
+        entities: Optional list of linked entities
+        source_documents: Optional list of source documents
+        policy_ids: Optional list of policy refs. Supports:
+            - "policy_id"
+            - {"policy_id": "...", "version": "..."}
+        exceptions: Optional list of exception records
+        approvals: Optional list of approval records
+        precedents: Optional list of precedent links
+        immutable_audit_log: Whether to append immutable hash-chained trace events
         
     Returns:
         Decision ID
@@ -230,14 +250,322 @@ def capture_decision_trace(
     logger = get_logger(__name__)
     
     try:
-        # This would typically use a global or context-specific graph store
-        # For now, return the decision ID as a placeholder
-        logger.info(f"Captured decision trace for: {decision.decision_id}")
-        return decision.decision_id
+        # Backward-compatible behavior: allow legacy call sites without graph_store.
+        if graph_store is None:
+            policy_refs = _normalize_policy_refs(policy_ids)
+            logger.warning(
+                "capture_decision_trace skipped persistence (no graph_store) | "
+                f"decision_id={decision.decision_id} "
+                f"decision_maker={decision.decision_maker} "
+                f"timestamp={decision.timestamp.isoformat() if hasattr(decision.timestamp, 'isoformat') else decision.timestamp} "
+                f"category={decision.category} "
+                f"outcome={decision.outcome} "
+                f"confidence={decision.confidence} "
+                f"cross_system_keys={list((cross_system_context or {}).keys())} "
+                f"policy_refs={policy_refs} "
+                f"exception_count={len(_normalize_record_list(exceptions))} "
+                f"approval_count={len(_normalize_record_list(approvals))} "
+                f"precedent_count={len(_normalize_precedents(precedents))} "
+                "mode=backward_compatible_non_persistent"
+            )
+            return decision.decision_id
+
+        recorder = DecisionRecorder(graph_store)
+        entities = _normalize_string_list(entities)
+        source_documents = _normalize_string_list(source_documents)
+        policy_refs = _normalize_policy_refs(policy_ids)
+        exceptions = _normalize_record_list(exceptions)
+        approvals = _normalize_record_list(approvals)
+        precedents = _normalize_precedents(precedents)
+
+        decision_id = recorder.record_decision(
+            decision=decision,
+            entities=entities,
+            source_documents=source_documents,
+        )
+
+        trace_events: List[Dict[str, Any]] = [
+            {
+                "event_type": "DECISION_RECORDED",
+                "payload": {
+                    "decision_id": decision_id,
+                    "category": decision.category,
+                    "outcome": decision.outcome,
+                    "confidence": decision.confidence,
+                    "decision_maker": decision.decision_maker,
+                    "entities": entities,
+                    "source_documents": source_documents,
+                },
+            }
+        ]
+
+        if cross_system_context:
+            recorder.capture_cross_system_context(decision_id, cross_system_context)
+            trace_events.append(
+                {
+                    "event_type": "CROSS_SYSTEM_CONTEXT_CAPTURED",
+                    "payload": {"systems": list(cross_system_context.keys())},
+                }
+            )
+
+        if policy_refs:
+            applied_policies = recorder.apply_policies(decision_id, policy_refs)
+            trace_events.append(
+                {
+                    "event_type": "POLICIES_APPLIED",
+                    "payload": {
+                        "policy_ids": [p.get("policy_id") for p in policy_refs],
+                        "applied_policies": applied_policies,
+                    },
+                }
+            )
+
+        if exceptions:
+            recorded_exception_ids: List[str] = []
+            for exception_data in exceptions:
+                exception_id = recorder.record_exception(
+                    decision_id=decision_id,
+                    policy_id=exception_data.get("policy_id", ""),
+                    reason=exception_data.get("reason", ""),
+                    approver=exception_data.get("approver", "system"),
+                    approval_method=exception_data.get("approval_method", "system"),
+                    justification=exception_data.get("justification", ""),
+                )
+                recorded_exception_ids.append(exception_id)
+            if recorded_exception_ids:
+                trace_events.append(
+                    {
+                        "event_type": "EXCEPTIONS_RECORDED",
+                        "payload": {"exception_ids": recorded_exception_ids},
+                    }
+                )
+
+        if approvals:
+            approvers = [a.get("approver", "system") for a in approvals]
+            methods = [a.get("approval_method", "system") for a in approvals]
+            contexts = [a.get("approval_context", "") for a in approvals]
+            if approvers:
+                recorder.record_approval_chain(
+                    decision_id=decision_id,
+                    approvers=approvers,
+                    methods=methods,
+                    contexts=contexts,
+                )
+                trace_events.append(
+                    {
+                        "event_type": "APPROVAL_CHAIN_RECORDED",
+                        "payload": {"approvers": approvers, "methods": methods},
+                    }
+                )
+
+        if precedents:
+            precedent_ids = [p.get("precedent_id", "") for p in precedents if p.get("precedent_id")]
+            relationship_types = [
+                p.get("relationship_type", "similar_scenario")
+                for p in precedents
+                if p.get("precedent_id")
+            ]
+            if precedent_ids:
+                recorder.link_precedents(decision_id, precedent_ids, relationship_types)
+                trace_events.append(
+                    {
+                        "event_type": "PRECEDENTS_LINKED",
+                        "payload": {"precedent_ids": precedent_ids},
+                    }
+                )
+
+        if immutable_audit_log:
+            _append_immutable_trace_events(graph_store, decision_id, trace_events, logger)
+
+        logger.info(f"Captured decision trace for: {decision_id}")
+        return decision_id
         
     except Exception as e:
         logger.error(f"Failed to capture decision trace: {e}")
         raise
+
+
+def _append_immutable_trace_events(
+    graph_store: GraphStore,
+    decision_id: str,
+    events: List[Dict[str, Any]],
+    logger: Any,
+) -> None:
+    """Append hash-chained trace events for immutable decision lineage."""
+    if not events:
+        return
+
+    previous_trace_id: Optional[str] = None
+    previous_hash = ""
+    next_index = 1
+
+    try:
+        previous_result = graph_store.execute_query(
+            """
+            MATCH (d:Decision {decision_id: $decision_id})-[:HAS_TRACE_EVENT]->(t:DecisionTraceEvent)
+            RETURN t.trace_id as trace_id, t.event_index as event_index, t.event_hash as event_hash
+            ORDER BY t.event_index DESC
+            LIMIT 1
+            """,
+            {"decision_id": decision_id},
+        )
+        records = previous_result.get("records", []) if isinstance(previous_result, dict) else previous_result
+        if records:
+            latest = records[0]
+            latest_map = latest.get("t", latest) if isinstance(latest, dict) else {}
+            previous_trace_id = latest_map.get("trace_id")
+            previous_hash = latest_map.get("event_hash", "") or ""
+            next_index = int(latest_map.get("event_index", 0) or 0) + 1
+    except Exception as e:
+        logger.warning(
+            "Failed to lookup previous immutable trace event; starting new chain "
+            f"for decision_id={decision_id}: {e}"
+        )
+        # Start a fresh chain if previous trace lookup fails.
+        previous_trace_id = None
+        previous_hash = ""
+        next_index = 1
+
+    for event in events:
+        event_type = event.get("event_type", "TRACE_EVENT")
+        payload = event.get("payload", {})
+        payload_json = json.dumps(payload, sort_keys=True, default=str)
+        event_timestamp = datetime.now().isoformat()
+        trace_id = f"{decision_id}:{next_index}"
+        hash_input = (
+            f"{decision_id}|{next_index}|{event_type}|{event_timestamp}|{payload_json}|{previous_hash}"
+        )
+        event_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+
+        graph_store.execute_query(
+            """
+            MATCH (d:Decision {decision_id: $decision_id})
+            CREATE (t:DecisionTraceEvent {
+                trace_id: $trace_id,
+                decision_id: $decision_id,
+                event_index: $event_index,
+                event_type: $event_type,
+                event_timestamp: $event_timestamp,
+                event_payload: $event_payload,
+                previous_hash: $previous_hash,
+                event_hash: $event_hash
+            })
+            MERGE (d)-[:HAS_TRACE_EVENT]->(t)
+            """,
+            {
+                "decision_id": decision_id,
+                "trace_id": trace_id,
+                "event_index": next_index,
+                "event_type": event_type,
+                "event_timestamp": event_timestamp,
+                "event_payload": payload_json,
+                "previous_hash": previous_hash,
+                "event_hash": event_hash,
+            },
+        )
+
+        if previous_trace_id:
+            graph_store.execute_query(
+                """
+                MATCH (prev:DecisionTraceEvent {trace_id: $prev_trace_id})
+                MATCH (curr:DecisionTraceEvent {trace_id: $curr_trace_id})
+                MERGE (prev)-[:NEXT_TRACE_EVENT]->(curr)
+                """,
+                {"prev_trace_id": previous_trace_id, "curr_trace_id": trace_id},
+            )
+
+        previous_trace_id = trace_id
+        previous_hash = event_hash
+        next_index += 1
+
+    logger.debug(f"Appended {len(events)} immutable trace events for {decision_id}")
+
+
+def _normalize_string_list(value: Optional[Union[str, List[str]]]) -> List[str]:
+    """Normalize optional string/list payloads to a clean list of strings."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [str(item) for item in value if item is not None and str(item)]
+    return []
+
+
+def _normalize_record_list(
+    value: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]]
+) -> List[Dict[str, Any]]:
+    """Normalize optional dict/list payloads to list[dict] for legacy callers."""
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _normalize_policy_refs(
+    value: Optional[Union[str, Dict[str, str], List[Union[str, Dict[str, str]]]]]
+) -> List[Dict[str, str]]:
+    """Normalize policy refs to [{policy_id, version?}] for version-safe matching."""
+    if value is None:
+        return []
+
+    raw_items: List[Union[str, Dict[str, str]]]
+    if isinstance(value, (str, dict)):
+        raw_items = [value]
+    elif isinstance(value, list):
+        raw_items = value
+    else:
+        return []
+
+    normalized: List[Dict[str, str]] = []
+    for item in raw_items:
+        if isinstance(item, str) and item:
+            normalized.append({"policy_id": item})
+        elif isinstance(item, dict):
+            policy_id = item.get("policy_id")
+            if not policy_id:
+                continue
+            ref: Dict[str, str] = {"policy_id": str(policy_id)}
+            if item.get("version") is not None and str(item.get("version")):
+                ref["version"] = str(item.get("version"))
+            normalized.append(ref)
+    return normalized
+
+
+def _normalize_precedents(
+    value: Optional[Union[str, Dict[str, str], List[Union[str, Dict[str, str]]]]]
+) -> List[Dict[str, str]]:
+    """Normalize precedents payload from legacy forms to structured records."""
+    if value is None:
+        return []
+
+    raw_items: List[Union[str, Dict[str, str]]]
+    if isinstance(value, (str, dict)):
+        raw_items = [value]
+    elif isinstance(value, list):
+        raw_items = value
+    else:
+        return []
+
+    normalized: List[Dict[str, str]] = []
+    for item in raw_items:
+        if isinstance(item, str) and item:
+            normalized.append(
+                {"precedent_id": item, "relationship_type": "similar_scenario"}
+            )
+        elif isinstance(item, dict) and item.get("precedent_id"):
+            normalized.append(
+                {
+                    "precedent_id": str(item.get("precedent_id")),
+                    "relationship_type": str(
+                        item.get("relationship_type", "similar_scenario")
+                    ),
+                }
+            )
+    return normalized
 
 
 def find_exception_precedents(
@@ -549,7 +877,7 @@ def enhance_agent_context_with_decisions(agent_context: AgentContext) -> None:
     logger = get_logger(__name__)
     
     try:
-        if not agent_context.config.get("enable_decision_tracking"):
+        if not agent_context.config.get("decision_tracking"):
             logger.warning("Decision tracking not enabled in AgentContext")
             return
         
