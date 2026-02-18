@@ -10,7 +10,7 @@
 [![PyPI](https://img.shields.io/pypi/v/semantica.svg)](https://pypi.org/project/semantica/)
 [![Total Downloads](https://static.pepy.tech/badge/semantica)](https://pepy.tech/project/semantica)
 [![CI](https://github.com/Hawksight-AI/semantica/workflows/CI/badge.svg)](https://github.com/Hawksight-AI/semantica/actions)
-[![Discord](https://img.shields.io/badge/Discord-Join-7289da?logo=discord&logoColor=white)](https://discord.gg/ggb7vWeP)
+[![Discord](https://img.shields.io/badge/Discord-Join-7289da?logo=discord&logoColor=white)](https://discord.gg/N7WmAuDH)
 
 ### ⭐ Give us a Star • 🍴 Fork us • 💬 Join our Discord
 
@@ -87,7 +87,7 @@ print(f"Found {len(similar_decisions)} similar decisions")
 print(f"Compliance check: {compliance.get('compliant', False)}")
 ```
 
-**[📖 Full Quick Start](#-quick-start)** • **[🍳 Cookbook Examples](#-semantica-cookbook)** • **[💬 Join Discord](https://discord.gg/ggb7vWeP)** • **[⭐ Star Us](https://github.com/Hawksight-AI/semantica)**
+**[📖 Full Quick Start](#-quick-start)** • **[🍳 Cookbook Examples](#-semantica-cookbook)** • **[💬 Join Discord](https://discord.gg/N7WmAuDH)** • **[⭐ Star Us](https://github.com/Hawksight-AI/semantica)**
 
 ---
 
@@ -1345,4 +1345,4 @@ Semantica is licensed under the **MIT License** - see the [LICENSE](https://gith
 **Built by the Semantica Community**
 
 
-[GitHub](https://github.com/Hawksight-AI/semantica) • [Discord](https://discord.gg/ggb7vWeP)
+[GitHub](https://github.com/Hawksight-AI/semantica) • [Discord](https://discord.gg/N7WmAuDH)
