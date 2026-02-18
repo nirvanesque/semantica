@@ -301,7 +301,7 @@ class PolicyEngine:
 
             policies: List[Policy] = []
             for data in latest_by_policy_id.values():
-                policies.append(self._dict_to_policy({
+                policy = self._dict_to_policy({
                     "policy_id": data.get("policy_id"),
                     "name": data.get("name"),
                     "description": data.get("description"),
@@ -311,7 +311,9 @@ class PolicyEngine:
                     "created_at": data.get("created_at"),
                     "updated_at": data.get("updated_at"),
                     "metadata": data.get("metadata", {})
-                }))
+                })
+                if self._policy_matches_entities(policy, entities):
+                    policies.append(policy)
 
             self.logger.info(f"Found {len(policies)} applicable policies for category {category}")
             return policies

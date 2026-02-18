@@ -223,6 +223,50 @@ class TestPolicyEngine:
         policies = policy_engine.get_applicable_policies(category, None)
 
         assert policies == []
+
+    def test_get_applicable_policies_context_graph_fallback_respects_entities(self):
+        """Test entity scoping is applied in find_nodes() fallback path."""
+        category = "credit_approval"
+        entities = ["customer:target"]
+
+        class _ContextGraphLike:
+            def find_nodes(self, node_type=None):
+                if node_type != "Policy":
+                    return []
+                return [
+                    {
+                        "metadata": {
+                            "policy_id": "policy_match",
+                            "name": "Scoped policy",
+                            "description": "Applies to target customer",
+                            "rules": {},
+                            "category": "credit_approval",
+                            "version": "1.0",
+                            "created_at": datetime.now().isoformat(),
+                            "updated_at": datetime.now().isoformat(),
+                            "metadata": {"entities": ["customer:target"]},
+                        }
+                    },
+                    {
+                        "metadata": {
+                            "policy_id": "policy_other",
+                            "name": "Other scoped policy",
+                            "description": "Applies elsewhere",
+                            "rules": {},
+                            "category": "credit_approval",
+                            "version": "1.0",
+                            "created_at": datetime.now().isoformat(),
+                            "updated_at": datetime.now().isoformat(),
+                            "metadata": {"entities": ["customer:other"]},
+                        }
+                    },
+                ]
+
+        engine = PolicyEngine(graph_store=_ContextGraphLike())
+        policies = engine.get_applicable_policies(category, entities)
+
+        assert len(policies) == 1
+        assert policies[0].policy_id == "policy_match"
     
     def test_check_compliance_success(self, policy_engine, mock_graph_store):
         """Test successful compliance checking."""
