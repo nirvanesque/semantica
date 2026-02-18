@@ -260,14 +260,22 @@ class PolicyEngine:
                 ORDER BY p.updated_at DESC
                 """
                 results = self.graph_store.execute_query(query, {"category": category})
+                records = self._extract_records(results)
 
                 policies = []
-                for record in results:
-                    policy_data = record.get("p", {})
-                    policies.append(self._dict_to_policy(policy_data))
-
-                if entities:
-                    pass
+                for record in records:
+                    policy_data = record.get("p") if isinstance(record, dict) else None
+                    if not isinstance(policy_data, dict):
+                        policy_data = record if isinstance(record, dict) else {}
+                    if not isinstance(policy_data, dict) or not policy_data.get("policy_id"):
+                        self.logger.debug(
+                            "Skipping malformed policy record in get_applicable_policies: "
+                            f"{record}"
+                        )
+                        continue
+                    policy = self._dict_to_policy(policy_data)
+                    if self._policy_matches_entities(policy, entities):
+                        policies.append(policy)
 
                 self.logger.info(f"Found {len(policies)} applicable policies for category {category}")
                 return policies
@@ -293,7 +301,7 @@ class PolicyEngine:
 
             policies: List[Policy] = []
             for data in latest_by_policy_id.values():
-                policies.append(self._dict_to_policy({
+                policy = self._dict_to_policy({
                     "policy_id": data.get("policy_id"),
                     "name": data.get("name"),
                     "description": data.get("description"),
@@ -303,7 +311,9 @@ class PolicyEngine:
                     "created_at": data.get("created_at"),
                     "updated_at": data.get("updated_at"),
                     "metadata": data.get("metadata", {})
-                }))
+                })
+                if self._policy_matches_entities(policy, entities):
+                    policies.append(policy)
 
             self.logger.info(f"Found {len(policies)} applicable policies for category {category}")
             return policies
@@ -311,6 +321,53 @@ class PolicyEngine:
         except Exception as e:
             self.logger.exception("Failed to get applicable policies")
             raise
+
+    def _extract_records(self, results: Any) -> List[Dict[str, Any]]:
+        """Normalize execute_query result shapes to record lists."""
+        if isinstance(results, dict):
+            records = results.get("records", [])
+            if not isinstance(records, list):
+                return []
+
+            # FalkorDB shape: {"records": [[...], ...], "header": ["col1", ...]}
+            header = results.get("header")
+            if (
+                isinstance(header, list)
+                and records
+                and all(isinstance(row, list) for row in records)
+            ):
+                normalized: List[Dict[str, Any]] = []
+                for row in records:
+                    row_map: Dict[str, Any] = dict(zip(header, row))
+                    normalized.append(row_map)
+                return normalized
+
+            return records
+        if isinstance(results, list):
+            return results
+        return []
+
+    def _policy_matches_entities(
+        self, policy: Policy, entities: Optional[List[str]]
+    ) -> bool:
+        """
+        Entity scoping for policies.
+        If no entity scope is defined on the policy, it is globally applicable.
+        """
+        if not entities:
+            return True
+
+        metadata = policy.metadata or {}
+        scoped_entities = (
+            metadata.get("entities")
+            or metadata.get("entity_ids")
+            or metadata.get("applies_to_entities")
+            or []
+        )
+        if not scoped_entities:
+            return True
+
+        return bool(set(str(e) for e in scoped_entities).intersection(set(entities)))
     
     def check_compliance(self, decision: Decision, policy_id: str) -> bool:
         """
