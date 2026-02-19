@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-alpha] - 2026-02-19
+
+### Added / Changed
+
+- **Decision Tracking System**: Complete decision lifecycle management with audit trails and provenance tracking
+- **Advanced KG Algorithms**: Node2Vec embeddings, centrality analysis, community detection for decision insights  
+- **Enhanced Context Module**: Unified AgentContext with granular feature flags and decision tracking integration
+- **Vector Store Features**: Hybrid search combining semantic, structural, and category similarity
+- **Policy Management**: Versioning, compliance checking, and exception handling
+- **Production Ready Architecture**: Scalable design with comprehensive error handling and validation
+
+### Fixed
+
+- Fixed import issues in test suite (ProvenanceTracker location fixes)
+- Fixed causal analyzer validation (max_depth bounds checking)
+- Fixed test compatibility with updated method signatures
+- Fixed mock object setup in test suites
+- Comprehensive test suite fixes for decision tracking features
+
+### Testing
+
+- 113+ tests passing across context and core modules
+- Comprehensive decision tracking test coverage
+- Enhanced error handling and edge case testing
+- Fixed all critical test failures for release readiness
+
+### Documentation
+
+- Enhanced context module documentation
+- Updated API references for decision tracking features
+- Comprehensive usage guides and examples
+
 - Fixed: Context Graphs decision tracking bugs and added comprehensive test coverage (PR #315 by @KaifAhmad1)
   - Fixed empty/None decision ID handling in ContextGraph.add_decision()
   - Fixed None metadata handling to prevent TypeError
