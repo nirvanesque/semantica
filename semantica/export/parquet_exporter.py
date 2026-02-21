@@ -255,7 +255,13 @@ class ParquetExporter:
                 )
 
                 # If no schema provided, try to auto-detect from data structure
-                if schema is None and data:
+                if schema is None:
+                    if not data:
+                        raise ValidationError(
+                            "Cannot export empty list without explicit schema. "
+                            "Provide a schema or use "
+                            "export_entities/export_relationships."
+                        )
                     sample = data[0]
                     has_source = any(
                         k in sample for k in ["source_id", "source", "from_id", "from"]
@@ -344,15 +350,55 @@ class ParquetExporter:
                 self.logger.warning(f"Entity {i} missing ID, skipping")
                 continue
 
+            # Normalize confidence to float, with validation
+            raw_confidence = entity.get("confidence")
+            confidence_value = None
+            if raw_confidence is not None:
+                try:
+                    confidence_value = float(raw_confidence)
+                except (TypeError, ValueError):
+                    self.logger.warning(
+                        f"Entity {i} has non-numeric confidence {raw_confidence!r}; "
+                        "setting to None"
+                    )
+                    confidence_value = None
+
+            # Normalize start/end to int, with validation
+            start_value = entity.get("start")
+            if start_value is None:
+                start_value = entity.get("start_offset")
+            if start_value is not None:
+                try:
+                    start_value = int(start_value)
+                except (TypeError, ValueError):
+                    self.logger.warning(
+                        f"Entity {i} has non-integer start {start_value!r}; "
+                        "setting to None"
+                    )
+                    start_value = None
+
+            end_value = entity.get("end")
+            if end_value is None:
+                end_value = entity.get("end_offset")
+            if end_value is not None:
+                try:
+                    end_value = int(end_value)
+                except (TypeError, ValueError):
+                    self.logger.warning(
+                        f"Entity {i} has non-integer end {end_value!r}; "
+                        "setting to None"
+                    )
+                    end_value = None
+
             normalized = {
                 "id": str(entity_id),
                 "text": (
                     entity.get("text") or entity.get("label") or entity.get("name")
                 ),
                 "type": entity.get("type") or entity.get("entity_type"),
-                "confidence": entity.get("confidence"),
-                "start": entity.get("start") or entity.get("start_offset"),
-                "end": entity.get("end") or entity.get("end_offset"),
+                "confidence": confidence_value,
+                "start": start_value,
+                "end": end_value,
             }
 
             # Convert metadata to struct format (keys and values lists)
@@ -373,6 +419,12 @@ class ParquetExporter:
         self.logger.debug(
             f"Normalized {len(normalized_entities)} entity(ies) for Parquet export"
         )
+
+        if not normalized_entities:
+            raise ValidationError(
+                "No valid entities to export after normalization. "
+                "All entities were skipped due to missing IDs or invalid format."
+            )
 
         self._write_parquet(
             normalized_entities, file_path, schema=ENTITY_SCHEMA, **options
@@ -451,6 +503,19 @@ class ParquetExporter:
             # Generate ID if missing
             rel_id = rel.get("id") or rel.get("relationship_id") or f"rel_{i}"
 
+            # Normalize confidence to float, with validation
+            raw_confidence = rel.get("confidence")
+            confidence_value = None
+            if raw_confidence is not None:
+                try:
+                    confidence_value = float(raw_confidence)
+                except (TypeError, ValueError):
+                    self.logger.warning(
+                        f"Relationship {i} has non-numeric confidence "
+                        f"{raw_confidence!r}; setting to None"
+                    )
+                    confidence_value = None
+
             normalized = {
                 "id": str(rel_id),
                 "source_id": str(source_id),
@@ -460,7 +525,7 @@ class ParquetExporter:
                     or rel.get("relationship_type")
                     or rel.get("relation_type")
                 ),
-                "confidence": rel.get("confidence"),
+                "confidence": confidence_value,
             }
 
             # Convert metadata to struct format (keys and values lists)
@@ -481,6 +546,13 @@ class ParquetExporter:
         self.logger.debug(
             f"Normalized {len(normalized_rels)} relationship(s) for Parquet export"
         )
+
+        if not normalized_rels:
+            raise ValidationError(
+                "No valid relationships to export after normalization. "
+                "Ensure each relationship is a dictionary and includes valid "
+                "'source'/'source_id' and 'target'/'target_id' fields."
+            )
 
         self._write_parquet(
             normalized_rels, file_path, schema=RELATIONSHIP_SCHEMA, **options

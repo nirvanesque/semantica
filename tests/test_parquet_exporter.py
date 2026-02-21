@@ -150,17 +150,41 @@ class TestParquetExporter(unittest.TestCase):
 
     def test_export_entities_with_compression(self):
         """Test entity export with different compression codecs."""
+        import pyarrow.parquet as pq_module
+
         for compression in ["snappy", "gzip", "brotli", "zstd", "lz4", "none"]:
             with self.subTest(compression=compression):
-                exporter = ParquetExporter(compression=compression)
-                output_path = Path(self.test_dir) / f"entities_{compression}.parquet"
+                # Check if codec is available in this pyarrow build
+                try:
+                    # Test codec availability by checking compression opts
+                    if compression != "none":
+                        codec_available = compression.upper() in dir(
+                            pq_module.lib.Codec
+                        )
+                        if not codec_available:
+                            self.skipTest(
+                                f"Codec {compression} not available in " "pyarrow build"
+                            )
+                except AttributeError:
+                    # If we can't check, just try and skip on error
+                    pass
 
-                exporter.export_entities(self.entities, str(output_path))
-                self.assertTrue(output_path.exists())
+                try:
+                    exporter = ParquetExporter(compression=compression)
+                    output_path = (
+                        Path(self.test_dir) / f"entities_{compression}.parquet"
+                    )
 
-                # Verify file can be read
-                table = pq.read_table(str(output_path))
-                self.assertEqual(table.num_rows, 2)
+                    exporter.export_entities(self.entities, str(output_path))
+                    self.assertTrue(output_path.exists())
+
+                    # Verify file can be read
+                    table = pq.read_table(str(output_path))
+                    self.assertEqual(table.num_rows, 2)
+                except (ImportError, RuntimeError, OSError) as e:
+                    if "codec" in str(e).lower() or "compression" in str(e).lower():
+                        self.skipTest(f"Codec {compression} not available: {e}")
+                    raise
 
     def test_export_entities_empty(self):
         """Test exporting empty entities list raises ValidationError."""
@@ -435,6 +459,87 @@ class TestParquetExporter(unittest.TestCase):
         # Only 2 valid relationships should be exported
         table = pq.read_table(str(output_path))
         self.assertEqual(table.num_rows, 2)
+
+    def test_all_entities_skipped_raises_error(self):
+        """Test that exporting entities with all skipped raises ValidationError."""
+        exporter = ParquetExporter()
+        output_path = Path(self.test_dir) / "all_skipped.parquet"
+
+        # All entities missing IDs
+        bad_entities = [
+            {"text": "No ID 1"},
+            {"text": "No ID 2"},
+            "not a dict",
+        ]
+
+        with self.assertRaises(ValidationError) as cm:
+            exporter.export_entities(bad_entities, str(output_path))
+
+        self.assertIn("No valid entities", str(cm.exception))
+
+    def test_all_relationships_skipped_raises_error(self):
+        """Test that exporting relationships with all skipped raises ValidationError."""
+        exporter = ParquetExporter()
+        output_path = Path(self.test_dir) / "all_rels_skipped.parquet"
+
+        # All relationships missing source or target
+        bad_rels = [
+            {"id": "r1", "source_id": "e1"},  # Missing target
+            {"id": "r2", "target_id": "e2"},  # Missing source
+            "not a dict",
+        ]
+
+        with self.assertRaises(ValidationError) as cm:
+            exporter.export_relationships(bad_rels, str(output_path))
+
+        self.assertIn("No valid relationships", str(cm.exception))
+
+    def test_invalid_confidence_values_handled(self):
+        """Test that invalid confidence values are handled gracefully."""
+        exporter = ParquetExporter()
+        output_path = Path(self.test_dir) / "invalid_confidence.parquet"
+
+        entities_with_invalid_conf = [
+            {"id": "e1", "text": "Valid", "confidence": 0.9},
+            {"id": "e2", "text": "String conf", "confidence": "invalid"},
+            {"id": "e3", "text": "None conf", "confidence": None},
+        ]
+
+        exporter.export_entities(entities_with_invalid_conf, str(output_path))
+
+        table = pq.read_table(str(output_path))
+        self.assertEqual(table.num_rows, 3)
+        # First entity has valid confidence
+        self.assertEqual(table.column("confidence")[0].as_py(), 0.9)
+        # Second entity has invalid confidence (should be None)
+        self.assertIsNone(table.column("confidence")[1].as_py())
+        # Third entity has None confidence
+        self.assertIsNone(table.column("confidence")[2].as_py())
+
+    def test_invalid_start_end_values_handled(self):
+        """Test that invalid start/end offset values are handled gracefully."""
+        exporter = ParquetExporter()
+        output_path = Path(self.test_dir) / "invalid_offsets.parquet"
+
+        entities_with_invalid_offsets = [
+            {"id": "e1", "text": "Valid", "start": 0, "end": 10},
+            {"id": "e2", "text": "String offsets", "start": "abc", "end": "def"},
+            {"id": "e3", "text": "None offsets", "start": None, "end": None},
+        ]
+
+        exporter.export_entities(entities_with_invalid_offsets, str(output_path))
+
+        table = pq.read_table(str(output_path))
+        self.assertEqual(table.num_rows, 3)
+        # First entity has valid offsets
+        self.assertEqual(table.column("start")[0].as_py(), 0)
+        self.assertEqual(table.column("end")[0].as_py(), 10)
+        # Second entity has invalid offsets (should be None)
+        self.assertIsNone(table.column("start")[1].as_py())
+        self.assertIsNone(table.column("end")[1].as_py())
+        # Third entity has None offsets
+        self.assertIsNone(table.column("start")[2].as_py())
+        self.assertIsNone(table.column("end")[2].as_py())
 
 
 if __name__ == "__main__":

@@ -126,11 +126,10 @@ Convenience Functions:
     - export_lpg: LPG export wrapper
     - generate_report: Report generation wrapper
 
-Example Usage:, export_parquet
+Example Usage:
     >>> # Using convenience function
     >>> export_lpg(kg, "output.cypher", method="cypher")
-    >>> export_parquet(entities, "output.parquet", compression="snappy
-    >>> export_lpg(kg, "output.cypher", method="cypher")
+    >>> export_parquet(entities, "output.parquet", compression="snappy")
     >>> # Using classes directly
     >>> json_exporter = JSONExporter()
     >>> json_exporter.export_knowledge_graph(kg, "output.json")
@@ -201,7 +200,6 @@ __all__ = [
     "NamespaceManager",
     "JSONExporter",
     "CSVExporter",
-    "ArrowExporter",
     "ParquetExporter",
     "GraphExporter",
     "SemanticNetworkYAMLExporter",
