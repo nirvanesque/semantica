@@ -853,6 +853,7 @@ def export_knowledge_graph(
             ".owl": "owl-xml",
             ".cypher": "cypher",
             ".aql": "aql",
+            ".parquet": "parquet",
         }
         format = format_map.get(ext, "json")
 
@@ -873,6 +874,8 @@ def export_knowledge_graph(
         export_lpg(knowledge_graph, file_path, method=method, **kwargs)
     elif format == "aql":
         export_arango(knowledge_graph, file_path, method=method, **kwargs)
+    elif format == "parquet":
+        export_parquet(knowledge_graph, file_path, method=method, **kwargs)
     else:
         raise ProcessingError(f"Unknown export format: {format}")
 

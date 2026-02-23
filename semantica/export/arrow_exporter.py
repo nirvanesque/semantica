@@ -376,12 +376,10 @@ class ArrowExporter:
                 try:
                     confidence = float(confidence)
                 except (TypeError, ValueError):
-                    msg = (
                     self.logger.warning(
                         f"Invalid confidence value for entity {i}: "
                         f"{confidence}. Setting to None."
                     )
-                    self.logger.warning(msg)
                     confidence = None
 
             # Convert start/end to int
@@ -485,12 +483,10 @@ class ArrowExporter:
                 try:
                     confidence = float(confidence)
                 except (TypeError, ValueError):
-                    msg = (
                     self.logger.warning(
                         f"Invalid confidence value for relationship {i}: "
                         f"{confidence}. Setting to None."
                     )
-                    self.logger.warning(msg)
                     confidence = None
 
             # Convert metadata dict to Arrow struct
