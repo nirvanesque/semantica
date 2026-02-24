@@ -134,8 +134,8 @@ class SimilarityCalculator:
         self.prefilter_enabled = self.config.get("prefilter_enabled", False)
         self.score_breakdown_enabled = self.config.get("score_breakdown_enabled", False)
         self.prefilter_thresholds = self.config.get("prefilter_thresholds", {
-            "min_length_ration": 0.3,
-            "min_overlap_ratio": 0.0,
+            "min_length_ratio": 0.3,
+            "min_token_overlap_ratio": 0.0,
             "required_shared_token": False
         })
 

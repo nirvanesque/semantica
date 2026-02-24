@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fixed: Context Graphs decision tracking bugs and added comprehensive test coverage (PR #315 by @KaifAhmad1)
+- **Two-Stage Scoring Prefilter** (PR #339 by @ZohaibHassan16):
+  - Implemented opt-in two-stage scoring with fast prefilter gates to eliminate expensive semantic scoring for obvious non-matches
+  - Prefilter gates: type mismatch detection, name length ratio validation, token overlap requirements
+  - Performance improvements: 18-25% faster batch processing with prefilter enabled
+  - Configurable thresholds: `min_length_ratio`, `min_token_overlap_ratio`, `required_shared_token`
+  - Enhanced explainability with score breakdown and rejection reasons in metadata
+  - Complete backward compatibility with default `prefilter_enabled=False`
+
+- **Candidate Generation v2 with Multi-Key Blocking** (PR #338 by @ZohaibHassan16):
+  - Implemented opt-in candidate generation strategies (`legacy`, `blocking_v2`, `hybrid_v2`) to address O(N²) pair explosion during deduplication
+  - Multi-key blocking with normalized token prefixes, type-aware keys, and optional phonetic (Soundex) blocking
+  - Deterministic candidate budgeting with `max_candidates_per_entity` limit using stable sorting
+  - Efficient pair generation with set-based deduplication across overlapping blocks
+  - Performance improvements: 63.6% faster in worst-case scenarios (0.259s → 0.094s for 100 entities)
+  - Complete backward compatibility with default `candidate_strategy="legacy"`
+  - Added configuration options: `blocking_keys`, `enable_phonetic_blocking`, `max_candidates_per_entity`
+
+- **ArangoDB AQL Export Support** (PR #342 by @tibisabau):
+  - Full-featured ArangoDB AQL exporter with 642 lines of production-ready code
+  - Comprehensive AQL INSERT statement generation for vertices and edges
+  - Configurable collection names with validation and sanitization
+  - Batch processing support for large knowledge graphs (default: 1000)
+  - Added export_arango() convenience function for easy access
+  - Enhanced unified export with AQL format support and .aql auto-detection
+  - Integrated with method registry for extensibility
+  - 17 comprehensive test cases with 100% pass rate
+  - Enterprise-grade ArangoDB multi-model database integration
+
+- **Apache Parquet Export Support** (PR #343 by @tibisabau):
+  - Full-featured Apache Parquet exporter with 701 lines of production-ready code
+  - Columnar storage format optimized for analytics and data warehousing
+  - Configurable compression codecs (snappy, gzip, brotli, zstd, lz4, none)
+  - Explicit Arrow schemas with type safety and consistency
+  - Field normalization for varied entity and relationship naming conventions
+  - Structured metadata handling using Parquet struct fields
+  - Added export_parquet() convenience function for easy access
+  - Enhanced unified export with Parquet format support and .parquet auto-detection
+  - Integrated with method registry for extensibility
+  - 25 comprehensive test cases with 100% pass rate
+  - Enterprise-grade analytics integration with pandas, Spark, Snowflake, BigQuery, Databricks
+
+### Fixed
+- **Fixed NameError**: missing Type import in utils/helpers.py
+  - Added Type to typing imports to fix retry_on_error decorator
+  - Removed unused Type import from config_manager.py
+  - Resolves ImportError when importing semantica modules
+  - Fixes capability gap analysis notebook execution
   - Fixed empty/None decision ID handling in ContextGraph.add_decision()
   - Fixed None metadata handling to prevent TypeError
   - Fixed causal chain depth logic and node exclusion
