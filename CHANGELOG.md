@@ -25,17 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added configuration options: `blocking_keys`, `enable_phonetic_blocking`, `max_candidates_per_entity`
 
 - **ArangoDB AQL Export Support** (PR #342 by @tibisabau):
+### Added
+
+- **ArangoDB AQL Export Support** (PR #342 by @tibisabau)
   - Full-featured ArangoDB AQL exporter with 642 lines of production-ready code
   - Comprehensive AQL INSERT statement generation for vertices and edges
   - Configurable collection names with validation and sanitization
   - Batch processing support for large knowledge graphs (default: 1000)
   - Added export_arango() convenience function for easy access
   - Enhanced unified export with AQL format support and .aql auto-detection
+  - Added `export_arango()` convenience function for easy access
+  - Enhanced unified export with AQL format support and `.aql` auto-detection
   - Integrated with method registry for extensibility
   - 17 comprehensive test cases with 100% pass rate
   - Enterprise-grade ArangoDB multi-model database integration
 
 - **Apache Parquet Export Support** (PR #343 by @tibisabau):
+- **Apache Parquet Export Support** (PR #343 by @tibisabau)
   - Full-featured Apache Parquet exporter with 701 lines of production-ready code
   - Columnar storage format optimized for analytics and data warehousing
   - Configurable compression codecs (snappy, gzip, brotli, zstd, lz4, none)
@@ -44,16 +50,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Structured metadata handling using Parquet struct fields
   - Added export_parquet() convenience function for easy access
   - Enhanced unified export with Parquet format support and .parquet auto-detection
+  - Added `export_parquet()` convenience function for easy access
+  - Enhanced unified export with Parquet format support and `.parquet` auto-detection
   - Integrated with method registry for extensibility
   - 25 comprehensive test cases with 100% pass rate
   - Enterprise-grade analytics integration with pandas, Spark, Snowflake, BigQuery, Databricks
 
 ### Fixed
 - **Fixed NameError**: missing Type import in utils/helpers.py
+
+- Fixed NameError: missing Type import in utils/helpers.py
   - Added Type to typing imports to fix retry_on_error decorator
   - Removed unused Type import from config_manager.py
   - Resolves ImportError when importing semantica modules
   - Fixes capability gap analysis notebook execution
+
+## [0.3.0-alpha] - 2026-02-19
+
+### Added / Changed
+
+- **Decision Tracking System**: Complete decision lifecycle management with audit trails and provenance tracking
+- **Advanced KG Algorithms**: Node2Vec embeddings, centrality analysis, community detection for decision insights  
+- **Enhanced Context Module**: Unified AgentContext with granular feature flags and decision tracking integration
+- **Vector Store Features**: Hybrid search combining semantic, structural, and category similarity
+- **Policy Management**: Versioning, compliance checking, and exception handling
+- **Production Ready Architecture**: Scalable design with comprehensive error handling and validation
+
+### Fixed
+
+- Fixed import issues in test suite (ProvenanceTracker location fixes)
+- Fixed causal analyzer validation (max_depth bounds checking)
+- Fixed test compatibility with updated method signatures
+- Fixed mock object setup in test suites
+- Comprehensive test suite fixes for decision tracking features
+
+### Testing
+
+- 113+ tests passing across context and core modules
+- Comprehensive decision tracking test coverage
+- Enhanced error handling and edge case testing
+- Fixed all critical test failures for release readiness
+
+### Documentation
+
+- Enhanced context module documentation
+- Updated API references for decision tracking features
+- Comprehensive usage guides and examples
+
+- Fixed: Context Graphs decision tracking bugs and added comprehensive test coverage (PR #315 by @KaifAhmad1)
   - Fixed empty/None decision ID handling in ContextGraph.add_decision()
   - Fixed None metadata handling to prevent TypeError
   - Fixed causal chain depth logic and node exclusion
