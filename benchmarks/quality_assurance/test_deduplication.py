@@ -110,6 +110,35 @@ def generate_entity_cluster(base_name: str, size: int) -> List[Dict[str, Any]]:
     return entities
 
 
+def generate_relationship_dataset(size: int) -> List[Dict[str, Any]]:
+    """
+    Generates a dataset of graph relationships/triplets.
+    Includes exact matches, synonym predicates, and dirty literal strings.
+    """
+    relationships = []
+    predicates = ["works_for", "employed_by", "is_employee_of", "has_employer"]
+    
+    for i in range(size):
+        # Base relationship
+        rel = {
+            "subject": f"Person_{i % 50}",
+            "predicate": random.choice(predicates),
+            "object": f"Company_{i % 10}"
+        }
+        relationships.append(rel)
+        
+        # Inject semantic duplicates (dirty literals / synonym predicates)
+        if random.random() < 0.4:
+            dirty_rel = {
+                "subject": f"Person_{i % 50}",
+                "predicate": random.choice(predicates),
+                "object": f"  Company_{i % 10} Inc.  " 
+            }
+            relationships.append(dirty_rel)
+            
+    return relationships
+
+
 def generate_dataset(
     num_clusters: int, items_per_cluster: int, worst_case_blocking: bool = False
 ):
@@ -277,5 +306,33 @@ def test_merge_entity_benchmark(benchmark):
     benchmark.pedantic(
         lambda: merger.merge_entity_group(group, strategy="keep_most_complete"),
         iterations=10,
+        rounds=10,
+    )
+    
+
+@pytest.mark.parametrize("mode", ["legacy", "semantic_v2"])
+def test_relationship_dedup_speed(benchmark, mode):
+    """
+    Measures the speed of relationship/triplet deduplication.
+    Compares the O(N^2) legacy fallback vs the fast canonical hash path.
+    """
+    # Yields ~280 relationships (approx 39,000 comparisons in O(N^2))
+    relationships = generate_relationship_dataset(200) 
+    
+    detector = DuplicateDetector()
+    options = {
+        "threshold": 0.85,
+        "relationship_dedup_mode": mode,
+        "predicate_synonym_map": {
+            "works_for": "employed_by",
+            "is_employee_of": "employed_by",
+            "has_employer": "employed_by"
+        },
+        "literal_normalization_enabled": True
+    }
+
+    benchmark.pedantic(
+        lambda: detector.detect_relationship_duplicates(relationships, **options),
+        iterations=5,
         rounds=10,
     )

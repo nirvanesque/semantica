@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Semantic Relationship Deduplication v2** (PR #340 by @ZohaibHassan16, fixes by @KaifAhmad1):
+  - Implemented opt-in semantic relationship deduplication mode (`semantic_v2`) with 6.98x performance improvement
+  - Added canonicalization engine with predicate synonym mapping (`works_for` → `employed_by`)
+  - Implemented fast-path O(1) hash matching for exact canonical signature comparisons
+  - Added weighted semantic scoring (60% predicate + 40% object composition) with explainable `semantic_match_score` metadata
+  - Enhanced `dedup_triplets()` function as first-class API in `methods.py`
+  - Integrated semantic deduplication into merge strategy with canonical key generation
+  - Added literal normalization for whitespace cleanup in object matching
+  - Maintained full backward compatibility with legacy mode as default
+  - Fixed critical infinite recursion bug in `dedup_triplets()` function via registry name checking
+  - Performance: Semantic V2 (~83ms) vs Legacy (~579ms) - 6.98x speedup confirmed
+  - All 13 deduplication benchmarks passing with comprehensive test coverage
 - **Two-Stage Scoring Prefilter** (PR #339 by @ZohaibHassan16):
   - Implemented opt-in two-stage scoring with fast prefilter gates to eliminate expensive semantic scoring for obvious non-matches
   - Prefilter gates: type mismatch detection, name length ratio validation, token overlap requirements
